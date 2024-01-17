@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -77,10 +78,16 @@ func (h *exchangeHandler) ConsumeRestoreCollections(
 			directoryCache[category] = gcr
 		}
 
+		restoreFolderPath := handler.FormatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath())
+
+		logger.Ctx(ctx).Infow(
+			"creating restore folder",
+			"restore_folder_path", restoreFolderPath)
+
 		containerID, gcc, err := exchange.CreateDestination(
 			ictx,
 			handler,
-			handler.FormatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath()),
+			restoreFolderPath,
 			resourceID,
 			directoryCache[category],
 			errs)

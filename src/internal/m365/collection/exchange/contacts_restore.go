@@ -43,9 +43,15 @@ func (h contactRestoreHandler) NewContainerCache(userID string) graph.ContainerR
 
 func (h contactRestoreHandler) FormatRestoreDestination(
 	destinationContainerName string,
-	_ path.Path, // contact folders cannot be nested
+	collectionFullPath path.Path, // contact folders cannot be nested
 ) *path.Builder {
-	return path.Builder{}.Append(destinationContainerName)
+	// User passed in some location to restore to, use that.
+	if len(destinationContainerName) > 0 {
+		return path.Builder{}.Append(destinationContainerName)
+	}
+
+	// TODO(ashmrtn): Make sure this plays ok with nested folder creation.
+	return path.Builder{}.Append(collectionFullPath.Folders()...)
 }
 
 func (h contactRestoreHandler) CreateContainer(
