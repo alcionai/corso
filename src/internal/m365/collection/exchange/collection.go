@@ -76,7 +76,6 @@ func getItemAndInfo(
 		ctx,
 		userID,
 		id,
-		useImmutableIDs,
 		fault.New(true)) // temporary way to force a failFast error
 	if err != nil {
 		return nil, nil, clues.WrapWC(ctx, err, "fetching item").

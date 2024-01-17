@@ -80,49 +80,91 @@ var (
 			service:  path.ExchangeService,
 			category: path.EmailCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, resource, path.EmailCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.ExchangeService,
+					path.EmailCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.ExchangeService,
 			category: path.ContactsCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, resource, path.ContactsCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.ExchangeService,
+					path.ContactsCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.ExchangeService,
 			category: path.EventsCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerExchangePathForCategory(tenant, resource, path.EventsCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.ExchangeService,
+					path.EventsCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.OneDriveService,
 			category: path.FilesCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerOneDrivePath(tenant, resource, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.OneDriveService,
+					path.FilesCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.SharePointService,
 			category: path.LibrariesCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, resource, path.LibrariesCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.SharePointService,
+					path.LibrariesCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.SharePointService,
 			category: path.ListsCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, resource, path.ListsCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.SharePointService,
+					path.ListsCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 		{
 			service:  path.SharePointService,
 			category: path.PagesCategory,
 			pathFunc: func(pb *path.Builder, tenant, resource string, isItem bool) (path.Path, error) {
-				return pb.ToDataLayerSharePointPath(tenant, resource, path.PagesCategory, isItem)
+				return path.Build(
+					tenant,
+					resource,
+					path.SharePointService,
+					path.PagesCategory,
+					isItem,
+					pb.Elements()...)
 			},
 		},
 	}
@@ -196,12 +238,13 @@ func (suite *DataLayerResourcePath) TestPopFront() {
 		suite.Run(m.name, func() {
 			t := suite.T()
 
-			pb := path.Builder{}.Append(rest...)
-			p, err := pb.ToDataLayerExchangePathForCategory(
+			p, err := path.Build(
 				testTenant,
 				testResource,
+				path.ExchangeService,
 				path.EmailCategory,
-				m.isItem)
+				m.isItem,
+				rest...)
 			require.NoError(t, err, clues.ToCore(err))
 
 			b := p.PopFront()
@@ -220,12 +263,13 @@ func (suite *DataLayerResourcePath) TestDir() {
 
 	for _, m := range modes {
 		suite.Run(m.name, func() {
-			pb := path.Builder{}.Append(rest...)
-			p, err := pb.ToDataLayerExchangePathForCategory(
+			p, err := path.Build(
 				testTenant,
 				testResource,
+				path.ExchangeService,
 				path.EmailCategory,
-				m.isItem)
+				m.isItem,
+				rest...)
 			require.NoError(suite.T(), err, clues.ToCore(err))
 
 			for i := 1; i <= len(rest); i++ {
@@ -391,11 +435,13 @@ func (suite *DataLayerResourcePath) TestToExchangePathForCategory() {
 				suite.Run(test.category.String(), func() {
 					t := suite.T()
 
-					p, err := b.ToDataLayerExchangePathForCategory(
+					p, err := path.Build(
 						testTenant,
 						testResource,
+						path.ExchangeService,
 						test.category,
-						m.isItem)
+						m.isItem,
+						b.Elements()...)
 					test.check(t, err, clues.ToCore(err))
 
 					if err != nil {
@@ -430,11 +476,13 @@ func (suite *PopulatedDataLayerResourcePath) SetupSuite() {
 	base := path.Builder{}.Append(rest...)
 
 	for _, t := range []bool{true, false} {
-		p, err := base.ToDataLayerExchangePathForCategory(
+		p, err := path.Build(
 			testTenant,
 			testResource,
+			path.ExchangeService,
 			path.EmailCategory,
-			t)
+			t,
+			base.Elements()...)
 		require.NoError(suite.T(), err, clues.ToCore(err))
 
 		suite.paths[t] = p
@@ -613,8 +661,13 @@ func (suite *PopulatedDataLayerResourcePath) TestUpdateParent() {
 	}
 
 	buildPath := func(t *testing.T, pth string, isItem bool) path.Path {
-		pathBuilder := path.Builder{}.Append(strings.Split(pth, "/")...)
-		item, err := pathBuilder.ToDataLayerOneDrivePath("tenant", "resource", isItem)
+		item, err := path.Build(
+			"tenant",
+			"resource",
+			path.OneDriveService,
+			path.FilesCategory,
+			isItem,
+			strings.Split(pth, "/")...)
 		require.NoError(t, err, "err building path")
 
 		return item
