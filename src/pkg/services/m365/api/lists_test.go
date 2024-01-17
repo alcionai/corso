@@ -911,8 +911,8 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, listName, info.List.Name)
 			assert.Equal(t, int64(1), info.List.ItemCount)
 			assert.Equal(t, listTemplate, info.List.Template)
-			assert.NotEmpty(t, info.List.Modified)
 			assert.NotEmpty(t, info.Modified)
+			assert.NotEmpty(t, info.Created)
 		})
 	}
 }
