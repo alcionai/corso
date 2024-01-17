@@ -79,3 +79,14 @@ func (rh listsRestoreHandler) DeleteList(
 ) error {
 	return rh.ac.DeleteList(ctx, rh.protectedResource, listID)
 }
+
+func (rh listsRestoreHandler) GetList(
+	ctx context.Context,
+	listID string,
+) (models.Listable, *details.SharePointInfo, error) {
+	return rh.ac.GetListByID(ctx, rh.protectedResource, listID)
+}
+
+func (rh listsRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
+	return rh.ac.GetListsByCollisionKey(ctx, rh.protectedResource)
+}
