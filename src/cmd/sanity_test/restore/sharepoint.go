@@ -80,7 +80,7 @@ func BuildListsSanitree(
 	}
 
 	cfg := api.CallConfig{
-		Select: []string{"id", "displayName", "list", "lastModifiedDateTime"},
+		Select: idAnd("displayName", "list", "lastModifiedDateTime"),
 	}
 
 	lists, err := ac.Lists().GetLists(ctx, siteID, cfg)
@@ -91,10 +91,9 @@ func BuildListsSanitree(
 			err)
 	}
 
-	lists = getAllowedLists(lists)
-	filteredLists := make([]models.Listable, 0)
+	lists = filterToSupportedLists(lists)
 
-	filteredLists = filterListsByPrefix(lists, filteredLists, restoreContainerPrefix)
+	filteredLists := filterListsByPrefix(lists, restoreContainerPrefix)
 
 	rootTreeName := ptr.Val(site.GetDisplayName())
 	// lists get stored into the local dir at destination/Lists/
@@ -136,7 +135,7 @@ func BuildListsSanitree(
 	return root
 }
 
-func getAllowedLists(lists []models.Listable) []models.Listable {
+func filterToSupportedLists(lists []models.Listable) []models.Listable {
 	filteredLists := make([]models.Listable, 0)
 
 	for _, list := range lists {
@@ -148,21 +147,27 @@ func getAllowedLists(lists []models.Listable) []models.Listable {
 	return filteredLists
 }
 
-func filterListsByPrefix(lists, filteredLists []models.Listable, prefix string) []models.Listable {
-	if strings.Contains(prefix, ",") {
-		prefixes := strings.Split(prefix, ",")
-		for _, p := range prefixes {
-			filteredLists = filterListsByPrefix(lists, filteredLists, p)
-		}
-	}
+func filterListsByPrefix(lists []models.Listable, prefix string) []models.Listable {
+	result := []models.Listable{}
 
 	for _, list := range lists {
-		listDisplayName := ptr.Val(list.GetDisplayName())
-
-		if strings.HasPrefix(listDisplayName, prefix) {
-			filteredLists = append(filteredLists, list)
+		for _, pfx := range strings.Split(prefix, ",") {
+			if strings.HasPrefix(ptr.Val(list.GetDisplayName()), pfx) {
+				result = append(result, list)
+				break
+			}
 		}
 	}
 
-	return filteredLists
+	return result
+}
+
+func idAnd(ss ...string) []string {
+	id := []string{"id"}
+
+	if len(ss) == 0 {
+		return id
+	}
+
+	return append(id, ss...)
 }

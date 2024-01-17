@@ -2,16 +2,20 @@ package export
 
 import (
 	"context"
+	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/tidwall/gjson"
 
 	"github.com/alcionai/corso/src/cmd/sanity_test/common"
 	"github.com/alcionai/corso/src/cmd/sanity_test/driveish"
 	"github.com/alcionai/corso/src/cmd/sanity_test/restore"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -20,11 +24,11 @@ func CheckSharePointExport(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	if envs.Category == "lists" {
+	if envs.Category == path.ListsCategory.String() {
 		CheckSharepointListsExport(ctx, ac, envs)
 	}
 
-	if envs.Category == "libraries" {
+	if envs.Category == path.LibrariesCategory.String() {
 		drive, err := ac.Sites().GetDefaultDrive(ctx, envs.SiteID)
 		if err != nil {
 			common.Fatal(ctx, "getting the drive:", err)
@@ -44,12 +48,12 @@ func CheckSharepointListsExport(
 	ac api.Client,
 	envs common.Envs,
 ) {
-	exportFolderName := "Lists"
+	exportFolderName := path.ListsCategory.HumanString()
 
 	sourceTree := restore.BuildListsSanitree(ctx, ac, envs.SiteID, envs.SourceContainer, exportFolderName)
 
 	listsExportDir := filepath.Join(envs.RestoreContainer, exportFolderName)
-	exportedTree := common.BuildFilepathSanitreeForSharepointLists(ctx, listsExportDir)
+	exportedTree := BuildFilepathSanitreeForSharepointLists(ctx, listsExportDir)
 
 	ctx = clues.Add(
 		ctx,
@@ -81,4 +85,67 @@ func CheckSharepointListsExport(
 		comparator)
 
 	common.Infof(ctx, "Success")
+}
+
+func BuildFilepathSanitreeForSharepointLists(
+	ctx context.Context,
+	rootDir string,
+) *common.Sanitree[fs.FileInfo, fs.FileInfo] {
+	var root *common.Sanitree[fs.FileInfo, fs.FileInfo]
+
+	walker := func(
+		p string,
+		info os.FileInfo,
+		err error,
+	) error {
+		if root == nil {
+			root = common.CreateNewRoot(info, false)
+			return nil
+		}
+
+		relPath := common.GetRelativePath(
+			ctx,
+			rootDir,
+			p,
+			info,
+			err)
+
+		if !info.IsDir() {
+			file, err := os.Open(p)
+			if err != nil {
+				common.Fatal(ctx, "opening file to read", err)
+			}
+			defer file.Close()
+
+			content, err := io.ReadAll(file)
+			if err != nil {
+				common.Fatal(ctx, "reading file", err)
+			}
+
+			res := gjson.Get(string(content), "items.#")
+			itemsCount := res.Num
+
+			elems := path.Split(relPath)
+
+			node := root.NodeAt(ctx, elems[:len(elems)-2])
+			node.CountLeaves++
+			node.Leaves[info.Name()] = &common.Sanileaf[fs.FileInfo, fs.FileInfo]{
+				Parent: node,
+				Self:   info,
+				ID:     info.Name(),
+				Name:   info.Name(),
+				// using list item count as size for lists
+				Size: int64(itemsCount),
+			}
+		}
+
+		return nil
+	}
+
+	err := filepath.Walk(rootDir, walker)
+	if err != nil {
+		common.Fatal(ctx, "walking filepath", err)
+	}
+
+	return root
 }

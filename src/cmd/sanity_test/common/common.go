@@ -24,7 +24,7 @@ const (
 	sanityTestRestoreContainer       = "SANITY_TEST_RESTORE_CONTAINER"
 	sanityTestRestoreContainerPrefix = "SANITY_TEST_RESTORE_CONTAINER_PREFIX"
 	sanityTestUser                   = "SANITY_TEST_USER"
-	sanityTestCategory               = "SANITY_TEST_CAT"
+	sanityTestCategory               = "SANITY_TEST_CATEGORY"
 )
 
 type Envs struct {
