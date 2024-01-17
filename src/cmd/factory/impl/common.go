@@ -249,9 +249,12 @@ func generateExchangeMockColls(tenant string, resource string, c collection) (*e
 }
 
 func generateSharepointListsMockColls(tenant string, resource string, c collection) (*siteMock.ListCollection, error) {
-	pth, err := path.Elements{}.
-		Builder().
-		ToDataLayerSharePointListPath(tenant, resource, path.ListsCategory, false)
+	pth, err := path.BuildOrPrefix(
+		tenant,
+		resource,
+		path.SharePointService,
+		c.category,
+		false)
 	if err != nil {
 		return nil, err
 	}
