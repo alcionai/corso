@@ -383,12 +383,11 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 	}
 
 	tests := []struct {
-		name                          string
-		ignoreSubsequentPostListFails bool
-		lrh                           *siteMock.ListRestoreHandler
-		expectErr                     assert.ErrorAssertionFunc
-		expectedPostListCalls         int
-		expectCollisionCount          int64
+		name                  string
+		lrh                   *siteMock.ListRestoreHandler
+		expectErr             assert.ErrorAssertionFunc
+		expectedPostListCalls int
+		expectCollisionCount  int64
 	}{
 		{
 			name: "GetList fails",
@@ -402,19 +401,18 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 			name: "DeleteList fails",
 			lrh: siteMock.NewListRestoreHandler(
 				nil,
-				nil,
-				errors.New("failed to delete list")),
+				errors.New("failed to delete list"),
+				nil),
 			expectErr: assert.Error,
 		},
 		{
 			name: "PostList fails for stored list",
 			lrh: siteMock.NewListRestoreHandler(
 				nil,
-				errors.New("failed to create list"),
-				nil),
-			expectErr:                     assert.Error,
-			ignoreSubsequentPostListFails: true,
-			expectedPostListCalls:         2,
+				nil,
+				[]error{errors.New("failed to create list"), nil}),
+			expectErr:             assert.Error,
+			expectedPostListCalls: 2,
 		},
 		{
 			name: "PostList passes for stored list",
@@ -431,10 +429,6 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			mockData := generateListData(t, service, list)
-
-			if test.ignoreSubsequentPostListFails {
-				test.lrh.SetIgnoreSubsequentPostListFails()
-			}
 
 			_, err := restoreListItem(
 				ctx,
