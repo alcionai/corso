@@ -2,12 +2,9 @@ package common
 
 import (
 	"context"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/tidwall/gjson"
 
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -24,11 +21,11 @@ func BuildFilepathSanitree(
 		err error,
 	) error {
 		if root == nil {
-			root = createNewRoot(info, true)
+			root = CreateNewRoot(info, true)
 			return nil
 		}
 
-		relPath := getRelativePath(
+		relPath := GetRelativePath(
 			ctx,
 			rootDir,
 			p,
@@ -69,70 +66,7 @@ func BuildFilepathSanitree(
 	return root
 }
 
-func BuildFilepathSanitreeForSharepointLists(
-	ctx context.Context,
-	rootDir string,
-) *Sanitree[fs.FileInfo, fs.FileInfo] {
-	var root *Sanitree[fs.FileInfo, fs.FileInfo]
-
-	walker := func(
-		p string,
-		info os.FileInfo,
-		err error,
-	) error {
-		if root == nil {
-			root = createNewRoot(info, false)
-			return nil
-		}
-
-		relPath := getRelativePath(
-			ctx,
-			rootDir,
-			p,
-			info,
-			err)
-
-		if !info.IsDir() {
-			file, err := os.Open(p)
-			if err != nil {
-				Fatal(ctx, "opening file to read", err)
-			}
-			defer file.Close()
-
-			content, err := io.ReadAll(file)
-			if err != nil {
-				Fatal(ctx, "reading file", err)
-			}
-
-			res := gjson.Get(string(content), "items.#")
-			itemsCount := res.Num
-
-			elems := path.Split(relPath)
-
-			node := root.NodeAt(ctx, elems[:len(elems)-2])
-			node.CountLeaves++
-			node.Leaves[info.Name()] = &Sanileaf[fs.FileInfo, fs.FileInfo]{
-				Parent: node,
-				Self:   info,
-				ID:     info.Name(),
-				Name:   info.Name(),
-				// using list item count as size for lists
-				Size: int64(itemsCount),
-			}
-		}
-
-		return nil
-	}
-
-	err := filepath.Walk(rootDir, walker)
-	if err != nil {
-		Fatal(ctx, "walking filepath", err)
-	}
-
-	return root
-}
-
-func createNewRoot(info fs.FileInfo, initChildren bool) *Sanitree[fs.FileInfo, fs.FileInfo] {
+func CreateNewRoot(info fs.FileInfo, initChildren bool) *Sanitree[fs.FileInfo, fs.FileInfo] {
 	root := &Sanitree[fs.FileInfo, fs.FileInfo]{
 		Self:     info,
 		ID:       info.Name(),
@@ -148,7 +82,7 @@ func createNewRoot(info fs.FileInfo, initChildren bool) *Sanitree[fs.FileInfo, f
 	return root
 }
 
-func getRelativePath(
+func GetRelativePath(
 	ctx context.Context,
 	rootDir, p string,
 	info fs.FileInfo,

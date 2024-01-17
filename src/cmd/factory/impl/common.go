@@ -200,53 +200,70 @@ func buildCollections(
 	var (
 		collections = make([]data.RestoreCollection, 0, len(colls))
 		mc          data.Collection
-		pth         path.Path
-		err         error
 	)
 
 	for _, c := range colls {
-		if service == path.ExchangeService {
-			pth, err = path.Build(
-				tenant,
-				resource,
-				service,
-				c.category,
-				false,
-				c.PathElements...)
+		switch {
+		case service == path.ExchangeService:
+			emc, err := generateExchangeMockColls(tenant, resource, c)
 			if err != nil {
 				return nil, err
 			}
 
-			emc := exchMock.NewCollection(pth, pth, len(c.items))
-
-			for i := 0; i < len(c.items); i++ {
-				emc.Names[i] = c.items[i].name
-				emc.Data[i] = c.items[i].data
-			}
-
 			mc = emc
-		} else if service == path.SharePointService {
-			pth, err = path.Elements{}.
-				Builder().
-				ToDataLayerSharePointListPath(tenant, resource, path.ListsCategory, false)
+		case service == path.SharePointService:
+			smc, err := generateSharepointListsMockColls(tenant, resource, c)
 			if err != nil {
 				return nil, err
 			}
 
-			emc := siteMock.NewCollection(pth, pth, len(c.items))
-
-			for i := 0; i < len(c.items); i++ {
-				emc.Names[i] = c.items[i].name
-				emc.Data[i] = c.items[i].data
-			}
-
-			mc = emc
+			mc = smc
 		}
 
 		collections = append(collections, data.NoFetchRestoreCollection{Collection: mc})
 	}
 
 	return collections, nil
+}
+
+func generateExchangeMockColls(tenant string, resource string, c collection) (*exchMock.DataCollection, error) {
+	pth, err := path.Build(
+		tenant,
+		resource,
+		path.ExchangeService,
+		c.category,
+		false,
+		c.PathElements...)
+	if err != nil {
+		return nil, err
+	}
+
+	emc := exchMock.NewCollection(pth, pth, len(c.items))
+
+	for i := 0; i < len(c.items); i++ {
+		emc.Names[i] = c.items[i].name
+		emc.Data[i] = c.items[i].data
+	}
+
+	return emc, nil
+}
+
+func generateSharepointListsMockColls(tenant string, resource string, c collection) (*siteMock.ListCollection, error) {
+	pth, err := path.Elements{}.
+		Builder().
+		ToDataLayerSharePointListPath(tenant, resource, path.ListsCategory, false)
+	if err != nil {
+		return nil, err
+	}
+
+	smc := siteMock.NewCollection(pth, pth, len(c.items))
+
+	for i := 0; i < len(c.items); i++ {
+		smc.Names[i] = c.items[i].name
+		smc.Data[i] = c.items[i].data
+	}
+
+	return smc, nil
 }
 
 var (
