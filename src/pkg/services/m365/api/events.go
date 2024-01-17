@@ -197,14 +197,13 @@ const (
 func (c Events) GetItem(
 	ctx context.Context,
 	userID, itemID string,
-	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
 		err    error
 		event  models.Eventable
 		config = &users.ItemEventsEventItemRequestBuilderGetRequestConfiguration{
-			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+			Headers: newPreferHeaders(preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		}
 	)
 
@@ -226,14 +225,14 @@ func (c Events) GetItem(
 		return nil, nil, clues.Wrap(err, "verify cancelled occurrences")
 	}
 
-	err = fixupExceptionOccurrences(ctx, c, event, immutableIDs, userID)
+	err = fixupExceptionOccurrences(ctx, c, event, userID)
 	if err != nil {
 		return nil, nil, clues.Wrap(err, "fixup exception occurrences")
 	}
 
 	var attachments []models.Attachmentable
 	if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-		attachments, err = c.GetAttachments(ctx, immutableIDs, userID, itemID)
+		attachments, err = c.GetAttachments(ctx, userID, itemID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -250,7 +249,6 @@ func fixupExceptionOccurrences(
 	ctx context.Context,
 	client Events,
 	event models.Eventable,
-	immutableIDs bool,
 	userID string,
 ) error {
 	// Fetch attachments for exceptions
@@ -282,7 +280,7 @@ func fixupExceptionOccurrences(
 
 		var attachments []models.Attachmentable
 		if ptr.Val(event.GetHasAttachments()) || HasAttachments(event.GetBody()) {
-			attachments, err = client.GetAttachments(ctx, immutableIDs, userID, ptr.Val(evt.GetId()))
+			attachments, err = client.GetAttachments(ctx, userID, ptr.Val(evt.GetId()))
 			if err != nil {
 				return clues.Wrap(err, "getting event instance attachments").
 					With("event_instance_id", ptr.Val(evt.GetId()))
@@ -374,14 +372,15 @@ func parseableToMap(att serialization.Parsable) (map[string]any, error) {
 
 func (c Events) GetAttachments(
 	ctx context.Context,
-	immutableIDs bool,
 	userID, itemID string,
 ) ([]models.Attachmentable, error) {
 	config := &users.ItemEventsItemAttachmentsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemEventsItemAttachmentsRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
-		Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	attached, err := c.LargeItem.

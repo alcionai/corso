@@ -182,7 +182,7 @@ func runGroupsBackupGroupNotFoundTest(suite *BackupGroupsE2ESuite, category stri
 	assert.Contains(
 		t,
 		err.Error(),
-		"resource owner not found",
+		"not found",
 		"error missing user not found")
 	assert.NotContains(t, err.Error(), "runtime error", "panic happened")
 

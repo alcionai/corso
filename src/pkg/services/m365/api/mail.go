@@ -254,7 +254,6 @@ func (c Mail) GetContainerChildren(
 func (c Mail) GetItem(
 	ctx context.Context,
 	userID, mailID string,
-	immutableIDs bool,
 	errs *fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	var (
@@ -262,7 +261,7 @@ func (c Mail) GetItem(
 		size     int64
 		mailBody models.ItemBodyable
 		config   = &users.ItemMessagesMessageItemRequestBuilderGetRequestConfiguration{
-			Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+			Headers: newPreferHeaders(preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		}
 	)
 
@@ -289,7 +288,7 @@ func (c Mail) GetItem(
 		return mail, MailInfo(mail, size), nil
 	}
 
-	attachments, totalSize, err := c.getAttachments(ctx, userID, mailID, immutableIDs)
+	attachments, totalSize, err := c.getAttachments(ctx, userID, mailID)
 	if err != nil {
 		// A failure can be caused by having a lot of attachments.
 		// If that happens, we can progres with a two-step approach of:
@@ -297,7 +296,11 @@ func (c Mail) GetItem(
 		// 2. fetching each attachment individually.
 		logger.CtxErr(ctx, err).Info("falling back to fetching attachments by id")
 
-		attachments, totalSize, err = c.getAttachmentsIterated(ctx, userID, mailID, immutableIDs, errs)
+		attachments, totalSize, err = c.getAttachmentsIterated(
+			ctx,
+			userID,
+			mailID,
+			errs)
 		if err != nil {
 			return nil, nil, clues.Stack(err)
 		}
@@ -314,7 +317,6 @@ func (c Mail) GetItem(
 func (c Mail) getAttachments(
 	ctx context.Context,
 	userID, mailID string,
-	immutableIDs bool,
 ) ([]models.Attachmentable, int64, error) {
 	var (
 		result    = []models.Attachmentable{}
@@ -323,7 +325,9 @@ func (c Mail) getAttachments(
 			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 				Expand: []string{"microsoft.graph.itemattachment/item"},
 			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+			Headers: newPreferHeaders(
+				preferPageSize(maxNonDeltaPageSize),
+				preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		}
 	)
 
@@ -354,7 +358,6 @@ func (c Mail) getAttachments(
 func (c Mail) getAttachmentsIterated(
 	ctx context.Context,
 	userID, mailID string,
-	immutableIDs bool,
 	errs *fault.Bus,
 ) ([]models.Attachmentable, int64, error) {
 	var (
@@ -364,7 +367,9 @@ func (c Mail) getAttachmentsIterated(
 			QueryParameters: &users.ItemMessagesItemAttachmentsRequestBuilderGetQueryParameters{
 				Select: idAnd(),
 			},
-			Headers: newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+			Headers: newPreferHeaders(
+				preferPageSize(maxNonDeltaPageSize),
+				preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		}
 	)
 
@@ -397,7 +402,6 @@ func (c Mail) getAttachmentsIterated(
 			userID,
 			mailID,
 			aID,
-			immutableIDs,
 			isItemAttachment,
 			errs)
 		if err != nil {
@@ -416,14 +420,14 @@ func (c Mail) getAttachmentsIterated(
 func (c Mail) getAttachmentByID(
 	ctx context.Context,
 	userID, mailID, attachmentID string,
-	immutableIDs, isItemAttachment bool,
+	isItemAttachment bool,
 	errs *fault.Bus,
 ) (models.Attachmentable, error) {
 	cfg := &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMessagesItemAttachmentsAttachmentItemRequestBuilderGetQueryParameters{
 			Expand: []string{"microsoft.graph.itemattachment/item"},
 		},
-		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	attachment, err := c.Stable.

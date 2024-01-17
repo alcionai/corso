@@ -190,6 +190,8 @@ func genericCreateCommand(
 			ictx  = clues.Add(ctx, "resource_owner_selected", owner)
 		)
 
+		logger.Ctx(ictx).Infof("setting up backup")
+
 		bo, err := r.NewBackupWithLookup(ictx, discSel, ins)
 		if err != nil {
 			cerr := clues.WrapWC(ictx, err, owner)
@@ -206,21 +208,23 @@ func genericCreateCommand(
 		}
 
 		ictx = clues.Add(
-			ctx,
+			ictx,
 			"resource_owner_id", bo.ResourceOwner.ID(),
-			"resource_owner_name", bo.ResourceOwner.Name())
+			"resource_owner_name", clues.Hide(bo.ResourceOwner.Name()))
+
+		logger.Ctx(ictx).Infof("running backup")
 
 		err = bo.Run(ictx)
 		if err != nil {
 			if errors.Is(err, core.ErrServiceNotEnabled) {
-				logger.Ctx(ctx).Infow("service not enabled",
+				logger.Ctx(ictx).Infow("service not enabled",
 					"resource_owner_id", bo.ResourceOwner.ID(),
 					"service", serviceName)
 
 				continue
 			}
 
-			cerr := clues.WrapWC(ictx, err, owner)
+			cerr := clues.Wrap(err, owner)
 			errs = append(errs, cerr)
 
 			meta, err := json.Marshal(cerr.Core().Values)
@@ -236,10 +240,10 @@ func genericCreateCommand(
 		bIDs = append(bIDs, string(bo.Results.BackupID))
 
 		if !DisplayJSONFormat() {
-			Infof(ctx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.BlueOutput(bo.Results.BackupID)))
-			printBackupStats(ctx, r, string(bo.Results.BackupID))
+			Infof(ictx, fmt.Sprintf("Backup complete %s %s", observe.Bullet, color.BlueOutput(bo.Results.BackupID)))
+			printBackupStats(ictx, r, string(bo.Results.BackupID))
 		} else {
-			Infof(ctx, "Backup complete - ID: %v\n", bo.Results.BackupID)
+			Infof(ictx, "Backup complete - ID: %v\n", bo.Results.BackupID)
 		}
 	}
 

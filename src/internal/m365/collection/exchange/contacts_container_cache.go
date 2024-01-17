@@ -108,8 +108,7 @@ func (cfc *contactContainerCache) Populate(
 	containers, err := cfc.enumer.EnumerateContainers(
 		ctx,
 		cfc.userID,
-		baseID,
-		false)
+		baseID)
 	ctx = clues.Add(ctx, "num_enumerated_containers", len(containers))
 
 	if err != nil {
