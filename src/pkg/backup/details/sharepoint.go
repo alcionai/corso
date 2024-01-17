@@ -52,12 +52,9 @@ type SharePointInfo struct {
 }
 
 type ListInfo struct {
-	Name      string    `json:"name,omitempty"`
-	ItemCount int64     `json:"itemCount,omitempty"`
-	Template  string    `json:"template,omitempty"`
-	WebURL    string    `json:"webUrl,omitempty"`
-	Created   time.Time `json:"created,omitempty"`
-	Modified  time.Time `json:"modified,omitempty"`
+	Name      string `json:"name,omitempty"`
+	ItemCount int64  `json:"itemCount,omitempty"`
+	Template  string `json:"template,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a SharePointInfo
@@ -91,8 +88,8 @@ func (i SharePointInfo) Values() []string {
 		return []string{
 			i.List.Name,
 			fmt.Sprintf("%d", i.List.ItemCount),
-			dttm.FormatToTabularDisplay(i.List.Created),
-			dttm.FormatToTabularDisplay(i.List.Modified),
+			dttm.FormatToTabularDisplay(i.Created),
+			dttm.FormatToTabularDisplay(i.Modified),
 		}
 	}
 

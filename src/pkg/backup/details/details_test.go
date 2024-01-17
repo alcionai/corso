@@ -158,13 +158,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemType: SharePointList,
+						Created:  now,
+						Modified: now,
+						WebURL:   "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/list1",
 						List: &ListInfo{
 							Name:      "list1",
 							ItemCount: 50,
 							Template:  "genericList",
-							Created:   now,
-							Modified:  now,
-							WebURL:    "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/list1",
 						},
 					},
 				},
@@ -188,13 +188,13 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 				ItemInfo: ItemInfo{
 					SharePoint: &SharePointInfo{
 						ItemType: SharePointList,
+						Created:  now,
+						Modified: now,
+						WebURL:   "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/Shared%20Documents",
 						List: &ListInfo{
 							Name:      "Shared%20Documents",
 							ItemCount: 50,
 							Template:  "documentLibrary",
-							Created:   now,
-							Modified:  now,
-							WebURL:    "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/Shared%20Documents",
 						},
 					},
 				},
