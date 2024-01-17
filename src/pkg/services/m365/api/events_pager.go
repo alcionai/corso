@@ -30,11 +30,12 @@ type eventsCalendarsPageCtrl struct {
 
 func (c Events) NewEventCalendarsPager(
 	userID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.Calendarable] {
 	options := &users.ItemCalendarsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemCalendarsRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -71,9 +72,8 @@ func (p *eventsCalendarsPageCtrl) ValidModTimes() bool {
 func (c Events) EnumerateContainers(
 	ctx context.Context,
 	userID, _ string, // baseContainerID not needed here
-	immutableIDs bool,
 ) ([]models.Calendarable, error) {
-	containers, err := pagers.BatchEnumerateItems(ctx, c.NewEventCalendarsPager(userID, immutableIDs))
+	containers, err := pagers.BatchEnumerateItems(ctx, c.NewEventCalendarsPager(userID))
 	return containers, graph.Stack(ctx, err).OrNil()
 }
 
@@ -91,11 +91,12 @@ type eventsPageCtrl struct {
 
 func (c Events) NewEventsPager(
 	userID, containerID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemCalendarsItemEventsRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -135,7 +136,7 @@ func (c Events) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewEventsPager(userID, containerID, false, eventCollisionKeyProps()...)
+	pager := c.NewEventsPager(userID, containerID, eventCollisionKeyProps()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -156,7 +157,7 @@ func (c Events) GetItemIDsInContainer(
 	userID, containerID string,
 ) (map[string]struct{}, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewEventsPager(userID, containerID, false, idAnd()...)
+	pager := c.NewEventsPager(userID, containerID, idAnd()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -198,13 +199,14 @@ func getEventDeltaBuilder(
 func (c Events) NewEventsDeltaPager(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.DeltaHandler[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{},
-		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(c.options.DeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	if len(selectProps) > 0 {
@@ -256,12 +258,10 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		config.UseImmutableIDs,
 		idAnd()...)
 	pager := c.NewEventsPager(
 		userID,
 		containerID,
-		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](

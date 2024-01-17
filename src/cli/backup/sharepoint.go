@@ -5,7 +5,6 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -63,15 +62,11 @@ corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 // called by backup.go to map subcommands to provider-specific handling.
 func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case createCommand:
-		c, fs = utils.AddCommand(cmd, sharePointCreateCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, sharePointCreateCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandCreateUseSuffix
 		c.Example = sharePointServiceCommandCreateExamples
@@ -82,15 +77,13 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddGenericBackupFlags(c)
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, sharePointListCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, sharePointListCmd())
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDetailsCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, sharePointDetailsCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDetailsUseSuffix
 		c.Example = sharePointServiceCommandDetailsExamples
@@ -100,8 +93,7 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddSharePointDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, sharePointDeleteCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, sharePointDeleteCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandDeleteUseSuffix
 		c.Example = sharePointServiceCommandDeleteExamples

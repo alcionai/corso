@@ -171,7 +171,6 @@ type CallConfig struct {
 	Expand              []string
 	Select              []string
 	CanMakeDeltaQueries bool
-	UseImmutableIDs     bool
 	// LimitResults limits the returned results to the given number. If 0, returns
 	// all results.
 	LimitResults int

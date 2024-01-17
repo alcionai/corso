@@ -22,7 +22,7 @@ import (
 const (
 	hideProgressBarsFN   = "hide-progress"
 	retainProgressBarsFN = "retain-progress"
-	progressBarWidth     = 40
+	progressBarWidth     = 32
 )
 
 func init() {
@@ -117,6 +117,10 @@ func (o *observer) resetWriter(ctx context.Context) {
 	// 	opts = append(opts, mpb.WithAutoRefresh())
 	// }
 
+	if o.mp != nil {
+		logger.Ctx(ctx).Infow("resetting progress bars", "bar_count", o.mp.BarCount())
+	}
+
 	o.mp = mpb.NewWithContext(ctx, opts...)
 }
 
@@ -154,7 +158,12 @@ func Flush(ctx context.Context) {
 	obs := getObserver(ctx)
 
 	if obs.mp != nil {
+		logr := logger.Ctx(ctx)
+		logr.Infow("blocked flushing progress bars", "bar_count", obs.mp.BarCount())
+
 		obs.mp.Wait()
+
+		logr.Infow("progress bars flushed")
 	}
 
 	obs.resetWriter(ctx)

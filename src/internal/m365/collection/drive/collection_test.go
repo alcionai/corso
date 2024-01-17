@@ -180,9 +180,13 @@ func (suite *CollectionUnitSuite) TestCollection() {
 				readItems  = []data.Item{}
 			)
 
-			pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/dir1/dir2/dir3")...)
-
-			folderPath, err := pb.ToDataLayerOneDrivePath("tenant", "owner", false)
+			folderPath, err := path.Build(
+				"tenant",
+				"owner",
+				path.OneDriveService,
+				path.FilesCategory,
+				false,
+				path.Split("drive/driveID1/root:/dir1/dir2/dir3")...)
 			require.NoError(t, err, clues.ToCore(err))
 
 			mbh := defaultOneDriveBH("a-user")
@@ -314,8 +318,13 @@ func (suite *CollectionUnitSuite) TestCollectionReadError() {
 
 	wg.Add(1)
 
-	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	folderPath, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		path.Split("drive/driveID1/root:/folderPath")...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mbh := defaultOneDriveBH("a-user")
@@ -393,8 +402,13 @@ func (suite *CollectionUnitSuite) TestCollectionReadUnauthorizedErrorRetry() {
 		true,
 		false)
 
-	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	folderPath, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		path.Split("drive/driveID1/root:/folderPath")...)
 	require.NoError(t, err)
 
 	mbh := defaultOneDriveBH("a-user")
@@ -454,8 +468,13 @@ func (suite *CollectionUnitSuite) TestCollectionPermissionBackupLatestModTime() 
 
 	wg.Add(1)
 
-	pb := path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
-	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	folderPath, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		path.Split("drive/driveID1/root:/folderPath")...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mbh := defaultOneDriveBH("a-user")
@@ -844,10 +863,15 @@ func (suite *CollectionUnitSuite) TestItemExtensions() {
 		wg           = sync.WaitGroup{}
 		now          = time.Now()
 		readData     = []byte("hello world!")
-		pb           = path.Builder{}.Append(path.Split("drive/driveID1/root:/folderPath")...)
 	)
 
-	folderPath, err := pb.ToDataLayerOneDrivePath("a-tenant", "a-user", false)
+	folderPath, err := path.Build(
+		"a-tenant",
+		"a-user",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		path.Split("drive/driveID1/root:/folderPath")...)
 	require.NoError(t, err, clues.ToCore(err))
 
 	table := []struct {

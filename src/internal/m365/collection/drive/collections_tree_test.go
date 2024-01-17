@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/count"
 	countTD "github.com/alcionai/corso/src/pkg/count/testdata"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
@@ -2306,8 +2307,13 @@ func (suite *CollectionsTreeUnitSuite) TestCollections_AddFolderToTree() {
 func (suite *CollectionsTreeUnitSuite) TestCollections_MakeFolderCollectionPath() {
 	d := drive()
 
-	basePath, err := odConsts.DriveFolderPrefixBuilder(d.id).
-		ToDataLayerOneDrivePath(tenant, user, false)
+	basePath, err := path.Build(
+		tenant,
+		user,
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		odConsts.DriveFolderPrefixBuilder(d.id).Elements()...)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	folderPath, err := basePath.Append(false, folderName())

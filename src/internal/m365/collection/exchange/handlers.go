@@ -40,7 +40,6 @@ type itemGetterSerializer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-		immutableIDs bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(

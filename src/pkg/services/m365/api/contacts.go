@@ -185,11 +185,10 @@ func (c Contacts) PatchFolder(
 func (c Contacts) GetItem(
 	ctx context.Context,
 	userID, itemID string,
-	immutableIDs bool,
 	_ *fault.Bus, // no attachments to iterate over, so this goes unused
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	options := &users.ItemContactsContactItemRequestBuilderGetRequestConfiguration{
-		Headers: newPreferHeaders(preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	cont, err := c.Stable.
