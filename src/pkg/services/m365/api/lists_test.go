@@ -774,6 +774,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 				list.SetId(ptr.To(listID))
 				list.SetDisplayName(ptr.To(listName))
 				list.SetList(listInfo)
+				list.SetCreatedDateTime(ptr.To(time.Now()))
 				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
