@@ -60,6 +60,10 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 						"--" + flags.FileModifiedAfterFN, flagsTD.FileModifiedAfterInput,
 						"--" + flags.FileModifiedBeforeFN, flagsTD.FileModifiedBeforeInput,
 						"--" + flags.ListFN, flagsTD.FlgInputs(flagsTD.ListsInput),
+						"--" + flags.ListCreatedAfterFN, flagsTD.ListCreatedAfterInput,
+						"--" + flags.ListCreatedBeforeFN, flagsTD.ListCreatedBeforeInput,
+						"--" + flags.ListModifiedAfterFN, flagsTD.ListModifiedAfterInput,
+						"--" + flags.ListModifiedBeforeFN, flagsTD.ListModifiedBeforeInput,
 						"--" + flags.PageFN, flagsTD.FlgInputs(flagsTD.PageInput),
 						"--" + flags.PageFolderFN, flagsTD.FlgInputs(flagsTD.PageFolderInput),
 						"--" + flags.CollisionsFN, flagsTD.Collisions,
@@ -89,6 +93,10 @@ func (suite *SharePointUnitSuite) TestAddSharePointCommands() {
 			assert.Equal(t, flagsTD.FileModifiedAfterInput, opts.FileModifiedAfter)
 			assert.Equal(t, flagsTD.FileModifiedBeforeInput, opts.FileModifiedBefore)
 			assert.ElementsMatch(t, flagsTD.ListsInput, opts.Lists)
+			assert.Equal(t, flagsTD.ListCreatedAfterInput, opts.ListCreatedAfter)
+			assert.Equal(t, flagsTD.ListCreatedBeforeInput, opts.ListCreatedBefore)
+			assert.Equal(t, flagsTD.ListModifiedAfterInput, opts.ListModifiedAfter)
+			assert.Equal(t, flagsTD.ListModifiedBeforeInput, opts.ListModifiedBefore)
 			assert.ElementsMatch(t, flagsTD.PageInput, opts.Page)
 			assert.ElementsMatch(t, flagsTD.PageFolderInput, opts.PageFolder)
 			assert.Equal(t, flagsTD.Collisions, opts.RestoreCfg.Collisions)

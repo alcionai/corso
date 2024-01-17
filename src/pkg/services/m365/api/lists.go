@@ -546,6 +546,7 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 	return &details.SharePointInfo{
 		ItemType: details.SharePointList,
 		Modified: modified,
+		Created:  created,
 		List: &details.ListInfo{
 			Name:      name,
 			ItemCount: int64(count),
