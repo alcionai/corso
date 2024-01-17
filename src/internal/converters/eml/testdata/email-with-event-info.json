@@ -54,7 +54,7 @@
       }
     }
   ],
-    "ccRecipients": [
+  "ccRecipients": [
     {
       "emailAddress": {
         "name": "Faker 2",

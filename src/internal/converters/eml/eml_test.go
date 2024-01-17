@@ -260,10 +260,13 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	for _, to := range tos {
 		found := false
+
 		for _, attendee := range att {
 			if "mailto:"+ptr.Val(to.GetEmailAddress().GetAddress()) == attendee.Value {
 				found = true
+
 				assert.Equal(t, "REQ-PARTICIPANT", attendee.ICalParameters["ROLE"][0])
+
 				break
 			}
 		}
@@ -273,14 +276,52 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	for _, cc := range ccs {
 		found := false
+
 		for _, attendee := range att {
 			if "mailto:"+ptr.Val(cc.GetEmailAddress().GetAddress()) == attendee.Value {
 				found = true
+
 				assert.Equal(t, "OPT-PARTICIPANT", attendee.ICalParameters["ROLE"][0])
+
 				break
 			}
 		}
 
 		assert.True(t, found, "cc recipient not found in attendees")
 	}
+}
+
+func (suite *EMLUnitSuite) TestConvert_eml_ics_from_event_obj() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(testdata.EmailWithEventObject)
+
+	out, err := FromJSON(ctx, body)
+	assert.NoError(t, err, "converting to eml")
+
+	rmsg, err := api.BytesToMessageable(body)
+	require.NoError(t, err, "creating message")
+
+	msg := rmsg.(*models.EventMessageRequest)
+	evt := msg.GetEvent()
+
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
+	require.NotNil(t, eml, "eml should not be nil")
+
+	require.Equal(t, 1, len(eml.OtherParts), "eml should have 1 attachment")
+	require.Equal(t, "text/calendar", eml.OtherParts[0].ContentType, "eml attachment should be a calendar")
+
+	catt := *eml.OtherParts[0]
+	cal, err := ical.ParseCalendar(bytes.NewReader(catt.Content))
+	require.NoError(t, err, "parsing calendar")
+
+	event := cal.Events()[0]
+
+	assert.Equal(t, ptr.Val(evt.GetId()), event.Id())
+	assert.NotEqual(t, ptr.Val(msg.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
+	assert.Equal(t, ptr.Val(evt.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
 }

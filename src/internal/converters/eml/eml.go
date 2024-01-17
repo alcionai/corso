@@ -103,6 +103,7 @@ func getICalData(ctx context.Context, data models.Messageable) (string, error) {
 	// NOTE: If an event was previously created and we added people to
 	// it, the original list of attendee are not available.
 	atts := []models.Attendeeable{}
+
 	for _, to := range msg.GetToRecipients() {
 		att := models.NewAttendee()
 		att.SetEmailAddress(to.GetEmailAddress())
