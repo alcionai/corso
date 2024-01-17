@@ -112,8 +112,7 @@ func (mc *mailContainerCache) Populate(
 	containers, err := mc.enumer.EnumerateContainers(
 		ctx,
 		mc.userID,
-		"",
-		false)
+		"")
 	ctx = clues.Add(ctx, "num_enumerated_containers", len(containers))
 
 	if err != nil {

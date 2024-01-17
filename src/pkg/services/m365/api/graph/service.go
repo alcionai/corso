@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -402,7 +403,10 @@ func (aw *adapterWrap) Send(
 			time.Sleep(aw.retryDelay)
 		}
 
-		ictx := clues.Add(ctx, "request_retry_iter", i)
+		ictx := clues.Add(
+			ctx,
+			"request_retry_iter", i,
+			"request_start_time", dttm.Now())
 
 		resp, err := aw.RequestAdapter.Send(ictx, requestInfo, constructor, errorMappings)
 		if err == nil {
@@ -434,7 +438,9 @@ func (aw *adapterWrap) Send(
 	}
 
 	e = clues.Stack(e).
-		With("retried_errors", retriedErrors).
+		With(
+			"retried_errors", retriedErrors,
+			"request_end_time", dttm.Now()).
 		WithTrace(1).
 		OrNil()
 

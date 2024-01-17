@@ -131,7 +131,13 @@ func (h userDriveBackupHandler) CanonicalPath(
 	folders *path.Builder,
 	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerOneDrivePath(tenantID, h.userID, false)
+	return path.Build(
+		tenantID,
+		h.userID,
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		folders.Elements()...)
 }
 
 func (h userDriveBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {

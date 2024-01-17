@@ -95,23 +95,18 @@ func (lh *ListHandler) Check(t *testing.T, expected []string) {
 }
 
 type ListRestoreHandler struct {
-	ignoreSubsequentPostListFails bool
-	getListErr                    error
-	deleteListErr                 error
-	postListErr                   error
-	postListCalls                 int
+	getListErr    error
+	deleteListErr error
+	postListErrs  []error
+	postListCalls int
 }
 
-func NewListRestoreHandler(getListErr, postListErr, deleteListErr error) *ListRestoreHandler {
+func NewListRestoreHandler(getListErr, deleteListErr error, postListErrs []error) *ListRestoreHandler {
 	return &ListRestoreHandler{
 		getListErr:    getListErr,
 		deleteListErr: deleteListErr,
-		postListErr:   postListErr,
+		postListErrs:  postListErrs,
 	}
-}
-
-func (lh *ListRestoreHandler) SetIgnoreSubsequentPostListFails() {
-	lh.ignoreSubsequentPostListFails = true
 }
 
 func (lh *ListRestoreHandler) PostList(
@@ -124,17 +119,11 @@ func (lh *ListRestoreHandler) PostList(
 
 	ls, _ := api.ToListable(storedList, listName)
 
-	if lh.postListErr == nil {
+	if lh.postListCalls > len(lh.postListErrs) {
 		return ls, nil
 	}
 
-	var err error
-	if lh.ignoreSubsequentPostListFails {
-		err = lh.postListErr
-		lh.postListErr = nil
-	}
-
-	return nil, err
+	return nil, lh.postListErrs[lh.postListCalls-1]
 }
 
 func (lh *ListRestoreHandler) GetList(

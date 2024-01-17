@@ -323,7 +323,13 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections() {
 		}
 	)
 
-	p, err := dpb.ToDataLayerOneDrivePath("t", "u", false)
+	p, err := path.Build(
+		"t",
+		"u",
+		path.OneDriveService,
+		path.FilesCategory,
+		false,
+		dpb.Elements()...)
 	assert.NoError(t, err, "build path")
 
 	dcs := []data.RestoreCollection{
