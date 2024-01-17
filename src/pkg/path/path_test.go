@@ -446,6 +446,82 @@ func (suite *PathUnitSuite) TestPrefixOrPathFromDataLayerPath() {
 	assert.Error(t, err)
 }
 
+func (suite *PathUnitSuite) TestBuildOrPrefix() {
+	table := []struct {
+		name      string
+		service   ServiceType
+		category  CategoryType
+		tenant    string
+		owner     string
+		folders   []string
+		expect    string
+		expectErr require.ErrorAssertionFunc
+	}{
+		{
+			name:      "ok, empty elements",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			folders:   []string{},
+			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String()}),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "ok, non-empty elements",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "ro",
+			folders:   []string{"foo"},
+			expect:    join([]string{"t", ExchangeService.String(), "ro", ContactsCategory.String(), "foo"}),
+			expectErr: require.NoError,
+		},
+		{
+			name:      "bad category",
+			service:   ExchangeService,
+			category:  FilesCategory,
+			tenant:    "t",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad tenant",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "",
+			owner:     "ro",
+			expectErr: require.Error,
+		},
+		{
+			name:      "bad owner",
+			service:   ExchangeService,
+			category:  ContactsCategory,
+			tenant:    "t",
+			owner:     "",
+			expectErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			r, err := BuildOrPrefix(test.tenant, test.owner, test.service, test.category, false, test.folders...)
+			test.expectErr(t, err, clues.ToCore(err))
+
+			if r == nil {
+				return
+			}
+
+			assert.Equal(t, test.expect, r.String())
+			assert.NotPanics(t, func() {
+				r.Folders()
+				r.Item()
+			}, "runs Folders() and Item()")
+		})
+	}
+}
+
 func (suite *PathUnitSuite) TestBuildPrefix() {
 	table := []struct {
 		name      string

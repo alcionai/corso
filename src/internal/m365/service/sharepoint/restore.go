@@ -110,10 +110,9 @@ func (h *sharepointHandler) ConsumeRestoreCollections(
 				ictx,
 				listsRh,
 				dc,
-				rcc.RestoreConfig.Location,
+				rcc.RestoreConfig,
 				deets,
 				collisionKeyToItemID,
-				rcc.RestoreConfig.OnCollision,
 				cl,
 				errs)
 

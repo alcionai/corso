@@ -357,9 +357,9 @@ func (bs backupStats) MinimumPrintable() any {
 // for printing out to a terminal in a columnar display.
 func (bs backupStats) Headers(skipID bool) []string {
 	headers := []string{
-		"Bytes Uploaded",
-		"Items Uploaded",
-		"Items Skipped",
+		"Bytes uploaded",
+		"Items uploaded",
+		"Items skipped",
 		"Errors",
 	}
 

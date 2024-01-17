@@ -82,8 +82,7 @@ func (ecc *eventContainerCache) Populate(
 	containers, err := ecc.enumer.EnumerateContainers(
 		ctx,
 		ecc.userID,
-		"",
-		false)
+		"")
 	ctx = clues.Add(ctx, "num_enumerated_containers", len(containers))
 
 	if err != nil {
