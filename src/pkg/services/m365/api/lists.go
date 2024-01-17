@@ -2,72 +2,21 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
-
-const (
-	AttachmentsColumnName       = "Attachments"
-	EditColumnName              = "Edit"
-	ContentTypeColumnName       = "ContentType"
-	CreatedColumnName           = "Created"
-	ModifiedColumnName          = "Modified"
-	AuthorLookupIDColumnName    = "AuthorLookupId"
-	EditorLookupIDColumnName    = "EditorLookupId"
-	AppAuthorLookupIDColumnName = "AppAuthorLookupId"
-	TitleColumnName             = "Title"
-
-	ContentTypeColumnDisplayName = "Content Type"
-
-	AddressFieldName     = "address"
-	CoordinatesFieldName = "coordinates"
-	DisplayNameFieldName = "displayName"
-	LocationURIFieldName = "locationUri"
-	UniqueIDFieldName    = "uniqueId"
-
-	CountryOrRegionFieldName = "CountryOrRegion"
-	StateFieldName           = "State"
-	CityFieldName            = "City"
-	PostalCodeFieldName      = "PostalCode"
-	StreetFieldName          = "Street"
-	GeoLocFieldName          = "GeoLoc"
-	DispNameFieldName        = "DispName"
-	LinkTitleFieldNamePart   = "LinkTitle"
-	ChildCountFieldNamePart  = "ChildCount"
-	LookupIDFieldNamePart    = "LookupId"
-
-	ReadOnlyOrHiddenFieldNamePrefix = "_"
-	DescoratorFieldNamePrefix       = "@"
-
-	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
-	// This issue https://github.com/alcionai/corso/issues/4932
-	// tracks to backup/restore supportability of `documentLibrary` templated lists
-	DocumentLibraryListTemplate = "documentLibrary"
-	SharingLinksListTemplate    = "sharingLinks"
-	AccessRequestsListTemplate  = "accessRequest"
-)
-
-var legacyColumns = keys.Set{
-	AttachmentsColumnName:        {},
-	EditColumnName:               {},
-	ContentTypeColumnDisplayName: {},
-}
-
-var SkipListTemplates = keys.Set{
-	WebTemplateExtensionsListTemplate: {},
-	DocumentLibraryListTemplate:       {},
-	SharingLinksListTemplate:          {},
-	AccessRequestsListTemplate:        {},
-}
 
 // ---------------------------------------------------------------------------
 // controller
@@ -481,6 +430,16 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any
 	fields := models.NewFieldValueSet()
 
 	additionalData := setAdditionalDataByColumnNames(orig, columnNames)
+	if addressField, fieldName, ok := hasAddressFields(additionalData); ok {
+		concatenatedAddress := concatenateAddressFields(addressField)
+		additionalData[fieldName] = concatenatedAddress
+	}
+
+	if hyperLinkField, fieldName, ok := hasHyperLinkFields(additionalData); ok {
+		concatenatedHyperlink := concatenateHyperLinkFields(hyperLinkField)
+		additionalData[fieldName] = concatenatedHyperlink
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -504,6 +463,92 @@ func setAdditionalDataByColumnNames(
 	}
 
 	return filteredData
+}
+
+func hasAddressFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for k, v := range additionalData {
+		nestedFields, ok := v.(map[string]any)
+		if !ok || keys.HasKeys(nestedFields, GeoLocFN) {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields, addressFieldNames...) {
+			return nestedFields, k, true
+		}
+	}
+
+	return nil, "", false
+}
+
+func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields,
+			[]string{HyperlinkDescriptionKey, HyperlinkURLKey}...) {
+			return nestedFields, fieldName, true
+		}
+	}
+
+	return nil, "", false
+}
+
+func concatenateAddressFields(addressFields map[string]any) string {
+	parts := make([]string, 0)
+
+	if dispName, ok := addressFields[DisplayNameKey].(*string); ok {
+		parts = append(parts, ptr.Val(dispName))
+	}
+
+	if fields, ok := addressFields[AddressKey].(map[string]any); ok {
+		parts = append(parts, addressKeyToVal(fields, StreetKey))
+		parts = append(parts, addressKeyToVal(fields, CityKey))
+		parts = append(parts, addressKeyToVal(fields, StateKey))
+		parts = append(parts, addressKeyToVal(fields, CountryKey))
+		parts = append(parts, addressKeyToVal(fields, PostalCodeKey))
+	}
+
+	if coords, ok := addressFields[CoordinatesKey].(map[string]any); ok {
+		parts = append(parts, addressKeyToVal(coords, LatitudeKey))
+		parts = append(parts, addressKeyToVal(coords, LongitudeKey))
+	}
+
+	if len(parts) > 0 {
+		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
+	parts := make([]string, 0)
+
+	if v, err := str.AnyValueToString(HyperlinkURLKey, hyperlinkFields); err == nil {
+		parts = append(parts, v)
+	}
+
+	if v, err := str.AnyValueToString(HyperlinkDescriptionKey, hyperlinkFields); err == nil {
+		parts = append(parts, v)
+	}
+
+	if len(parts) > 0 {
+		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func addressKeyToVal(fields map[string]any, key string) string {
+	if v, err := str.AnyValueToString(key, fields); err == nil {
+		return v
+	} else if v, ok := fields[key].(*float64); ok {
+		return fmt.Sprintf("%v", ptr.Val(v))
+	}
+
+	return ""
 }
 
 func (c Lists) getListItemFields(
@@ -555,4 +600,19 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 			WebURL:    webURL,
 		},
 	}
+}
+
+func listCollisionKeyProps() []string {
+	return idAnd("displayName")
+}
+
+// Two lists with same name cannot be created,
+// hence going by the displayName itself as the collision key.
+// Only displayName can be set. name is system generated based on displayName.
+func ListCollisionKey(list models.Listable) string {
+	if list == nil {
+		return ""
+	}
+
+	return ptr.Val(list.GetDisplayName())
 }

@@ -53,9 +53,10 @@ func locFromRepo(rr path.Path, isItem bool) *path.Builder {
 		loc = loc.Append(strings.TrimSuffix(e, folderSuffix))
 	}
 
-	if rr.Service() == path.GroupsService {
+	switch rr.Service() {
+	case path.GroupsService:
 		loc = loc.PopFront().PopFront().PopFront()
-	} else if rr.Service() == path.OneDriveService || rr.Category() == path.LibrariesCategory || rr.Category() == path.ListsCategory {
+	case path.OneDriveService, path.SharePointService:
 		loc = loc.PopFront()
 	}
 
@@ -126,9 +127,6 @@ func (p repoRefAndLocRef) locationAsRepoRef() path.Path {
 }
 
 func mustPathRep(ref string, isItem, isSharepointList bool) repoRefAndLocRef {
-	var rr path.Path
-	var err error
-
 	res := repoRefAndLocRef{}
 	tmp := mustParsePath(ref, isItem, isSharepointList)
 
@@ -144,21 +142,13 @@ func mustPathRep(ref string, isItem, isSharepointList bool) repoRefAndLocRef {
 		rrPB = rrPB.Append(tmp.Item() + fileSuffix)
 	}
 
-	if isSharepointList {
-		rr, err = rrPB.ToDataLayerSharePointListPath(
-			tmp.Tenant(),
-			tmp.ProtectedResource(),
-			tmp.Category(),
-			isItem)
-	} else {
-		rr, err = rrPB.ToDataLayerPath(
-			tmp.Tenant(),
-			tmp.ProtectedResource(),
-			tmp.Service(),
-			tmp.Category(),
-			isItem)
-	}
-
+	rr, err := path.BuildOrPrefix(
+		tmp.Tenant(),
+		tmp.ProtectedResource(),
+		tmp.Service(),
+		tmp.Category(),
+		isItem,
+		rrPB.Elements()...)
 	if err != nil {
 		panic(err)
 	}

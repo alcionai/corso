@@ -164,6 +164,40 @@ func BuildMetadata(
 			hasItem)
 }
 
+// BuildOrPrefix is the same as Build, but allows for 0-len folders
+// (ie: only builds the prefix).
+func BuildOrPrefix(
+	tenant, resourceOwner string,
+	service ServiceType,
+	category CategoryType,
+	hasItem bool,
+	elements ...string,
+) (Path, error) {
+	pb := Builder{}
+
+	if err := ValidateServiceAndCategory(service, category); err != nil {
+		return nil, err
+	}
+
+	if err := verifyInputValues(tenant, resourceOwner); err != nil {
+		return nil, err
+	}
+
+	prefixItems := append(Elements{
+		tenant,
+		service.String(),
+		resourceOwner,
+		category.String(),
+	}, elements...)
+
+	return &dataLayerResourcePath{
+		Builder:  *pb.withPrefix(prefixItems...),
+		service:  service,
+		category: category,
+		hasItem:  hasItem,
+	}, nil
+}
+
 func BuildPrefix(
 	tenant, resourceOwner string,
 	s ServiceType,
