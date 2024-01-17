@@ -57,7 +57,6 @@ func (ig mockItemGetter) GetItem(
 	context.Context,
 	string,
 	string,
-	bool,
 	*fault.Bus,
 ) (serialization.Parsable, *details.ExchangeInfo, error) {
 	return models.NewMessage(), &details.ExchangeInfo{}, nil

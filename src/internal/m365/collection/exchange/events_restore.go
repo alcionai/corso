@@ -211,7 +211,6 @@ type attachmentGetDeletePoster interface {
 	attachmentPoster
 	GetAttachments(
 		ctx context.Context,
-		immutableIDs bool,
 		userID string,
 		itemID string,
 	) ([]models.Attachmentable, error)
@@ -238,7 +237,7 @@ func updateAttachments(
 ) error {
 	el := errs.Local()
 
-	attachments, err := agdp.GetAttachments(ctx, false, userID, eventID)
+	attachments, err := agdp.GetAttachments(ctx, userID, eventID)
 	if err != nil {
 		return clues.Wrap(err, "getting attachments")
 	}

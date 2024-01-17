@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/events"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -129,15 +130,18 @@ func (hw httpWrapper) Request(
 			time.Sleep(hw.retryDelay)
 		}
 
-		ctx = clues.Add(ctx, "request_retry_iter", i)
+		ictx := clues.Add(
+			ctx,
+			"request_retry_iter", i,
+			"request_start_time", dttm.Now())
 
 		resp, err := hw.client.Do(req)
 		if err == nil {
-			logResp(ctx, resp)
+			logResp(ictx, resp)
 			return resp, nil
 		}
 
-		err = stackWithCoreErr(ctx, err, 1)
+		err = stackWithCoreErr(ictx, err, 1)
 		e = err
 
 		var http2StreamErr http2.StreamError
@@ -146,14 +150,16 @@ func (hw httpWrapper) Request(
 			break
 		}
 
-		logger.Ctx(ctx).Debug("http2 stream error")
+		logger.Ctx(ictx).Debug("http2 stream error")
 		events.Inc(events.APICall, "streamerror")
 
 		retriedErrors = append(retriedErrors, err.Error())
 	}
 
 	e = clues.Stack(e).
-		With("retried_errors", retriedErrors).
+		With(
+			"retried_errors", retriedErrors,
+			"request_end_time", dttm.Now()).
 		WithTrace(1).
 		OrNil()
 

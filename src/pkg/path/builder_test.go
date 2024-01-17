@@ -276,7 +276,7 @@ func (suite *BuilderUnitSuite) TestFolder() {
 			p: func(t *testing.T) Path {
 				p, err := Builder{}.
 					Append("a", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+					ToDataLayerPath("t", "u", ExchangeService, EmailCategory, false)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return p
@@ -289,7 +289,7 @@ func (suite *BuilderUnitSuite) TestFolder() {
 			p: func(t *testing.T) Path {
 				p, err := Builder{}.
 					Append("a", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+					ToDataLayerPath("t", "u", ExchangeService, EmailCategory, false)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return p
@@ -303,7 +303,7 @@ func (suite *BuilderUnitSuite) TestFolder() {
 			p: func(t *testing.T) Path {
 				p, err := Builder{}.
 					Append("a/", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+					ToDataLayerPath("t", "u", ExchangeService, EmailCategory, false)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return p
@@ -316,7 +316,7 @@ func (suite *BuilderUnitSuite) TestFolder() {
 			p: func(t *testing.T) Path {
 				p, err := Builder{}.
 					Append("a/", "b", "c").
-					ToDataLayerExchangePathForCategory("t", "u", EmailCategory, false)
+					ToDataLayerPath("t", "u", ExchangeService, EmailCategory, false)
 				require.NoError(t, err, clues.ToCore(err))
 
 				return p
