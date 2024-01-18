@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Groups and Teams backups no longer fail when a resource has no display name.
 - Contacts in-place restore failed if the restore destination was empty.
 - Link shares with external users are now backed up and restored as expected
+- Ensure persistent repo config is populated if repo init failed partway through.
 
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
