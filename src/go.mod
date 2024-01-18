@@ -56,6 +56,7 @@ require (
 require (
 	github.com/arran4/golang-ical v0.2.3
 	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
+	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
 )
 
 require (
@@ -90,7 +91,6 @@ require (
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231127180814-3a041ad873d4 // indirect
-	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056 // indirect
 )
 
 require (
