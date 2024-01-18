@@ -40,16 +40,14 @@ func TestRestoreIntgSuite(t *testing.T) {
 // path as the folder, resulting in an in-place restore. It doesn't attempt to
 // retore any items because that would bloat the data set in the test user.
 func (suite *RestoreIntgSuite) TestRestoreCollections_HandlesEmptyRestoreLocation() {
-	t := suite.T()
-
-	acct := tconfig.NewM365Account(t)
+	acct := tconfig.NewM365Account(suite.T())
 
 	table := []struct {
-		service     path.ServiceType
-		category    path.CategoryType
-		selector    func(*testing.T) selectors.Selector
-		defaultPath func(*testing.T) path.Path
-		otherPath   func(t *testing.T, location string) path.Path
+		service              path.ServiceType
+		category             path.CategoryType
+		selector             func(*testing.T) selectors.Selector
+		defaultPathFolders   func() []string
+		secondaryPathFolders func(location string) []string
 	}{
 		{
 			service:  path.ExchangeService,
@@ -60,29 +58,11 @@ func (suite *RestoreIntgSuite) TestRestoreCollections_HandlesEmptyRestoreLocatio
 
 				return sel.Selector
 			},
-			defaultPath: func(t *testing.T) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.EmailCategory,
-					false,
-					api.MailInbox)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			defaultPathFolders: func() []string {
+				return []string{api.MailInbox}
 			},
-			otherPath: func(t *testing.T, location string) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.EmailCategory,
-					false,
-					location)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			secondaryPathFolders: func(location string) []string {
+				return []string{location}
 			},
 		},
 		{
@@ -94,29 +74,11 @@ func (suite *RestoreIntgSuite) TestRestoreCollections_HandlesEmptyRestoreLocatio
 
 				return sel.Selector
 			},
-			defaultPath: func(t *testing.T) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.EventsCategory,
-					false,
-					api.DefaultCalendar)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			defaultPathFolders: func() []string {
+				return []string{api.DefaultCalendar}
 			},
-			otherPath: func(t *testing.T, location string) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.EventsCategory,
-					false,
-					location)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			secondaryPathFolders: func(location string) []string {
+				return []string{location}
 			},
 		},
 		{
@@ -128,29 +90,11 @@ func (suite *RestoreIntgSuite) TestRestoreCollections_HandlesEmptyRestoreLocatio
 
 				return sel.Selector
 			},
-			defaultPath: func(t *testing.T) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.ContactsCategory,
-					false,
-					api.DefaultContacts)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			defaultPathFolders: func() []string {
+				return []string{api.DefaultContacts}
 			},
-			otherPath: func(t *testing.T, location string) path.Path {
-				res, err := path.Build(
-					tconfig.M365TenantID(t),
-					tconfig.M365UserID(t),
-					path.ExchangeService,
-					path.ContactsCategory,
-					false,
-					location)
-				require.NoError(t, err, clues.ToCore(err))
-
-				return res
+			secondaryPathFolders: func(location string) []string {
+				return []string{location}
 			},
 		},
 	}
@@ -177,8 +121,24 @@ func (suite *RestoreIntgSuite) TestRestoreCollections_HandlesEmptyRestoreLocatio
 			restoreConfig.OnCollision = control.Copy
 
 			// Create 2 empty collections so we don't bloat the data set.
-			path1 := test.defaultPath(t)
-			path2 := test.otherPath(t, restoreConfig.Location)
+			path1, err := path.Build(
+				tconfig.M365TenantID(t),
+				tconfig.M365UserID(t),
+				test.service,
+				test.category,
+				false,
+				test.defaultPathFolders()...)
+			require.NoError(t, err, clues.ToCore(err))
+
+			path2, err := path.Build(
+				tconfig.M365TenantID(t),
+				tconfig.M365UserID(t),
+				test.service,
+				test.category,
+				false,
+				test.secondaryPathFolders(restoreConfig.Location)...)
+			require.NoError(t, err, clues.ToCore(err))
+
 			cols := []data.RestoreCollection{
 				data.NoFetchRestoreCollection{
 					Collection: exchMock.NewCollection(

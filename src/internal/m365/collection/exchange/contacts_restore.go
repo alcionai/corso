@@ -61,7 +61,7 @@ func (h contactRestoreHandler) FormatRestoreDestination(
 		return path.Builder{}.Append(destinationContainerName)
 	}
 
-	// TODO(ashmrtn): Make sure this plays ok with nested folder creation.
+	// FIXME(ashmrtn): Make sure this plays ok with nested folder creation.
 	return path.Builder{}.Append(collectionFullPath.Folders()...)
 }
 
