@@ -3,6 +3,7 @@ package kopia
 import (
 	"context"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
@@ -94,7 +96,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 	})
 }
 
-func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
+func (suite *WrapperIntegrationSuite) TestRepoNoExistsError_SamePassphrase() {
 	t := suite.T()
 	repoNameHash := strTD.NewHashForRepoConfigName()
 
@@ -109,6 +111,46 @@ func (suite *WrapperIntegrationSuite) TestRepoExistsError() {
 
 	err = k.Close(ctx)
 	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
+func (suite *WrapperIntegrationSuite) TestRepoExistsError_IncorrectPassphrase() {
+	t := suite.T()
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	st1 := storeTD.NewFilesystemStorage(t)
+	k := NewConn(st1)
+
+	err := k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = k.Close(ctx)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Hacky way to edit the existing passphrase for the repo so we can check that
+	// we get a sensible error back.
+	st2 := st1
+	st2.Config = maps.Clone(st1.Config)
+
+	var found bool
+
+	for k, v := range st2.Config {
+		if strings.Contains(strings.ToLower(k), "passphrase") {
+			st2.Config[k] = v + "1"
+			found = true
+
+			break
+		}
+	}
+
+	require.True(t, found, "unable to update passphrase for test")
+
+	k = NewConn(st2)
 
 	err = k.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 	assert.Error(t, err, clues.ToCore(err))

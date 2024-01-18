@@ -149,12 +149,16 @@ func (w *conn) Initialize(
 		RetentionPeriod: blobCfg.RetentionPeriod,
 	}
 
+	var initErr error
+
 	if err = repo.Initialize(ctx, bst, &kopiaOpts, cfg.CorsoPassphrase); err != nil {
-		if errors.Is(err, repo.ErrAlreadyInitialized) {
-			return clues.StackWC(ctx, ErrorRepoAlreadyExists, err)
+		if !errors.Is(err, repo.ErrAlreadyInitialized) {
+			return clues.WrapWC(ctx, err, "initializing repo")
 		}
 
-		return clues.WrapWC(ctx, err, "initializing repo")
+		logger.Ctx(ctx).Info("repo already exists, verifying repo config")
+
+		initErr = clues.StackWC(ctx, ErrorRepoAlreadyExists, err)
 	}
 
 	err = w.commonConnect(
@@ -166,7 +170,10 @@ func (w *conn) Initialize(
 		cfg.CorsoPassphrase,
 		defaultCompressor)
 	if err != nil {
-		return err
+		// If the repo already exists then give some indication to that to help the
+		// user debug. For example, they could have called init again on a repo that
+		// already exists but accidentally used a different passphrase.
+		return clues.Stack(err, initErr)
 	}
 
 	if err := w.setDefaultConfigValues(ctx); err != nil {
