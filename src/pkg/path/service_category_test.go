@@ -120,9 +120,9 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 		},
 		{
 			name:             "ChatsChats",
-			service:          ChatsService.String(),
+			service:          TeamsChatsService.String(),
 			category:         ChatsCategory.String(),
-			expectedService:  ChatsService,
+			expectedService:  TeamsChatsService,
 			expectedCategory: ChatsCategory,
 			check:            assert.NoError,
 		},

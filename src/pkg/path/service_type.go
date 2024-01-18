@@ -31,8 +31,8 @@ const (
 	SharePointMetadataService ServiceType = 6  // sharepointMetadata
 	GroupsService             ServiceType = 7  // groups
 	GroupsMetadataService     ServiceType = 8  // groupsMetadata
-	ChatsService              ServiceType = 9  // chats
-	ChatsMetadataService      ServiceType = 10 // chatsMetadata
+	TeamsChatsService         ServiceType = 9  // teamsChats
+	TeamsChatsMetadataService ServiceType = 10 // teamsChatsMetadata
 )
 
 var strToSvc = map[string]ServiceType{
@@ -44,8 +44,8 @@ var strToSvc = map[string]ServiceType{
 	SharePointMetadataService.String(): SharePointMetadataService,
 	GroupsService.String():             GroupsService,
 	GroupsMetadataService.String():     GroupsMetadataService,
-	ChatsService.String():              ChatsService,
-	ChatsMetadataService.String():      ChatsMetadataService,
+	TeamsChatsService.String():         TeamsChatsService,
+	TeamsChatsMetadataService.String(): TeamsChatsMetadataService,
 }
 
 func ToServiceType(service string) ServiceType {
@@ -62,7 +62,7 @@ var serviceToHuman = map[ServiceType]string{
 	OneDriveService:   "OneDrive",
 	SharePointService: "SharePoint",
 	GroupsService:     "Groups",
-	ChatsService:      "Chats",
+	TeamsChatsService: "Chats",
 }
 
 // HumanString produces a more human-readable string version of the service.

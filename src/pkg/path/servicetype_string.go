@@ -17,8 +17,8 @@ func _() {
 	_ = x[SharePointMetadataService-6]
 	_ = x[GroupsService-7]
 	_ = x[GroupsMetadataService-8]
-	_ = x[ChatsService-9]
-	_ = x[ChatsMetadataService-10]
+	_ = x[TeamsChatsService-9]
+	_ = x[TeamsChatsMetadataService-10]
 }
 
 const _ServiceType_name = "UnknownServiceexchangeonedrivesharepointexchangeMetadataonedriveMetadatasharepointMetadatagroupsgroupsMetadatachatschatsMetadata"

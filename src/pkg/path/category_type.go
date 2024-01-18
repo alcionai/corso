@@ -103,7 +103,7 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		ConversationPostsCategory: {},
 		LibrariesCategory:         {},
 	},
-	ChatsService: {
+	TeamsChatsService: {
 		ChatsCategory: {},
 	},
 }
