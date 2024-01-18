@@ -19,7 +19,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ itemRestorer = &contactRestoreHandler{}
+var (
+	_ itemRestorer   = &contactRestoreHandler{}
+	_ restoreHandler = &contactRestoreHandler{}
+)
 
 type contactRestoreHandler struct {
 	ac api.Contacts
@@ -39,6 +42,14 @@ func (h contactRestoreHandler) NewContainerCache(userID string) graph.ContainerR
 		enumer: h.ac,
 		getter: h.ac,
 	}
+}
+
+func (h contactRestoreHandler) ShouldSetContainerToDefaultRoot(
+	restoreFolderPath string,
+	collectionPath path.Path,
+) bool {
+	return len(collectionPath.Folders()) == 1 &&
+		restoreFolderPath == h.DefaultRootContainer()
 }
 
 func (h contactRestoreHandler) FormatRestoreDestination(

@@ -92,9 +92,7 @@ func (h *exchangeHandler) ConsumeRestoreCollections(
 		// Without this check we'll end up restoring to Contacts/Contacts instead of
 		// Contacts if in-place restore is requested and the root Contacts folder
 		// had items.
-		if category == path.ContactsCategory &&
-			len(dc.FullPath().Folders()) == 1 &&
-			restoreFolderPath.String() == handler.DefaultRootContainer() {
+		if handler.ShouldSetContainerToDefaultRoot(restoreFolderPath.String(), dc.FullPath()) {
 			logger.Ctx(ictx).Info("using default contact folder")
 
 			containerID = handler.DefaultRootContainer()
