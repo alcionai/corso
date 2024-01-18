@@ -28,6 +28,7 @@ const (
 	DetailsCategory           CategoryType = 8  // details
 	ChannelMessagesCategory   CategoryType = 9  // channelMessages
 	ConversationPostsCategory CategoryType = 10 // conversationPosts
+	ChatsCategory             CategoryType = 11 // chats
 )
 
 var strToCat = map[string]CategoryType{
@@ -41,6 +42,7 @@ var strToCat = map[string]CategoryType{
 	strings.ToLower(DetailsCategory.String()):           DetailsCategory,
 	strings.ToLower(ChannelMessagesCategory.String()):   ChannelMessagesCategory,
 	strings.ToLower(ConversationPostsCategory.String()): ConversationPostsCategory,
+	strings.ToLower(ChatsCategory.String()):             ChatsCategory,
 }
 
 func ToCategoryType(s string) CategoryType {
@@ -63,6 +65,7 @@ var catToHuman = map[CategoryType]string{
 	DetailsCategory:           "Details",
 	ChannelMessagesCategory:   "Messages",
 	ConversationPostsCategory: "Posts",
+	ChatsCategory:             "Chats",
 }
 
 // HumanString produces a more human-readable string version of the category.
@@ -99,6 +102,9 @@ var serviceCategories = map[ServiceType]map[CategoryType]struct{}{
 		ChannelMessagesCategory:   {},
 		ConversationPostsCategory: {},
 		LibrariesCategory:         {},
+	},
+	ChatsService: {
+		ChatsCategory: {},
 	},
 }
 

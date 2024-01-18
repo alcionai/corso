@@ -118,6 +118,14 @@ func (suite *ServiceCategoryUnitSuite) TestValidateServiceAndCategory() {
 			expectedCategory: LibrariesCategory,
 			check:            assert.NoError,
 		},
+		{
+			name:             "ChatsChats",
+			service:          ChatsService.String(),
+			category:         ChatsCategory.String(),
+			expectedService:  ChatsService,
+			expectedCategory: ChatsCategory,
+			check:            assert.NoError,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
