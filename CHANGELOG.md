@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backing up a group mailbox item may fail if it has a very large number of attachments (500+).
 - Event description for exchange exports might look slightly different for certain events.
 - Exchange in-place restore may restore to different different folders if the user has well-known folder names change based on locale and has updated the locale since the backup was created.
+- In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
 
 ## [v0.18.0] (beta) - 2024-01-02
 
