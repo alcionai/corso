@@ -1016,6 +1016,50 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 	}
 }
 
+func (suite *ListsAPIIntgSuite) TestLists_PatchList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl         = suite.its.ac.Lists()
+		siteID      = suite.its.site.id
+		listName    = "old-list-name"
+		newListName = "new-list-name"
+	)
+
+	fieldsData, list := getFieldsDataAndList()
+
+	createdList, err := acl.PostList(ctx, siteID, listName, list, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(createdList.GetDisplayName()))
+
+	listID := ptr.Val(createdList.GetId())
+
+	newList := models.NewList()
+	newList.SetDisplayName(ptr.To(newListName))
+	patchedList, err := acl.PatchList(ctx, siteID, listID, newList)
+	require.NoError(t, err)
+	assert.Equal(t, newListName, ptr.Val(patchedList.GetDisplayName()))
+
+	patchedList, _, err = acl.GetListByID(ctx, siteID, listID)
+	require.NoError(t, err)
+
+	newListItems := patchedList.GetItems()
+	require.Less(t, 0, len(newListItems))
+
+	newListItemFields := newListItems[0].GetFields()
+	require.NotEmpty(t, newListItemFields)
+
+	newListItemsData := newListItemFields.GetAdditionalData()
+	require.NotEmpty(t, newListItemsData)
+	assert.Equal(t, fieldsData["itemName"], newListItemsData["itemName"])
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(patchedList.GetId()))
+	require.NoError(t, err)
+}
+
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {
 	t := suite.T()
 
