@@ -93,6 +93,7 @@ func restoreListItem(
 			ctx,
 			collisionID,
 			storedList,
+			newName,
 			rh,
 			ctr,
 			errs)
@@ -112,13 +113,18 @@ func handleListReplace(
 	ctx context.Context,
 	collisionID string,
 	storedList models.Listable,
+	newName string,
 	rh restoreHandler,
 	ctr *count.Bus,
 	errs *fault.Bus,
 ) (models.Listable, error) {
-	collidedList, _, err := rh.GetList(ctx, collisionID)
+	restoredList, err := rh.PostList(
+		ctx,
+		newName,
+		storedList,
+		errs)
 	if err != nil {
-		return nil, clues.WrapWC(ctx, err, "fetching collided list")
+		return nil, clues.WrapWC(ctx, err, "restoring list")
 	}
 
 	err = rh.DeleteList(ctx, collisionID)
@@ -126,26 +132,21 @@ func handleListReplace(
 		return nil, clues.WrapWC(ctx, err, "deleting collided list")
 	}
 
-	restoredList, err := rh.PostList(
+	patchList := models.NewList()
+	patchList.SetDisplayName(storedList.GetDisplayName())
+	_, err = rh.PatchList(
 		ctx,
-		ptr.Val(storedList.GetDisplayName()),
-		storedList,
-		errs)
-	if err == nil {
-		ctr.Inc(count.CollisionReplace)
-		return restoredList, nil
+		ptr.Val(restoredList.GetId()),
+		patchList)
+
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "patching list")
 	}
 
-	_, collidedListErr := rh.PostList(
-		ctx,
-		ptr.Val(collidedList.GetDisplayName()),
-		collidedList,
-		errs)
-	if collidedListErr != nil {
-		return nil, clues.WrapWC(ctx, collidedListErr, "re-creating collided list")
-	}
+	restoredList.SetDisplayName(storedList.GetDisplayName())
+	ctr.Inc(count.CollisionReplace)
 
-	return nil, clues.WrapWC(ctx, err, "restoring list")
+	return restoredList, nil
 }
 
 func RestoreListCollection(

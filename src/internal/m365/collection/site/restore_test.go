@@ -383,36 +383,34 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 	}
 
 	tests := []struct {
-		name                  string
-		lrh                   *siteMock.ListRestoreHandler
-		expectErr             assert.ErrorAssertionFunc
-		expectedPostListCalls int
-		expectCollisionCount  int64
+		name                 string
+		lrh                  *siteMock.ListRestoreHandler
+		expectErr            assert.ErrorAssertionFunc
+		expectCollisionCount int64
 	}{
 		{
-			name: "GetList fails",
+			name: "PostList fails for stored list",
 			lrh: siteMock.NewListRestoreHandler(
-				errors.New("failed to fetch list"),
 				nil,
+				errors.New("failed to create list"),
 				nil),
 			expectErr: assert.Error,
 		},
 		{
 			name: "DeleteList fails",
 			lrh: siteMock.NewListRestoreHandler(
-				nil,
 				errors.New("failed to delete list"),
+				nil,
 				nil),
 			expectErr: assert.Error,
 		},
 		{
-			name: "PostList fails for stored list",
+			name: "PatchList fails",
 			lrh: siteMock.NewListRestoreHandler(
 				nil,
 				nil,
-				[]error{errors.New("failed to create list"), nil}),
-			expectErr:             assert.Error,
-			expectedPostListCalls: 2,
+				errors.New("failed to patch list")),
+			expectErr: assert.Error,
 		},
 		{
 			name: "PostList passes for stored list",
@@ -420,9 +418,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				nil,
 				nil,
 				nil),
-			expectErr:             assert.NoError,
-			expectedPostListCalls: 1,
-			expectCollisionCount:  1,
+			expectErr:            assert.NoError,
+			expectCollisionCount: 1,
 		},
 	}
 
@@ -441,7 +438,6 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				fault.New(true))
 			test.expectErr(t, err)
 			assert.Equal(t, test.expectCollisionCount, cl.Get(count.CollisionReplace))
-			test.lrh.CheckPostListCalls(t, test.expectedPostListCalls)
 		})
 	}
 }
