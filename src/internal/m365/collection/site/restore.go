@@ -77,7 +77,7 @@ func restoreListItem(
 			ctr.Inc(count.CollisionSkip)
 			log.Debug("skipping item with collision")
 
-			return dii, core.ErrAlreadyExists
+			return dii, clues.Stack(core.ErrAlreadyExists)
 		}
 
 		collisionID = id
@@ -86,7 +86,7 @@ func restoreListItem(
 	if collisionPolicy != control.Replace {
 		restoredList, err = rh.PostList(ctx, newName, storedList, errs)
 		if err != nil {
-			return dii, clues.WrapWC(ctx, err, "restoring list")
+			return dii, clues.Wrap(err, "restoring list")
 		}
 	} else {
 		restoredList, err = handleListReplace(
@@ -98,7 +98,7 @@ func restoreListItem(
 			ctr,
 			errs)
 		if err != nil {
-			return dii, err
+			return dii, clues.Stack(err)
 		}
 	}
 
@@ -111,8 +111,8 @@ func restoreListItem(
 
 func handleListReplace(
 	ctx context.Context,
-	collisionID string,
-	storedList models.Listable,
+	listID string,
+	listFromBackup models.Listable,
 	newName string,
 	rh restoreHandler,
 	ctr *count.Bus,
@@ -121,19 +121,19 @@ func handleListReplace(
 	restoredList, err := rh.PostList(
 		ctx,
 		newName,
-		storedList,
+		listFromBackup,
 		errs)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "restoring list")
 	}
 
-	err = rh.DeleteList(ctx, collisionID)
+	err = rh.DeleteList(ctx, listID)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "deleting collided list")
 	}
 
 	patchList := models.NewList()
-	patchList.SetDisplayName(storedList.GetDisplayName())
+	patchList.SetDisplayName(listFromBackup.GetDisplayName())
 	_, err = rh.PatchList(
 		ctx,
 		ptr.Val(restoredList.GetId()),
@@ -143,7 +143,7 @@ func handleListReplace(
 		return nil, clues.WrapWC(ctx, err, "patching list")
 	}
 
-	restoredList.SetDisplayName(storedList.GetDisplayName())
+	restoredList.SetDisplayName(listFromBackup.GetDisplayName())
 	ctr.Inc(count.CollisionReplace)
 
 	return restoredList, nil
