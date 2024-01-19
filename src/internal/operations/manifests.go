@@ -27,8 +27,12 @@ func produceManifestsAndMetadata(
 	// Just return early if we're going to end up dropping all the bases anyway.
 	// This will avoid loading kopia manifest data in the case that we're doing a
 	// full enumeration and refetching all item data for the resource.
+	//
+	// It's easier to work through later logic if we know that the returned
+	// kopia.BackupBases is non-nil for non-error cases so return a trivial
+	// implementation here.
 	if !getMetadata && dropAssistBases {
-		return nil, nil, false, nil
+		return kopia.EmptyBackupBase(), nil, false, nil
 	}
 
 	bb, meta, useMergeBases, err := getManifestsAndMetadata(
