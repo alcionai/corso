@@ -148,7 +148,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	data, err := api.BytesToMessageable(body)
 	if err != nil {
-		return "", clues.WrapWC(ctx, err, "converting to messageble")
+		return "", clues.WrapWC(ctx, err, "converting to messageble").
+			With("body_len", len(body))
 	}
 
 	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
