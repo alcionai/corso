@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -138,7 +137,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		destName     = restoreCfg.Location
 		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
 		service      = createTestService(t, suite.creds)
-		list         = createList(listTemplate, listName)
+		list         = stubList(listTemplate, listName)
 		mockData     = generateListData(t, service, list)
 	)
 
@@ -182,12 +181,12 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	}{
 		{
 			name:   "list with template documentLibrary",
-			list:   createList(api.DocumentLibraryListTemplate, listName),
+			list:   stubList(api.DocumentLibraryListTemplate, listName),
 			expect: assert.Error,
 		},
 		{
 			name:   "list with template webTemplateExtensionsList",
-			list:   createList(api.WebTemplateExtensionsListTemplate, listName),
+			list:   stubList(api.WebTemplateExtensionsListTemplate, listName),
 			expect: assert.Error,
 		},
 	}
@@ -213,149 +212,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	}
 }
 
-func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		listName     = "MockListing"
-		listTemplate = "genericList"
-		restoreCfg   = testdata.DefaultRestoreConfig("")
-		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		service      = createTestService(t, suite.creds)
-		list         = createList(listTemplate, listName)
-		newList      = createList(listTemplate, listName)
-		cl           = count.New()
-	)
-
-	mockData := generateListData(t, service, list)
-
-	collisionKeyToItemID := map[string]string{
-		api.ListCollisionKey(newList): "some-list-id",
-	}
-
-	deets, err := restoreListItem(
-		ctx,
-		lrh,
-		mockData,
-		suite.siteID,
-		restoreCfg, // OnCollision is skip by default
-		collisionKeyToItemID,
-		cl,
-		fault.New(true))
-	require.Error(t, err, clues.ToCore(err))
-	assert.True(t, errors.Is(core.ErrAlreadyExists, err))
-	assert.Empty(t, deets)
-	assert.Less(t, int64(0), cl.Get(count.CollisionSkip))
-}
-
-func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		listName     = "MockListing"
-		listTemplate = "genericList"
-		listID       = "some-list-id"
-		restoreCfg   = testdata.DefaultRestoreConfig("")
-		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		service      = createTestService(t, suite.creds)
-		cl           = count.New()
-	)
-
-	restoreCfg.OnCollision = control.Copy
-
-	list := createList(listTemplate, listName)
-	list.SetId(ptr.To(listID))
-
-	newList := createList(listTemplate, listName)
-	newList.SetId(ptr.To(listID))
-
-	mockData := generateListData(t, service, list)
-
-	collisionKeyToItemID := map[string]string{
-		api.ListCollisionKey(newList): listID,
-	}
-
-	deets, err := restoreListItem(
-		ctx,
-		lrh,
-		mockData,
-		suite.siteID,
-		restoreCfg,
-		collisionKeyToItemID,
-		cl,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Zero(t, cl.Get(count.CollisionSkip))
-	assert.Zero(t, cl.Get(count.CollisionReplace))
-
-	// Clean-Up
-	deleteList(ctx, t, suite.siteID, lrh, deets)
-}
-
-func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replace() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	var (
-		listName     = "MockListing"
-		listTemplate = "genericList"
-		restoreCfg   = testdata.DefaultRestoreConfig("")
-		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		service      = createTestService(t, suite.creds)
-		cl           = count.New()
-		now          = time.Now()
-		temMinAfter  = now.Add(10 * time.Minute)
-	)
-
-	restoreCfg.OnCollision = control.Replace
-
-	list := createList(listTemplate, listName)
-	list.SetLastModifiedDateTime(ptr.To(now))
-
-	newList := createList(listTemplate, listName)
-	newList.SetLastModifiedDateTime(ptr.To(temMinAfter))
-
-	createdList, err := lrh.PostList(
-		ctx,
-		listName,
-		newList,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-
-	listID := ptr.Val(createdList.GetId())
-	list.SetId(ptr.To(listID))
-
-	mockData := generateListData(t, service, list)
-
-	collisionKeyToItemID := map[string]string{
-		api.ListCollisionKey(newList): listID,
-	}
-
-	deets, err := restoreListItem(
-		ctx,
-		lrh,
-		mockData,
-		suite.siteID,
-		restoreCfg,
-		collisionKeyToItemID,
-		cl,
-		fault.New(true))
-	require.NoError(t, err, clues.ToCore(err))
-	assert.Less(t, int64(0), cl.Get(count.CollisionReplace))
-
-	// Clean-Up
-	deleteList(ctx, t, suite.siteID, lrh, deets)
-}
-
-func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFails() {
+func (suite *SharePointRestoreSuite) TestRestoreListItem_collisions() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -367,15 +224,17 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 		listID       = "some-list-id"
 		restoreCfg   = testdata.DefaultRestoreConfig("")
 		service      = createTestService(t, suite.creds)
-		cl           = count.New()
+
+		policyToKey = map[control.CollisionPolicy]count.Key{
+			control.Replace: count.CollisionReplace,
+			control.Skip:    count.CollisionSkip,
+		}
 	)
 
-	restoreCfg.OnCollision = control.Replace
-
-	list := createList(listTemplate, listName)
+	list := stubList(listTemplate, listName)
 	list.SetId(ptr.To(listID))
 
-	newList := createList(listTemplate, listName)
+	newList := stubList(listTemplate, listName)
 	newList.SetId(ptr.To(listID))
 
 	collisionKeyToItemID := map[string]string{
@@ -386,6 +245,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 		name                 string
 		lrh                  *siteMock.ListRestoreHandler
 		expectErr            assert.ErrorAssertionFunc
+		collisionPolicy      control.CollisionPolicy
 		expectCollisionCount int64
 	}{
 		{
@@ -394,7 +254,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				nil,
 				errors.New("failed to create list"),
 				nil),
-			expectErr: assert.Error,
+			collisionPolicy: control.Replace,
+			expectErr:       assert.Error,
 		},
 		{
 			name: "DeleteList fails",
@@ -402,7 +263,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				errors.New("failed to delete list"),
 				nil,
 				nil),
-			expectErr: assert.Error,
+			collisionPolicy: control.Replace,
+			expectErr:       assert.Error,
 		},
 		{
 			name: "PatchList fails",
@@ -410,7 +272,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				nil,
 				nil,
 				errors.New("failed to patch list")),
-			expectErr: assert.Error,
+			collisionPolicy: control.Replace,
+			expectErr:       assert.Error,
 		},
 		{
 			name: "PostList passes for stored list",
@@ -418,14 +281,36 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				nil,
 				nil,
 				nil),
+			collisionPolicy:      control.Replace,
 			expectErr:            assert.NoError,
 			expectCollisionCount: 1,
+		},
+		{
+			name: "Skip collison policy",
+			lrh: siteMock.NewListRestoreHandler(
+				nil,
+				nil,
+				nil),
+			collisionPolicy:      control.Skip,
+			expectErr:            assert.Error,
+			expectCollisionCount: 1,
+		},
+		{
+			name: "Copy collison policy",
+			lrh: siteMock.NewListRestoreHandler(
+				nil,
+				nil,
+				nil),
+			collisionPolicy: control.Copy,
+			expectErr:       assert.NoError,
 		},
 	}
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			mockData := generateListData(t, service, list)
+			cl := count.New()
+			restoreCfg.OnCollision = test.collisionPolicy
 
 			_, err := restoreListItem(
 				ctx,
@@ -437,7 +322,17 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_replaceFa
 				cl,
 				fault.New(true))
 			test.expectErr(t, err)
-			assert.Equal(t, test.expectCollisionCount, cl.Get(count.CollisionReplace))
+
+			if test.collisionPolicy == control.Skip {
+				assert.Equal(t, core.ErrAlreadyExists.Error(), err.Error())
+			}
+
+			if test.collisionPolicy == control.Copy {
+				assert.Zero(t, cl.Get(count.CollisionSkip))
+				assert.Zero(t, cl.Get(count.CollisionReplace))
+			}
+
+			assert.Equal(t, test.expectCollisionCount, cl.Get(policyToKey[test.collisionPolicy]))
 		})
 	}
 }
@@ -501,7 +396,7 @@ func generateListData(
 	return mockData
 }
 
-func createList(listTemplate, listDisplayName string) models.Listable {
+func stubList(listTemplate, listDisplayName string) models.Listable {
 	listInfo := models.NewListInfo()
 	listInfo.SetTemplate(ptr.To(listTemplate))
 
