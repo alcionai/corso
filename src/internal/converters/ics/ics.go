@@ -183,9 +183,7 @@ func getRecurrencePattern(
 					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
 					ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
-					return "", clues.WrapWC(ctx, err, "parsing end time").
-						With("time", parsedTime).
-						With("timezone", ptr.Val(rrange.GetRecurrenceTimeZone()))
+					return "", clues.WrapWC(ctx, err, "parsing end time")
 				}
 
 				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
@@ -289,9 +287,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	if startString != nil {
 		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
-			return clues.WrapWC(ctx, err, "parsing start time").
-				With("time", ptr.Val(startString)).
-				With("timezone", ptr.Val(startTimezone))
+			return clues.WrapWC(ctx, err, "parsing start time")
 		}
 
 		if allDay {
@@ -308,9 +304,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	if endString != nil {
 		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
-			return clues.WrapWC(ctx, err, "parsing end time").
-				With("time", ptr.Val(endString)).
-				With("timezone", ptr.Val(endTimezone))
+			return clues.WrapWC(ctx, err, "parsing end time")
 		}
 
 		if allDay {
@@ -606,9 +600,7 @@ func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time
 		// the data just contains date and no time which seems to work
 		start, err := getUTCTime(ds, tz)
 		if err != nil {
-			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date").
-				With("date", ds).
-				With("timezone", tz)
+			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
 		}
 
 		dates = append(dates, start)
