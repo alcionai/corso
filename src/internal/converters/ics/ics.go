@@ -77,17 +77,18 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 	// timezone everywhere according to the spec.
 	it, err := dttm.ParseTime(ts)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "parsing time")
+		return time.Now(), clues.Wrap(err, "parsing time").With("time", ts)
 	}
 
 	timezone, ok := GraphTimeZoneToTZ[tz]
 	if !ok {
-		return it, clues.New("unknown timezone")
+		return it, clues.New("unknown timezone").With("timezone", tz)
 	}
 
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "loading timezone")
+		return time.Now(), clues.Wrap(err, "loading timezone").
+			With("converted_timezone", timezone)
 	}
 
 	// embed timezone
@@ -170,7 +171,7 @@ func getRecurrencePattern(
 			if end != nil {
 				parsedTime, err := dttm.ParseTime(end.String())
 				if err != nil {
-					return "", clues.Wrap(err, "parsing recurrence end date")
+					return "", clues.Wrap(err, "parsing recurrence end date").With("date", end.String())
 				}
 
 				// end date is always computed as end of the day and
@@ -182,7 +183,9 @@ func getRecurrencePattern(
 					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
 					ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
-					return "", clues.WrapWC(ctx, err, "parsing end time")
+					return "", clues.WrapWC(ctx, err, "parsing end time").
+						With("time", parsedTime).
+						With("timezone", ptr.Val(rrange.GetRecurrenceTimeZone()))
 				}
 
 				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
@@ -203,7 +206,8 @@ func getRecurrencePattern(
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
-		return "", clues.WrapWC(ctx, err, "converting to eventable")
+		return "", clues.WrapWC(ctx, err, "converting to eventable").
+			With("body_len", len(body))
 	}
 
 	cal := ics.NewCalendar()
@@ -231,7 +235,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		exBody, err := json.Marshal(instance)
 		if err != nil {
-			return "", clues.WrapWC(ctx, err, "marshalling exception instance")
+			return "", clues.WrapWC(ctx, err, "marshalling exception instance").
+				With("instance_id", instance["id"])
 		}
 
 		exception, err := api.BytesToEventable(exBody)
@@ -284,7 +289,9 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	if startString != nil {
 		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
-			return clues.WrapWC(ctx, err, "parsing start time")
+			return clues.WrapWC(ctx, err, "parsing start time").
+				With("time", ptr.Val(startString)).
+				With("timezone", ptr.Val(startTimezone))
 		}
 
 		if allDay {
@@ -301,7 +308,9 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	if endString != nil {
 		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
-			return clues.WrapWC(ctx, err, "parsing end time")
+			return clues.WrapWC(ctx, err, "parsing end time").
+				With("time", ptr.Val(endString)).
+				With("timezone", ptr.Val(endTimezone))
 		}
 
 		if allDay {
@@ -363,7 +372,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 				} else {
 					stripped, err := html2text.FromString(description, html2text.Options{PrettyTables: true})
 					if err != nil {
-						return clues.Wrap(err, "converting html to text")
+						return clues.Wrap(err, "converting html to text").
+							With("description_length", len(description))
 					}
 
 					iCalEvent.SetDescription(stripped)
@@ -534,7 +544,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 		content, ok := cb.([]uint8)
 		if !ok {
-			return clues.NewWC(ctx, "getting attachment content string")
+			return clues.NewWC(ctx, "getting attachment content string").
+				With("interface_type", fmt.Sprintf("%T", cb))
 		}
 
 		props = append(props, ics.WithEncoding("base64"), ics.WithValue("BINARY"))
@@ -553,7 +564,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 			cid, err := str.AnyToString(cidv)
 			if err != nil {
-				return clues.WrapWC(ctx, err, "getting attachment content id string")
+				return clues.WrapWC(ctx, err, "getting attachment content id string").
+					With("interface_type", fmt.Sprintf("%T", cidv))
 			}
 
 			props = append(props, keyValues("CID", cid))
@@ -565,7 +577,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	// EXDATE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.1
 	cancelledDates, err := getCancelledDates(ctx, event)
 	if err != nil {
-		return clues.Wrap(err, "getting cancelled dates")
+		return clues.Wrap(err, "getting cancelled dates").
+			With("event_id", event.GetId())
 	}
 
 	dateStrings := []string{}
@@ -593,7 +606,9 @@ func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time
 		// the data just contains date and no time which seems to work
 		start, err := getUTCTime(ds, tz)
 		if err != nil {
-			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
+			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date").
+				With("date", ds).
+				With("timezone", tz)
 		}
 
 		dates = append(dates, start)
