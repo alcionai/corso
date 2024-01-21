@@ -115,13 +115,20 @@ func (c Drives) GetItem(
 	ctx context.Context,
 	driveID, itemID string,
 ) (models.DriveItemable, error) {
+	options := &drives.ItemItemsDriveItemItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &drives.ItemItemsDriveItemItemRequestBuilderGetQueryParameters{
+			// FIXME: accept a CallConfig instead of hardcoding the select.
+			Select: DefaultDriveItemProps(),
+		},
+	}
+
 	di, err := c.Stable.
 		Client().
 		Drives().
 		ByDriveId(driveID).
 		Items().
 		ByDriveItemId(itemID).
-		Get(ctx, nil)
+		Get(ctx, options)
 	if err != nil {
 		return nil, graph.Wrap(ctx, err, "getting item")
 	}
