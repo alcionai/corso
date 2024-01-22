@@ -72,7 +72,6 @@ func getLocationString(location models.Locationable) string {
 }
 
 func GetUTCTime(ts, tz string) (time.Time, error) {
-
 	var (
 		loc *time.Location
 		err error
