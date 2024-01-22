@@ -167,8 +167,7 @@ function Delete-LibraryByPrefix {
 
         if ($PurgeBeforeTimestamp -gt $createTime) {
             foreach ($p in $FolderPrefixPurgeList) {
-                # also delete list containing
-                if ($listName -like "$p*" -or $listName -like "*$p*") {
+                if ($listName -like "$p*") {
                     $listsToDelete += $l
                 }
             }
