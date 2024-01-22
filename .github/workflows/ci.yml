@@ -296,6 +296,9 @@ jobs:
       - name: one test
         run: GODEBUG=gocachetest=1 go test -v -run '^TestExportUnitSuite/TestGetItems$' ./internal/m365/service/onedrive
 
+      - name: one test again
+        run: GODEBUG=gocachetest=1 go test -v -run '^TestExportUnitSuite/TestGetItems$' ./internal/m365/service/onedrive
+
       # - name: fail
       #   run: exit 1
 
