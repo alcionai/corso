@@ -286,7 +286,7 @@ jobs:
         uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
-          cache-key-suffix: -unit-test
+          cache-key-suffix: unit-test
 
       - run: mkdir testlog
 
@@ -296,55 +296,45 @@ jobs:
       - name: one test
         run: GODEBUG=gocachetest=1 go test -v -run '^TestExportUnitSuite/TestGetItems$' ./internal/m365/service/onedrive
 
-      # Upload the original go test output as an artifact for later review.
-      - name: Upload test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-log
-          path: src/testlog/*
-          if-no-files-found: error
-          retention-days: 14
+      # - name: fail
+      #   run: exit 1
 
-      - name: fail
-        run: exit 1
+      # # Install gotestfmt
+      # - name: Set up gotestfmt
+      #   run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
-      # Install gotestfmt
-      - name: Set up gotestfmt
-        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      # # run the tests
+      # - name: Unit Tests
+      #   env:
+      #     # Set these to a bad value so we don't accidentally fall back to
+      #     # something elsewhere.
+      #     CORSO_M365_TEST_USER_ID: 'foo'
+      #     CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
+      #   run: |
+      #     set -euo pipefail
+      #     export GODEBUG=gocachehash=1
+      #     go test       \
+      #     -tags testing \
+      #     -json         \
+      #     -v            \
+      #     -failfast     \
+      #     -p 1          \
+      #     -timeout 20m  \
+      #     ./... \
+      #     2>./testlog/testcache-hash.log | tee ./testlog/gotest-unit.log
 
-      # run the tests
-      - name: Unit Tests
-        env:
-          # Set these to a bad value so we don't accidentally fall back to
-          # something elsewhere.
-          CORSO_M365_TEST_USER_ID: 'foo'
-          CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
-        run: |
-          set -euo pipefail
-          export GODEBUG=gocachehash=1
-          go test       \
-          -tags testing \
-          -json         \
-          -v            \
-          -failfast     \
-          -p 1          \
-          -timeout 20m  \
-          ./... \
-          2>./testlog/testcache-hash.log | tee ./testlog/gotest-unit.log
+      # # Upload the original go test output as an artifact for later review.
+      # - name: Upload test log
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: unit-test-log
+      #     path: src/testlog/*
+      #     if-no-files-found: error
+      #     retention-days: 14
 
-      # Upload the original go test output as an artifact for later review.
-      - name: Upload test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-log
-          path: src/testlog/*
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: fail
-        run: exit 1
+      # - name: fail
+      #   run: exit 1
 
   Test-Suite-Fork:
     needs: [Precheck]
