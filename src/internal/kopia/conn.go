@@ -34,6 +34,7 @@ const (
 	defaultCompressor       = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
+	defaultMinEpochDuration   = time.Hour * 8
 )
 
 var (
@@ -166,6 +167,18 @@ func (w *conn) Initialize(
 
 	if err := w.setDefaultConfigValues(ctx); err != nil {
 		return clues.StackWC(ctx, err)
+	}
+
+	// In theory it should be possible to set this when creating the repo.
+	// However, the existing code paths for repo init in kopia end up clobbering
+	// any custom parameters passed in with default values. It's not clear if
+	// that's intentional or not.
+	if err := w.updatePersistentConfig(
+		ctx,
+		repository.PersistentConfig{
+			MinEpochDuration: ptr.To(defaultMinEpochDuration),
+		}); err != nil {
+		return clues.Stack(err)
 	}
 
 	// Calling with all parameters here will set extend object locks for
