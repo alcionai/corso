@@ -156,7 +156,7 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 
 	for _, tt := range table {
 		suite.Run(tt.name, func() {
-			t, err := getUTCTime(tt.timestamp, tt.timezone)
+			t, err := GetUTCTime(tt.timestamp, tt.timezone)
 			tt.errCheck(suite.T(), err)
 
 			if !tt.time.Equal(time.Time{}) {
