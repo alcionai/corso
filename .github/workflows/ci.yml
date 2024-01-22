@@ -290,9 +290,9 @@ jobs:
 
       - run: mkdir -p /tmp/corso-testlog
 
-      # Install gotestfmt
-      - name: Set up gotestfmt
-        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      # # Install gotestfmt
+      # - name: Set up gotestfmt
+      #   run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       # run the tests
       - name: Unit Tests
@@ -311,8 +311,7 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 20m  \
-          ./... \
-          2>/tmp/corso-testlog/testcache-hash.log | tee /tmp/corso-testlog/gotest-unit.log
+          ./...
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
