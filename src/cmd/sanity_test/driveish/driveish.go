@@ -23,6 +23,12 @@ const (
 // that's okay to do or not by specifying the folder that's being
 // scrutinized for the test.  Any errors within that folder should cause
 // a fatal exit.  Errors outside of that folder get ignored.
+//
+// since we're using folder names, requireNoErrorsWithinFolderName will
+// work best (ie: have the fewest collisions/side-effects) if the folder
+// name is very specific.  Standard sanity tests should include timestamps,
+// which should help ensure that.  Be warned if you try to use it with
+// a more generic name: unintended effects could occur.
 func populateSanitree(
 	ctx context.Context,
 	ac api.Client,
