@@ -54,22 +54,26 @@ func formatAddress(entry models.EmailAddressable) string {
 // getICalData converts the emails to an event so that ical generation
 // can generate from it.
 func getICalData(ctx context.Context, data models.Messageable) (string, error) {
-	msg := data.(*models.EventMessageRequest)
-	event := models.NewEvent()
+	msg, ok := data.(*models.EventMessageRequest)
+	if !ok {
+		return "", clues.NewWC(ctx, "unexpected message type").
+			With("interface_type", fmt.Sprintf("%T", data))
+	}
 
 	// This method returns nil if data is not pulled using the necessary expand property
 	// .../messages/<message_id>/?expand=Microsoft.Graph.EventMessage/Event
-	// Also works for emails which are a result of someone accepting an invite
-	// If we add this field on a cancellation mail, the request fails.
-	// It look to be OK to run when listing emails but it gives empty({}) event value for cancellations.
-	// TODO(meain): cancelled event details are available when pulling .eml, figure out if we can get it too
-	mevent := msg.GetEvent()
-	if mevent != nil {
+	// Also works for emails which are a result of someone accepting an
+	// invite. If we add this expand query parameter value when directly
+	// fetching a cancellation mail, the request fails.  It however looks
+	// to be OK to run when listing emails although it gives empty({})
+	// event value for cancellations.
+	// TODO(meain): cancelled event details are available when pulling .eml
+	if mevent := msg.GetEvent(); mevent != nil {
 		return ics.FromEventable(ctx, mevent)
 	}
 
-	// Exceptions(modifications) are covered under this, although graph just send the
-	// exception event and not the parent, which what eml also seems to contain
+	// Exceptions(modifications) are covered under this, although graph just sends the
+	// exception event and not the parent, which what eml obtained from graph also contains
 	if ptr.Val(msg.GetMeetingMessageType()) != models.MEETINGREQUEST_MEETINGMESSAGETYPE {
 		// We don't have event data if it not "REQUEST" type.
 		// Both cancellation and acceptance does not return enough
@@ -77,8 +81,9 @@ func getICalData(ctx context.Context, data models.Messageable) (string, error) {
 		return "", nil
 	}
 
-	// If data was not fetch through this, then we can approximate the
-	// details with the following
+	// If data was not fetch with an expand property, then we can
+	// approximate the details with the following
+	event := models.NewEvent()
 	event.SetId(msg.GetId())
 	event.SetCreatedDateTime(msg.GetCreatedDateTime())
 	event.SetLastModifiedDateTime(msg.GetLastModifiedDateTime())
@@ -277,11 +282,14 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
-	// TODO "#microsoft.graph.calendarSharingMessage" (https://github.com/alcionai/corso/issues/5041)
-	otype := ptr.Val(data.GetOdataType())
-	if otype == "#microsoft.graph.eventMessageRequest" || // creation
-		otype == "#microsoft.graph.eventMessage" || // cancellation
-		otype == "#microsoft.graph.eventMessageResponse" { // accept
+	switch data.(type) {
+	case *models.EventMessageResponse, *models.EventMessage:
+		// We can't handle this as of now, not enough information
+		// TODO: Fetch event object from graph when fetching email
+	case *models.CalendarSharingMessage:
+		// TODO: Parse out calendar sharing message
+		// https://github.com/alcionai/corso/issues/5041
+	case *models.EventMessageRequest:
 		cal, err := getICalData(ctx, data)
 		if err != nil {
 			return "", clues.Wrap(err, "getting ical attachment")
