@@ -286,7 +286,7 @@ jobs:
         uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
-          cache-key-suffix: unit-test
+          cache-key-suffix: unit-test-${{ github.sha }}
 
       - run: mkdir -p /tmp/corso-testlog
 
@@ -296,6 +296,25 @@ jobs:
 
       # run the tests
       - name: Unit Tests
+        env:
+          # Set these to a bad value so we don't accidentally fall back to
+          # something elsewhere.
+          CORSO_M365_TEST_USER_ID: 'foo'
+          CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
+        run: |
+          set -euo pipefail
+          export GODEBUG=gocachetest=1
+          go test       \
+          -tags testing \
+          -json         \
+          -v            \
+          -failfast     \
+          -p 1          \
+          -timeout 20m  \
+          ./...
+
+      # run the tests
+      - name: Unit Tests Again
         env:
           # Set these to a bad value so we don't accidentally fall back to
           # something elsewhere.
