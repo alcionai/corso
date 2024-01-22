@@ -289,6 +289,9 @@ jobs:
 
       - run: mkdir testlog
 
+      - run: ls /home/runner/.cache/go-build
+      - run: ls /home/runner/.cache/go-build/*
+
       - name: one test
         run: GODEBUG=gocachetest=1 go test -v -run '^TestExportUnitSuite/TestGetItems$' ./internal/m365/service/onedrive
 
