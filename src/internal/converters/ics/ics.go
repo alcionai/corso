@@ -77,7 +77,7 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 	// timezone everywhere according to the spec.
 	it, err := dttm.ParseTime(ts)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "parsing time").With("time", ts)
+		return time.Time{}, clues.Wrap(err, "parsing time").With("given_time_string", ts)
 	}
 
 	timezone, ok := GraphTimeZoneToTZ[tz]
@@ -87,7 +87,7 @@ func getUTCTime(ts, tz string) (time.Time, error) {
 
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "loading timezone").
+		return time.Time{}, clues.Wrap(err, "loading timezone").
 			With("converted_timezone", timezone)
 	}
 
@@ -171,7 +171,7 @@ func getRecurrencePattern(
 			if end != nil {
 				parsedTime, err := dttm.ParseTime(end.String())
 				if err != nil {
-					return "", clues.Wrap(err, "parsing recurrence end date").With("date", end.String())
+					return "", clues.Wrap(err, "parsing recurrence end date").With("recur_end_date", end.String())
 				}
 
 				// end date is always computed as end of the day and

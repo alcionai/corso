@@ -52,13 +52,14 @@ func formatAddress(entry models.EmailAddressable) string {
 
 // FromJSON converts a Messageable (as json) to .eml format
 func FromJSON(ctx context.Context, body []byte) (string, error) {
+	ctx = clues.Add(ctx, "body_len", len(body))
+
 	data, err := api.BytesToMessageable(body)
 	if err != nil {
-		return "", clues.WrapWC(ctx, err, "converting to messageble").
-			With("body_len", len(body))
+		return "", clues.WrapWC(ctx, err, "converting to messageble")
 	}
 
-	ictx := clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
 	email.AllowDuplicateAddress = true // More "correct" conversion
@@ -91,7 +92,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	if data.GetReplyTo() != nil {
 		rts := data.GetReplyTo()
 		if len(rts) > 1 {
-			logger.Ctx(ictx).
+			logger.Ctx(ctx).
 				With("reply_to_count", len(rts)).
 				Warn("more than 1 Reply-To, adding only the first one")
 		}
@@ -121,7 +122,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 			default:
 				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
 				// This should not be possible according to the documentation
-				logger.Ctx(ictx).
+				logger.Ctx(ctx).
 					With("body_type", data.GetBody().GetContentType().String()).
 					Info("unknown body content type")
 
@@ -138,7 +139,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bytes, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
-				return "", clues.WrapWC(ictx, err, "failed to get attachment bytes").
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes").
 					With("kind", kind)
 			}
 
@@ -149,7 +150,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 				// and will have to be converted to a text format.
 				// TODO(meain): Handle custom attachments
 				// https://github.com/alcionai/corso/issues/4772
-				logger.Ctx(ictx).
+				logger.Ctx(ctx).
 					With("attachment_id", ptr.Val(attachment.GetId())).
 					Info("unhandled attachment type")
 
@@ -158,7 +159,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bts, ok := bytes.([]byte)
 			if !ok {
-				return "", clues.WrapWC(ictx, err, "invalid content bytes").
+				return "", clues.WrapWC(ctx, err, "invalid content bytes").
 					With("kind", kind).
 					With("interface_type", fmt.Sprintf("%T", bytes))
 			}
@@ -167,7 +168,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			contentID, err := attachment.GetBackingStore().Get("contentId")
 			if err != nil {
-				return "", clues.WrapWC(ictx, err, "getting content id for attachment").
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment").
 					With("kind", kind)
 			}
 
@@ -189,7 +190,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	if err = email.GetError(); err != nil {
-		return "", clues.WrapWC(ictx, err, "converting to eml")
+		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
 
 	return email.GetMessage(), nil
