@@ -286,6 +286,7 @@ jobs:
         uses: magnetikonline/action-golang-cache@v4
         with:
           go-version-file: src/go.mod
+          cache-key-suffix: -unit-test
 
       - run: mkdir testlog
 
