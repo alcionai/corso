@@ -52,6 +52,8 @@ func formatAddress(entry models.EmailAddressable) string {
 
 // FromJSON converts a Messageable (as json) to .eml format
 func FromJSON(ctx context.Context, body []byte) (string, error) {
+	ctx = clues.Add(ctx, "body_len", len(body))
+
 	data, err := api.BytesToMessageable(body)
 	if err != nil {
 		return "", clues.WrapWC(ctx, err, "converting to messageble")
@@ -137,7 +139,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bytes, err := attachment.GetBackingStore().Get("contentBytes")
 			if err != nil {
-				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes")
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes").
+					With("kind", kind)
 			}
 
 			if bytes == nil {
@@ -156,14 +159,17 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 			bts, ok := bytes.([]byte)
 			if !ok {
-				return "", clues.WrapWC(ctx, err, "invalid content bytes")
+				return "", clues.WrapWC(ctx, err, "invalid content bytes").
+					With("kind", kind).
+					With("interface_type", fmt.Sprintf("%T", bytes))
 			}
 
 			name := ptr.Val(attachment.GetName())
 
 			contentID, err := attachment.GetBackingStore().Get("contentId")
 			if err != nil {
-				return "", clues.WrapWC(ctx, err, "getting content id for attachment")
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment").
+					With("kind", kind)
 			}
 
 			if contentID != nil {
