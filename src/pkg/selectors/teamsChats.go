@@ -449,10 +449,11 @@ func (s TeamsChatsScope) Get(cat teamsChatsCategory) []string {
 	return getCatValue(s, cat)
 }
 
-// sets a value by category to the scope.  Only intended for internal use.
-func (s TeamsChatsScope) set(cat teamsChatsCategory, v []string, opts ...option) TeamsChatsScope {
-	return set(s, cat, v, opts...)
-}
+// kept around because it'll likely be needed again in later additions.
+// // sets a value by category to the scope.  Only intended for internal use.
+// func (s TeamsChatsScope) set(cat teamsChatsCategory, v []string, opts ...option) TeamsChatsScope {
+// 	return set(s, cat, v, opts...)
+// }
 
 // setDefaults ensures that contact folder, mail folder, and user category
 // scopes all express `AnyTgt` for their child category types.
