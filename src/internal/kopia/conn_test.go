@@ -284,7 +284,7 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName))
 }
 
-func (suite *WrapperIntegrationSuite) TestConfigDefaultsSetOnInitAndNotOnConnect() {
+func (suite *WrapperIntegrationSuite) TestConfigPolicyDefaultsSetOnInitAndNotOnConnect() {
 	newCompressor := "pgzip"
 	newRetentionDaily := policy.OptionalInt(42)
 	newRetention := policy.RetentionPolicy{KeepDaily: &newRetentionDaily}
