@@ -289,6 +289,22 @@ jobs:
 
       - run: mkdir testlog
 
+      - name: one test
+        run: GODEBUG=gocachetest=1 go test -v -run '^TestExportUnitSuite/TestGetItems$' ./internal/m365/service/onedrive
+
+      # Upload the original go test output as an artifact for later review.
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-log
+          path: src/testlog/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: fail
+        run: exit 1
+
       # Install gotestfmt
       - name: Set up gotestfmt
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
