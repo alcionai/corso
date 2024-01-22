@@ -277,7 +277,7 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
+      CORSO_LOG_FILE: /tmp/corso-testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
@@ -288,7 +288,7 @@ jobs:
           go-version-file: src/go.mod
           cache-key-suffix: unit-test
 
-      - run: mkdir testlog
+      # - run: mkdir testlog
 
       - run: ls /home/runner/.cache/go-build
       - run: ls /home/runner/.cache/go-build/*
