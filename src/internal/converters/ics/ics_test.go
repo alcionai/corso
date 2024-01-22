@@ -139,6 +139,13 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 			errCheck:  require.NoError,
 		},
 		{
+			name:      "timezone from TZ database",
+			timestamp: "2021-01-01T12:00:00Z",
+			timezone:  "America/Los_Angeles",
+			time:      time.Date(2021, 1, 1, 20, 0, 0, 0, time.UTC),
+			errCheck:  require.NoError,
+		},
+		{
 			name:      "invalid time",
 			timestamp: "invalid",
 			timezone:  "UTC",
