@@ -4,7 +4,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const TestChannelName = "Test"
+const (
+	TestChannelName = "Test"
+	TestChatTopic   = "Test"
+)
 
 // GroupsBackupFolderScope is the standard folder scope that should be used
 // in integration backups with groups when interacting with libraries.
@@ -23,4 +26,10 @@ func GroupsBackupChannelScope(sel *selectors.GroupsBackup) []selectors.GroupsSco
 func GroupsBackupConversationScope(sel *selectors.GroupsBackup) []selectors.GroupsScope {
 	// there's no way to easily specify a test conversation by name.
 	return sel.Conversation(selectors.Any())
+}
+
+// TeamsChatsBackupChatScope is the standard folder scope that should be used
+// in integration backups with teams chats when interacting with chats.
+func TeamsChatsBackupChatScope(sel *selectors.TeamsChatsBackup) []selectors.TeamsChatsScope {
+	return sel.Chats([]string{TestChatTopic})
 }
