@@ -284,6 +284,86 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 		string(policyTree.EffectivePolicy().CompressionPolicy.CompressorName))
 }
 
+func (suite *WrapperIntegrationSuite) TestConfigPersistentConfigOnInitAndNotOnConnect() {
+	repoNameHash := strTD.NewHashForRepoConfigName()
+
+	table := []struct {
+		name         string
+		mutateParams repository.PersistentConfig
+		checkFunc    func(
+			t *testing.T,
+			wanted repository.PersistentConfig,
+			mutableParams format.MutableParameters,
+			blobConfig format.BlobStorageConfiguration,
+		)
+	}{
+		{
+			name: "MinEpochDuration",
+			mutateParams: repository.PersistentConfig{
+				MinEpochDuration: ptr.To(defaultMinEpochDuration + time.Minute),
+			},
+			checkFunc: func(
+				t *testing.T,
+				wanted repository.PersistentConfig,
+				mutableParams format.MutableParameters,
+				blobConfig format.BlobStorageConfiguration,
+			) {
+				assert.Equal(t, *wanted.MinEpochDuration, mutableParams.EpochParameters.MinEpochDuration)
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			k, err := openLocalKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Close is safe to call even if the repo is already closed.
+			t.Cleanup(func() {
+				k.Close(ctx)
+			})
+
+			// Need to disconnect and connect again because in-memory state in kopia
+			// isn't updated immediately.
+			err = k.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = k.Connect(ctx, repository.Options{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mutable, blob, err := k.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			defaultParams := repository.PersistentConfig{
+				MinEpochDuration: ptr.To(defaultMinEpochDuration),
+			}
+
+			test.checkFunc(t, defaultParams, mutable, blob)
+
+			err = k.updatePersistentConfig(ctx, test.mutateParams)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = k.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = k.Connect(ctx, repository.Options{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
+			mutable, blob, err = k.getPersistentConfig(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+			test.checkFunc(t, test.mutateParams, mutable, blob)
+
+			err = k.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
+
 func (suite *WrapperIntegrationSuite) TestConfigPolicyDefaultsSetOnInitAndNotOnConnect() {
 	newCompressor := "pgzip"
 	newRetentionDaily := policy.OptionalInt(42)
