@@ -408,6 +408,7 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 			ExchangeImmutableIDs:        true,
 			RunMigrations:               true,
 			DisableSlidingWindowLimiter: true,
+			UseDeltaTree:                true,
 			UseOldDeltaProcess:          true,
 			DisableLazyItemReader:       true,
 		},
