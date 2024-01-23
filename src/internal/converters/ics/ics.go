@@ -72,6 +72,11 @@ func getLocationString(location models.Locationable) string {
 }
 
 func GetUTCTime(ts, tz string) (time.Time, error) {
+	var (
+		loc *time.Location
+		err error
+	)
+
 	// Timezone is always converted to UTC.  This is the easiest way to
 	// ensure we have the correct time as the .ics file expects the same
 	// timezone everywhere according to the spec.
@@ -80,15 +85,18 @@ func GetUTCTime(ts, tz string) (time.Time, error) {
 		return time.Time{}, clues.Wrap(err, "parsing time").With("given_time_string", ts)
 	}
 
-	timezone, ok := GraphTimeZoneToTZ[tz]
-	if !ok {
-		return it, clues.New("unknown timezone").With("timezone", tz)
-	}
-
-	loc, err := time.LoadLocation(timezone)
+	loc, err = time.LoadLocation(tz)
 	if err != nil {
-		return time.Time{}, clues.Wrap(err, "loading timezone").
-			With("converted_timezone", timezone)
+		timezone, ok := GraphTimeZoneToTZ[tz]
+		if !ok {
+			return it, clues.New("unknown timezone").With("timezone", tz)
+		}
+
+		loc, err = time.LoadLocation(timezone)
+		if err != nil {
+			return time.Time{}, clues.Wrap(err, "loading timezone").
+				With("converted_timezone", timezone)
+		}
 	}
 
 	// embed timezone
