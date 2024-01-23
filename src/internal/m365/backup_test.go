@@ -139,7 +139,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 					Selector:          sel,
 				}
 
-				collections, excludes, canUsePreviousBackup, err := exchange.ProduceBackupCollections(
+				collections, excludes, canUsePreviousBackup, err := exchange.NewBackup().ProduceBackupCollections(
 					ctx,
 					bpc,
 					suite.ac,
@@ -309,7 +309,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 				Selector:          sel,
 			}
 
-			collections, excludes, canUsePreviousBackup, err := sharepoint.ProduceBackupCollections(
+			collections, excludes, canUsePreviousBackup, err := sharepoint.NewBackup().ProduceBackupCollections(
 				ctx,
 				bpc,
 				suite.ac,

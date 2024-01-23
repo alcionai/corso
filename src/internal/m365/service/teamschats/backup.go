@@ -22,7 +22,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-func ProduceBackupCollections(
+type teamsChatsBackup struct{}
+
+// NewBackup provides a struct that matches standard apis
+// across m365/service handlers.
+func NewBackup() *teamsChatsBackup {
+	return &teamsChatsBackup{}
+}
+
+func (teamsChatsBackup) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
@@ -30,10 +38,10 @@ func ProduceBackupCollections(
 	su support.StatusUpdater,
 	counter *count.Bus,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := bpc.Selector.ToTeamsChatsBackup()
 	if err != nil {
-		return nil, nil, clues.WrapWC(ctx, err, "parsing selector")
+		return nil, nil, true, clues.WrapWC(ctx, err, "parsing selector")
 	}
 
 	var (
@@ -98,7 +106,7 @@ func ProduceBackupCollections(
 			counter,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, true, err
 		}
 
 		collections = append(collections, baseCols...)
@@ -108,7 +116,7 @@ func ProduceBackupCollections(
 
 	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
-	return collections, nil, clues.Stack(el.Failure()).OrNil()
+	return collections, nil, true, clues.Stack(el.Failure()).OrNil()
 }
 
 type backupCommon struct {
@@ -126,9 +134,7 @@ func backupChats(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
-	var (
-		colls []data.BackupCollection
-	)
+	var colls []data.BackupCollection
 
 	progressMessage := observe.MessageWithCompletion(
 		ctx,

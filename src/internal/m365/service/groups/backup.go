@@ -33,7 +33,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-func ProduceBackupCollections(
+type groupsBackup struct{}
+
+// NewBackup provides a struct that matches standard apis
+// across m365/service handlers.
+func NewBackup() *groupsBackup {
+	return &groupsBackup{}
+}
+
+func (groupsBackup) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
@@ -41,10 +49,10 @@ func ProduceBackupCollections(
 	su support.StatusUpdater,
 	counter *count.Bus,
 	errs *fault.Bus,
-) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, error) {
+) ([]data.BackupCollection, *prefixmatcher.StringSetMatcher, bool, error) {
 	b, err := bpc.Selector.ToGroupsBackup()
 	if err != nil {
-		return nil, nil, clues.Wrap(err, "groupsDataCollection: parsing selector")
+		return nil, nil, true, clues.Wrap(err, "groupsDataCollection: parsing selector")
 	}
 
 	var (
@@ -65,7 +73,7 @@ func ProduceBackupCollections(
 		bpc.ProtectedResource.ID(),
 		api.CallConfig{})
 	if err != nil {
-		return nil, nil, clues.WrapWC(ctx, err, "getting group")
+		return nil, nil, true, clues.WrapWC(ctx, err, "getting group")
 	}
 
 	bc := backupCommon{ac, bpc, creds, group, sitesPreviousPaths, su}
@@ -128,7 +136,7 @@ func ProduceBackupCollections(
 			counter,
 			errs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, true, err
 		}
 
 		collections = append(collections, baseCols...)
@@ -142,7 +150,7 @@ func ProduceBackupCollections(
 		su,
 		counter)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, true, err
 	}
 
 	collections = append(collections, md)
@@ -151,7 +159,7 @@ func ProduceBackupCollections(
 
 	logger.Ctx(ctx).Infow("produced collections", "stats", counter.Values())
 
-	return collections, globalItemIDExclusions.ToReader(), el.Failure()
+	return collections, globalItemIDExclusions.ToReader(), true, el.Failure()
 }
 
 type backupCommon struct {
