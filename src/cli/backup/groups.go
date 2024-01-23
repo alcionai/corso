@@ -310,7 +310,7 @@ func groupsBackupCreateSelectors(
 	group, cats []string,
 ) *selectors.GroupsBackup {
 	if filters.PathContains(group).Compare(flags.Wildcard) {
-		return includeAllGroupWithCategories(ins, cats)
+		return includeAllGroupsWithCategories(ins, cats)
 	}
 
 	sel := selectors.NewGroupsBackup(slices.Clone(group))
@@ -318,6 +318,6 @@ func groupsBackupCreateSelectors(
 	return utils.AddGroupsCategories(sel, cats)
 }
 
-func includeAllGroupWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
+func includeAllGroupsWithCategories(ins idname.Cacher, categories []string) *selectors.GroupsBackup {
 	return utils.AddGroupsCategories(selectors.NewGroupsBackup(ins.IDs()), categories)
 }

@@ -46,6 +46,7 @@ var serviceCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addOneDriveCommands,
 	addSharePointCommands,
 	addGroupsCommands,
+	addTeamsChatsCommands,
 }
 
 // AddCommands attaches all `corso backup * *` commands to the parent.

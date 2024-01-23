@@ -21,6 +21,7 @@ var (
 	ExchangeCategoryDataInput   = []string{"email", "events", "contacts"}
 	SharepointCategoryDataInput = []string{"files", "lists", "pages"}
 	GroupsCategoryDataInput     = []string{"files", "lists", "pages", "messages"}
+	TeamsChatsCategoryDataInput = []string{"chats"}
 
 	ChannelInput                = []string{"channel1", "channel2"}
 	MessageInput                = []string{"message1", "message2"}
