@@ -26,12 +26,12 @@ type conversationsBackupHandler struct {
 func NewConversationBackupHandler(
 	protectedResource string,
 	ac api.Conversations,
-	email string,
+	resourceEmail string,
 ) conversationsBackupHandler {
 	return conversationsBackupHandler{
 		ac:                ac,
 		protectedResource: protectedResource,
-		resourceEmail:     email,
+		resourceEmail:     resourceEmail,
 	}
 }
 
@@ -142,8 +142,9 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 	// recipients if any. Currently we don't have a way to get the unique
 	// recipient list for individual posts due to graph api limitations.
 	//
-	// Store the group mail address so that we can use it to populate the 'To'
-	// field during Post -> EML exports.
+	// Store the group mail address in details so that SDK users can use it.
+	// This information will also be persisted in metadata files so that we
+	// can use it during export & restore.
 	dgi.Post.Recipients = []string{bh.resourceEmail}
 	dgi.Post.Topic = ptr.Val(c.GetTopic())
 }
