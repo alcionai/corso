@@ -225,11 +225,14 @@ func getPermsAndResourceOwnerPerms(
 	switch gv2t {
 	case GV2App, GV2Device, GV2Group, GV2User:
 		identity := models.NewIdentity()
-		identity.SetId(&resourceOwner)
-		identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
 		switch gv2t {
 		case GV2User:
+			// user's need to handle email
+			identity := models.NewUser()
+			identity.SetId(&resourceOwner)
+			identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
+
 			sharepointIdentitySet.SetUser(identity)
 		case GV2Group:
 			sharepointIdentitySet.SetGroup(identity)
@@ -259,6 +262,7 @@ func getPermsAndResourceOwnerPerms(
 
 	ownersPerm := Permission{
 		ID:         permID,
+		Email:      resourceOwner,
 		Roles:      []string{"read"},
 		EntityID:   resourceOwner,
 		EntityType: gv2t,
