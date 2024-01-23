@@ -36,6 +36,18 @@ func ODataErrWithMsg(code, message string) *odataerrors.ODataError {
 	return odErr
 }
 
+func ODataErrWithStatus(status int, code string) *odataerrors.ODataError {
+	odErr := odataerrors.NewODataError()
+	merr := odataerrors.NewMainError()
+	merr.SetCode(&code)
+	// graph sdk expects the message to be available
+	merr.SetMessage(&code)
+	odErr.SetErrorEscaped(merr)
+	odErr.SetStatusCode(status)
+
+	return odErr
+}
+
 func ODataInner(innerCode string) *odataerrors.ODataError {
 	odErr := odataerrors.NewODataError()
 	inerr := odataerrors.NewInnerError()

@@ -3,6 +3,7 @@ package groups
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
@@ -319,10 +320,17 @@ func backupConversations(
 	counter *count.Bus,
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
+	groupEmail := strings.Clone(ptr.Val(bc.group.GetMail()))
+	// This is unlikely, but if it does happen in the wild, we should investigate it.
+	if len(groupEmail) == 0 {
+		return nil, clues.New("group has no mail address")
+	}
+
 	var (
 		bh = groups.NewConversationBackupHandler(
 			bc.producerConfig.ProtectedResource.ID(),
-			bc.apiCli.Conversations())
+			bc.apiCli.Conversations(),
+			groupEmail)
 		colls []data.BackupCollection
 	)
 

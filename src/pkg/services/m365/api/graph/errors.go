@@ -66,6 +66,7 @@ const (
 	// @microsoft.graph.conflictBehavior=fail finds a conflicting file.
 	nameAlreadyExists       errorCode = "nameAlreadyExists"
 	NotAllowed              errorCode = "notAllowed"
+	notFound                errorCode = "NotFound"
 	noResolvedUsers         errorCode = "noResolvedUsers"
 	QuotaExceeded           errorCode = "ErrorQuotaExceeded"
 	RequestResourceNotFound errorCode = "Request_ResourceNotFound"
@@ -128,10 +129,10 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrResourceNotAccessible, err)
 	case isErrInsufficientAuthorization(ode, err):
 		err = clues.Stack(core.ErrInsufficientAuthorization, err)
-	case isErrNotFound(ode, err):
-		err = clues.Stack(core.ErrNotFound, err)
 	case isErrItemAlreadyExists(ode, err):
 		err = clues.Stack(core.ErrAlreadyExists, err)
+	case isErrNotFound(ode, err):
+		err = clues.Stack(core.ErrNotFound, err)
 	}
 
 	return stackWithDepth(ctx, err, 1+traceDepth)
@@ -140,7 +141,8 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 // unexported categorizers, for use with stackWithCoreErr
 
 func isErrApplicationThrottled(ode oDataErr, err error) bool {
-	return ode.hasErrorCode(err, ApplicationThrottled)
+	return ode.hasErrorCode(err, ApplicationThrottled) ||
+		ode.hasResponseCode(err, http.StatusTooManyRequests)
 }
 
 func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
@@ -149,11 +151,13 @@ func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
 
 func isErrNotFound(ode oDataErr, err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusNotFound)) ||
+		ode.hasResponseCode(err, http.StatusNotFound) ||
 		ode.hasErrorCode(
 			err,
 			ErrorItemNotFound,
 			ItemNotFound,
-			syncFolderNotFound)
+			syncFolderNotFound,
+			notFound)
 }
 
 func isErrUserNotFound(ode oDataErr, err error) bool {
@@ -177,8 +181,7 @@ func isErrItemAlreadyExists(ode oDataErr, err error) bool {
 }
 
 func isErrResourceLocked(ode oDataErr, err error) bool {
-	return ode.hasInnerErrorCode(err, ResourceLocked) ||
-		ode.hasErrorCode(err, NotAllowed) ||
+	return ode.hasErrorCode(err, ResourceLocked, NotAllowed) ||
 		ode.errMessageMatchesAllFilters(
 			err,
 			filters.In([]string{"the service principal for resource"}),
@@ -285,7 +288,7 @@ func IsErrSiteNotFound(err error) bool {
 }
 
 func IsErrSharingDisabled(err error) bool {
-	return parseODataErr(err).hasInnerErrorCode(err, sharingDisabled)
+	return parseODataErr(err).hasErrorCode(err, sharingDisabled)
 }
 
 // ---------------------------------------------------------------------------
@@ -577,20 +580,9 @@ func (ode oDataErr) hasErrorCode(err error, codes ...errorCode) bool {
 		cs[i] = string(c)
 	}
 
-	return filters.Equal(cs).Compare(ode.Main.Code)
-}
+	eq := filters.Equal(cs)
 
-func (ode oDataErr) hasInnerErrorCode(err error, codes ...errorCode) bool {
-	if !ode.isODataErr {
-		return false
-	}
-
-	cs := make([]string, len(codes))
-	for i, c := range codes {
-		cs[i] = string(c)
-	}
-
-	return filters.Equal(cs).Compare(ode.Inner.Code)
+	return eq.CompareAny(ode.Main.Code, ode.Inner.Code)
 }
 
 // only use this as a last resort.  Prefer the code or statuscode if possible.
