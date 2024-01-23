@@ -709,13 +709,12 @@ func (suite *ListsUnitSuite) TestHasMetadataFields() {
 	tests := []struct {
 		name              string
 		additionalData    map[string]any
-		expectedFields    map[string]any
+		expectedFields    []map[string]any
 		expectedFieldName string
-		expectedResult    string
 		hasMetadataFields bool
 	}{
 		{
-			name: "Has all metadata fields",
+			name: "Single metadata fields, has all keys",
 			additionalData: map[string]any{
 				"MdCol": map[string]any{
 					MetadataLabelKey:    ptr.To("Engineering"),
@@ -723,16 +722,49 @@ func (suite *ListsUnitSuite) TestHasMetadataFields() {
 					MetadataWssIDKey:    ptr.To(4),
 				},
 			},
-			expectedFields: map[string]any{
-				MetadataLabelKey:    ptr.To("Engineering"),
-				MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
-				MetadataWssIDKey:    ptr.To(4),
+			expectedFields: []map[string]any{
+				{
+					MetadataLabelKey:    ptr.To("Engineering"),
+					MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(4),
+				},
 			},
 			expectedFieldName: "MdCol",
 			hasMetadataFields: true,
 		},
 		{
-			name: "Missing few metadata fields",
+			name: "Multiple metadata fields, has all keys",
+			additionalData: map[string]any{
+				"MdCol": []any{
+					map[string]any{
+						MetadataLabelKey:    ptr.To("Engineering"),
+						MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+						MetadataWssIDKey:    ptr.To(4),
+					},
+					map[string]any{
+						MetadataLabelKey:    ptr.To("Marketing"),
+						MetadataTermGUIDKey: ptr.To("312347ce-3043-499f-8be6-e92fb57bed96"),
+						MetadataWssIDKey:    ptr.To(2),
+					},
+				},
+			},
+			expectedFields: []map[string]any{
+				{
+					MetadataLabelKey:    ptr.To("Engineering"),
+					MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(4),
+				},
+				{
+					MetadataLabelKey:    ptr.To("Marketing"),
+					MetadataTermGUIDKey: ptr.To("312347ce-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(2),
+				},
+			},
+			expectedFieldName: "MdCol",
+			hasMetadataFields: true,
+		},
+		{
+			name: "Single metadata fields, missing few keys",
 			additionalData: map[string]any{
 				"MdCol": map[string]any{
 					MetadataLabelKey: ptr.To("Engineering"),
@@ -750,6 +782,54 @@ func (suite *ListsUnitSuite) TestHasMetadataFields() {
 			assert.Equal(t, test.expectedFields, nestedFields)
 			assert.Equal(t, test.expectedFieldName, fName)
 			assert.Equal(t, test.hasMetadataFields, isMetadata)
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestConcatenateMetadataFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name              string
+		metadataFields    []map[string]any
+		expectedFieldName string
+		expectedResult    string
+		hasMetadataFields bool
+		columnNames       map[string]any
+	}{
+		{
+			name: "Single metadata fields",
+			metadataFields: []map[string]any{
+				{
+					MetadataLabelKey:    ptr.To("Engineering"),
+					MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(4),
+				},
+			},
+			expectedResult: "Engineering",
+		},
+		{
+			name: "Multiple metadata fields",
+			metadataFields: []map[string]any{
+				{
+					MetadataLabelKey:    ptr.To("Engineering"),
+					MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(4),
+				},
+				{
+					MetadataLabelKey:    ptr.To("Marketing"),
+					MetadataTermGUIDKey: ptr.To("312347ce-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(2),
+				},
+			},
+			expectedResult: "Engineering,Marketing",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			res := concatenateMetadataFields(test.metadataFields)
+			assert.Equal(t, test.expectedResult, res)
 		})
 	}
 }

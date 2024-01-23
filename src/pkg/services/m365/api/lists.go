@@ -460,7 +460,7 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any
 	}
 
 	if metadataField, fieldName, ok := hasMetadataFields(additionalData); ok {
-		additionalData[fieldName] = metadataField[MetadataLabelKey]
+		additionalData[fieldName] = concatenateMetadataFields(metadataField)
 	}
 
 	fields.SetAdditionalData(additionalData)
@@ -519,20 +519,35 @@ func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, 
 	return nil, "", false
 }
 
-func hasMetadataFields(additionalData map[string]any) (map[string]any, string, bool) {
+func hasMetadataFields(additionalData map[string]any) ([]map[string]any, string, bool) {
 	for fieldName, value := range additionalData {
 		nestedFields, ok := value.(map[string]any)
-		if !ok {
-			continue
+		if ok &&
+			keys.HasKeys(nestedFields,
+				[]string{MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey}...) {
+			return []map[string]any{nestedFields}, fieldName, true
 		}
 
-		if keys.HasKeys(nestedFields,
-			[]string{MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey}...) {
-			return nestedFields, fieldName, true
+		multiNestedFields, ok := value.([]any)
+		if ok && len(multiNestedFields) > 0 {
+			return handleMultiMetadataFields(multiNestedFields), fieldName, true
 		}
 	}
 
 	return nil, "", false
+}
+
+func handleMultiMetadataFields(multiMetadataFields []any) []map[string]any {
+	mds := make([]map[string]any, 0)
+
+	for _, md := range multiMetadataFields {
+		if nestedFields, ok := md.(map[string]any); ok && keys.HasKeys(nestedFields,
+			[]string{MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey}...) {
+			mds = append(mds, nestedFields)
+		}
+	}
+
+	return mds
 }
 
 func concatenateAddressFields(addressFields map[string]any) string {
@@ -575,6 +590,23 @@ func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
 
 	if len(parts) > 0 {
 		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func concatenateMetadataFields(metadataFieldsArr []map[string]any) string {
+	labels := make([]string, 0)
+
+	for _, md := range metadataFieldsArr {
+		mdVal, ok := md[MetadataLabelKey].(*string)
+		if ok {
+			labels = append(labels, ptr.Val(mdVal))
+		}
+	}
+
+	if len(labels) > 0 {
+		return strings.Join(labels, ",")
 	}
 
 	return ""
