@@ -87,10 +87,8 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
 
-	if !opts.AllowListsRestore {
-		// Exclude lists from restore since they are not supported yet.
-		sel.Exclude(sel.Lists(selectors.Any()))
-	}
+	// Exclude lists from restore since they are not supported yet.
+	sel.Exclude(sel.Lists(selectors.Any()))
 
 	return runRestore(
 		ctx,

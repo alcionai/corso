@@ -403,7 +403,7 @@ jobs:
           service: sharepoint
           kind: first-backup-lists
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
-          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S') --allow-lists-restore"
+          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S')"
           export-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: "${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
@@ -446,7 +446,7 @@ jobs:
           service: sharepoint
           kind: incremental-lists
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
-          restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }},${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S') --allow-lists-restore"
+          restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }},${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S')"
           export-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }},${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
           restore-container: "${{ steps.sharepoint-lists-store-restore-container-inc.outputs.result }},${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}

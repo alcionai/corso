@@ -11,23 +11,21 @@ const (
 )
 
 const (
-	LibraryFN           = "library"
-	ListFN              = "list"
-	AllowListsRestoreFN = "allow-lists-restore"
-	PageFolderFN        = "page-folder"
-	PageFN              = "page"
-	SiteFN              = "site"    // site only accepts WebURL values
-	SiteIDFN            = "site-id" // site-id accepts actual site ids
+	LibraryFN    = "library"
+	ListFN       = "list"
+	PageFolderFN = "page-folder"
+	PageFN       = "page"
+	SiteFN       = "site"    // site only accepts WebURL values
+	SiteIDFN     = "site-id" // site-id accepts actual site ids
 )
 
 var (
-	LibraryFV           string
-	ListFV              []string
-	AllowListsRestoreFV bool
-	PageFolderFV        []string
-	PageFV              []string
-	SiteIDFV            []string
-	WebURLFV            []string
+	LibraryFV    string
+	ListFV       []string
+	PageFolderFV []string
+	PageFV       []string
+	SiteIDFV     []string
+	WebURLFV     []string
 )
 
 // AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
@@ -72,11 +70,6 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 		ListFN, nil,
 		"Select lists by name; accepts '"+Wildcard+"' to select all lists.")
 	cobra.CheckErr(fs.MarkHidden(ListFN))
-	fs.BoolVar(
-		&AllowListsRestoreFV,
-		AllowListsRestoreFN, false,
-		"enables lists restore if provided")
-	cobra.CheckErr(fs.MarkHidden(AllowListsRestoreFN))
 
 	// pages
 

@@ -25,8 +25,7 @@ type SharePointOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	Lists             []string
-	AllowListsRestore bool
+	Lists []string
 
 	PageFolder []string
 	Page       []string
@@ -65,8 +64,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		Lists:             flags.ListFV,
-		AllowListsRestore: flags.AllowListsRestoreFV,
+		Lists: flags.ListFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
