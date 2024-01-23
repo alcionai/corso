@@ -95,17 +95,16 @@ func (lh *ListHandler) Check(t *testing.T, expected []string) {
 }
 
 type ListRestoreHandler struct {
-	getListErr    error
 	deleteListErr error
-	postListErrs  []error
-	postListCalls int
+	postListErr   error
+	patchListErr  error
 }
 
-func NewListRestoreHandler(getListErr, deleteListErr error, postListErrs []error) *ListRestoreHandler {
+func NewListRestoreHandler(deleteListErr error, postListErr, patchListErr error) *ListRestoreHandler {
 	return &ListRestoreHandler{
-		getListErr:    getListErr,
 		deleteListErr: deleteListErr,
-		postListErrs:  postListErrs,
+		postListErr:   postListErr,
+		patchListErr:  patchListErr,
 	}
 }
 
@@ -115,15 +114,16 @@ func (lh *ListRestoreHandler) PostList(
 	storedList models.Listable,
 	_ *fault.Bus,
 ) (models.Listable, error) {
-	lh.postListCalls++
-
 	ls, _ := api.ToListable(storedList, listName)
+	return ls, lh.postListErr
+}
 
-	if lh.postListCalls > len(lh.postListErrs) {
-		return ls, nil
-	}
-
-	return nil, lh.postListErrs[lh.postListCalls-1]
+func (lh *ListRestoreHandler) PatchList(
+	ctx context.Context,
+	listID string,
+	list models.Listable,
+) (models.Listable, error) {
+	return nil, lh.patchListErr
 }
 
 func (lh *ListRestoreHandler) GetList(
@@ -132,10 +132,6 @@ func (lh *ListRestoreHandler) GetList(
 ) (models.Listable, *details.SharePointInfo, error) {
 	ls := models.NewList()
 	ls.SetId(ptr.To(listID))
-
-	if lh.getListErr != nil {
-		return nil, nil, lh.getListErr
-	}
 
 	return ls, api.ListToSPInfo(ls), nil
 }
@@ -146,10 +142,6 @@ func (lh *ListRestoreHandler) DeleteList(_ context.Context, _ string) error {
 
 func (lh *ListRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
 	return map[string]string{}, nil
-}
-
-func (lh *ListRestoreHandler) CheckPostListCalls(t *testing.T, expectedCalls int) {
-	assert.Equal(t, expectedCalls, lh.postListCalls, "unequal number of post-list calls")
 }
 
 func StubLists(ids ...string) []models.Listable {
