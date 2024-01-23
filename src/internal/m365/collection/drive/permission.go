@@ -208,7 +208,8 @@ func UpdatePermissions(
 		ictx := clues.Add(
 			ctx,
 			"permission_entity_type", p.EntityType,
-			"permission_entity_id", clues.Hide(p.EntityID))
+			"permission_entity_id", clues.Hide(p.EntityID),
+			"permission_entity_email", clues.Hide(p.Email))
 
 		// deletes require unique http clients
 		// https://github.com/alcionai/corso/issues/2707
@@ -245,7 +246,8 @@ func UpdatePermissions(
 		ictx := clues.Add(
 			ctx,
 			"permission_entity_type", p.EntityType,
-			"permission_entity_id", clues.Hide(p.EntityID))
+			"permission_entity_id", clues.Hide(p.EntityID),
+			"permission_entity_email", clues.Hide(p.Email))
 
 		// We are not able to restore permissions when there are no
 		// roles or for owner, this seems to be restriction in graph
@@ -351,11 +353,16 @@ func UpdateLinkShares(
 			}
 
 			// Using DriveRecipient seems to error out on Graph end
-			idens = append(idens, map[string]string{"objectId": iden.ID})
-			entities = append(entities, iden.ID)
+			if len(iden.ID) > 0 {
+				idens = append(idens, map[string]string{"objectId": iden.ID})
+				entities = append(entities, iden.ID)
+			} else {
+				idens = append(idens, map[string]string{"email": iden.Email})
+				entities = append(entities, iden.Email)
+			}
 		}
 
-		ictx = clues.Add(ictx, "link_share_entity_ids", strings.Join(entities, ","))
+		ictx = clues.Add(ictx, "link_share_entities", strings.Join(entities, ","))
 
 		// https://learn.microsoft.com/en-us/graph/api/driveitem-createlink?view=graph-rest-beta&tabs=http
 		// v1.0 version of the graph API does not support creating a
@@ -471,11 +478,14 @@ func filterUnavailableEntitiesInLinkShare(
 
 			switch e.EntityType {
 			case metadata.GV2User:
-				_, ok := availableEntities.Users.NameOf(e.ID)
-				available = available || ok
+				// Link shares with external users won't have IDs
+				if len(e.ID) == 0 && len(e.Email) > 0 {
+					available = true
+				} else {
+					_, available = availableEntities.Users.NameOf(e.ID)
+				}
 			case metadata.GV2Group:
-				_, ok := availableEntities.Groups.NameOf(e.ID)
-				available = available || ok
+				_, available = availableEntities.Groups.NameOf(e.ID)
 			default:
 				// We only know about users and groups
 				available = true
