@@ -86,7 +86,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	data, err := api.BytesToContactable(body)
 	if err != nil {
-		return "", clues.Wrap(err, "converting to contactable")
+		return "", clues.Wrap(err, "converting to contactable").
+			With("body_length", len(body))
 	}
 
 	name := vcard.Name{

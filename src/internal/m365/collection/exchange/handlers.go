@@ -66,6 +66,10 @@ type restoreHandler interface {
 	containerAPI
 	getItemsByCollisionKeyser
 	NewContainerCache(userID string) graph.ContainerResolver
+	ShouldSetContainerToDefaultRoot(
+		restoreFolderPath string,
+		collectionPath path.Path,
+	) bool
 	FormatRestoreDestination(
 		destinationContainerName string,
 		collectionFullPath path.Path,

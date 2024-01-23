@@ -244,6 +244,22 @@ func (c Lists) DeleteList(
 	return graph.Wrap(ctx, err, "deleting list").OrNil()
 }
 
+func (c Lists) PatchList(
+	ctx context.Context,
+	siteID, listID string,
+	list models.Listable,
+) (models.Listable, error) {
+	patchedList, err := c.Stable.
+		Client().
+		Sites().
+		BySiteId(siteID).
+		Lists().
+		ByListId(listID).
+		Patch(ctx, list, nil)
+
+	return patchedList, graph.Wrap(ctx, err, "patching list").OrNil()
+}
+
 func BytesToListable(bytes []byte) (models.Listable, error) {
 	parsable, err := CreateFromBytes(bytes, models.CreateListFromDiscriminatorValue)
 	if err != nil {
@@ -591,13 +607,12 @@ func ListToSPInfo(lst models.Listable) *details.SharePointInfo {
 	return &details.SharePointInfo{
 		ItemType: details.SharePointList,
 		Modified: modified,
+		Created:  created,
+		WebURL:   webURL,
 		List: &details.ListInfo{
 			Name:      name,
 			ItemCount: int64(count),
 			Template:  template,
-			Created:   created,
-			Modified:  modified,
-			WebURL:    webURL,
 		},
 	}
 }
