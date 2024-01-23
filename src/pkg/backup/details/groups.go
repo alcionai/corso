@@ -61,11 +61,12 @@ type GroupsInfo struct {
 }
 
 type ConversationPostInfo struct {
-	CreatedAt time.Time `json:"createdAt,omitempty"`
-	Creator   string    `json:"creator,omitempty"`
-	Preview   string    `json:"preview,omitempty"`
-	Size      int64     `json:"size,omitempty"`
-	Topic     string    `json:"topic,omitempty"`
+	CreatedAt  time.Time `json:"createdAt,omitempty"`
+	Creator    string    `json:"creator,omitempty"`
+	Preview    string    `json:"preview,omitempty"`
+	Recipients []string  `json:"recipients,omitempty"`
+	Size       int64     `json:"size,omitempty"`
+	Topic      string    `json:"topic,omitempty"`
 }
 
 type ChannelMessageInfo struct {
