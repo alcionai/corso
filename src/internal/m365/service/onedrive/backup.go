@@ -22,7 +22,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-func ProduceBackupCollections(
+type oneDriveBackup struct{}
+
+// NewBackup provides a struct that matches standard apis
+// across m365/service handlers.
+func NewBackup() *oneDriveBackup {
+	return &oneDriveBackup{}
+}
+
+func (oneDriveBackup) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
