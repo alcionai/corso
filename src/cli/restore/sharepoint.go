@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -85,6 +86,11 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
+
+	if !opts.AllowListsRestore {
+		// Exclude lists from restore since they are not supported yet.
+		sel.Exclude(sel.Lists(selectors.Any()))
+	}
 
 	return runRestore(
 		ctx,
