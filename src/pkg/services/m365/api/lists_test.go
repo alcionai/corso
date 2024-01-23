@@ -774,6 +774,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 				list.SetId(ptr.To(listID))
 				list.SetDisplayName(ptr.To(listName))
 				list.SetList(listInfo)
+				list.SetCreatedDateTime(ptr.To(time.Now()))
 				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
@@ -911,8 +912,8 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, listName, info.List.Name)
 			assert.Equal(t, int64(1), info.List.ItemCount)
 			assert.Equal(t, listTemplate, info.List.Template)
-			assert.NotEmpty(t, info.List.Modified)
 			assert.NotEmpty(t, info.Modified)
+			assert.NotEmpty(t, info.Created)
 		})
 	}
 }
@@ -1014,6 +1015,50 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 			assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
 		})
 	}
+}
+
+func (suite *ListsAPIIntgSuite) TestLists_PatchList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl         = suite.its.ac.Lists()
+		siteID      = suite.its.site.id
+		listName    = "old-list-name"
+		newListName = "new-list-name"
+	)
+
+	fieldsData, list := getFieldsDataAndList()
+
+	createdList, err := acl.PostList(ctx, siteID, listName, list, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(createdList.GetDisplayName()))
+
+	listID := ptr.Val(createdList.GetId())
+
+	newList := models.NewList()
+	newList.SetDisplayName(ptr.To(newListName))
+	patchedList, err := acl.PatchList(ctx, siteID, listID, newList)
+	require.NoError(t, err)
+	assert.Equal(t, newListName, ptr.Val(patchedList.GetDisplayName()))
+
+	patchedList, _, err = acl.GetListByID(ctx, siteID, listID)
+	require.NoError(t, err)
+
+	newListItems := patchedList.GetItems()
+	require.Less(t, 0, len(newListItems))
+
+	newListItemFields := newListItems[0].GetFields()
+	require.NotEmpty(t, newListItemFields)
+
+	newListItemsData := newListItemFields.GetAdditionalData()
+	require.NotEmpty(t, newListItemsData)
+	assert.Equal(t, fieldsData["itemName"], newListItemsData["itemName"])
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(patchedList.GetId()))
+	require.NoError(t, err)
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {

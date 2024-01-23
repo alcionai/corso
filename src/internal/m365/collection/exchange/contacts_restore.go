@@ -19,7 +19,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ itemRestorer = &contactRestoreHandler{}
+var (
+	_ itemRestorer   = &contactRestoreHandler{}
+	_ restoreHandler = &contactRestoreHandler{}
+)
 
 type contactRestoreHandler struct {
 	ac api.Contacts
@@ -41,11 +44,25 @@ func (h contactRestoreHandler) NewContainerCache(userID string) graph.ContainerR
 	}
 }
 
+func (h contactRestoreHandler) ShouldSetContainerToDefaultRoot(
+	restoreFolderPath string,
+	collectionPath path.Path,
+) bool {
+	return len(collectionPath.Folders()) == 1 &&
+		restoreFolderPath == h.DefaultRootContainer()
+}
+
 func (h contactRestoreHandler) FormatRestoreDestination(
 	destinationContainerName string,
-	_ path.Path, // contact folders cannot be nested
+	collectionFullPath path.Path, // contact folders cannot be nested
 ) *path.Builder {
-	return path.Builder{}.Append(destinationContainerName)
+	// User passed in some location to restore to, use that.
+	if len(destinationContainerName) > 0 {
+		return path.Builder{}.Append(destinationContainerName)
+	}
+
+	// FIXME(ashmrtn): Make sure this plays ok with nested folder creation.
+	return path.Builder{}.Append(collectionFullPath.Folders()...)
 }
 
 func (h contactRestoreHandler) CreateContainer(

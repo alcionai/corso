@@ -338,7 +338,9 @@ func GetCancelledEventDateStrings(event models.Eventable) ([]string, error) {
 
 		_, err = dttm.ParseTime(startStr)
 		if err != nil {
-			return nil, clues.Wrap(err, "parsing cancelled event date")
+			return nil, clues.Wrap(err, "parsing cancelled event date").
+				With("instance", instance).
+				With("start_string", startStr)
 		}
 
 		dates = append(dates, startStr)

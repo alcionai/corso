@@ -11,21 +11,35 @@ const (
 )
 
 const (
-	LibraryFN    = "library"
-	ListFN       = "list"
+	LibraryFN = "library"
+
+	ListFN               = "list"
+	ListModifiedAfterFN  = "list-modified-after"
+	ListModifiedBeforeFN = "list-modified-before"
+	ListCreatedAfterFN   = "list-created-after"
+	ListCreatedBeforeFN  = "list-created-before"
+
 	PageFolderFN = "page-folder"
 	PageFN       = "page"
-	SiteFN       = "site"    // site only accepts WebURL values
-	SiteIDFN     = "site-id" // site-id accepts actual site ids
+
+	SiteFN   = "site"    // site only accepts WebURL values
+	SiteIDFN = "site-id" // site-id accepts actual site ids
 )
 
 var (
-	LibraryFV    string
-	ListFV       []string
+	LibraryFV string
+
+	ListFV               []string
+	ListModifiedAfterFV  string
+	ListModifiedBeforeFV string
+	ListCreatedAfterFV   string
+	ListCreatedBeforeFV  string
+
 	PageFolderFV []string
 	PageFV       []string
-	SiteIDFV     []string
-	WebURLFV     []string
+
+	SiteIDFV []string
+	WebURLFV []string
 )
 
 // AddSharePointDetailsAndRestoreFlags adds flags that are common to both the
@@ -68,8 +82,23 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 	fs.StringSliceVar(
 		&ListFV,
 		ListFN, nil,
-		"Select lists by name; accepts '"+Wildcard+"' to select all lists.")
-	cobra.CheckErr(fs.MarkHidden(ListFN))
+		"Select lists by name.")
+	fs.StringVar(
+		&ListModifiedAfterFV,
+		ListModifiedAfterFN, "",
+		"Select lists modified after this datetime.")
+	fs.StringVar(
+		&ListModifiedBeforeFV,
+		ListModifiedBeforeFN, "",
+		"Select lists modified before this datetime.")
+	fs.StringVar(
+		&ListCreatedAfterFV,
+		ListCreatedAfterFN, "",
+		"Select lists created after this datetime.")
+	fs.StringVar(
+		&ListCreatedBeforeFV,
+		ListCreatedBeforeFN, "",
+		"Select lists created before this datetime.")
 
 	// pages
 
