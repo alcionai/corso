@@ -185,8 +185,7 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 						deetsPath.Tenant(),
 						deetsPath.ProtectedResource(),
 						path.ExchangeMetadataService,
-						deetsPath.Category(),
-					),
+						deetsPath.Category()),
 				},
 				fault.New(true))
 			require.NoError(t, err)
