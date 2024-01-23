@@ -1,0 +1,103 @@
+{
+  "@odata.type": "#microsoft.graph.eventMessageRequest",
+  "@odata.etag": "W/\"CwAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAFY+7zz\"",
+  "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFZU-vfAAA=",
+  "createdDateTime": "2024-01-15T11:26:41Z",
+  "lastModifiedDateTime": "2024-01-15T11:26:43Z",
+  "changeKey": "CwAAABYAAABBFDg0JJk7TY1fmsJrh7tNAAFY+7zz",
+  "categories": [],
+  "receivedDateTime": "2024-01-15T11:26:41Z",
+  "sentDateTime": "2024-01-15T11:26:41Z",
+  "hasAttachments": false,
+  "internetMessageId": "<PH0PR04MB7285DDED30186B1D8E1BD2AABC6C2@PH0PR04MB7285.namprd04.prod.outlook.com>",
+  "subject": "Invitable event",
+  "bodyPreview": "How come the sun is hot?\r\n\r\n________________________________________________________________________________\r\nMicrosoft Teams meeting\r\nJoin on your computer, mobile app or room device\r\nClick here to join the meeting\r\nMeeting ID: 290 273 192 285\r\nPasscode:",
+  "importance": "normal",
+  "parentFolderId": "AQMkAGJiAGZhNjRlOC00OGI5LTQyNTItYjFkMy00NTJjMTgyZGZkMjQALgAAA0V2IruiJ9ZFvgAO6qBJFycBAEEUODQkmTtNjV_awmuHu00AAAIBCQAAAA==",
+  "conversationId": "AAQkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNAAQABoIUFzzByJMltJobtYSAJ0=",
+  "conversationIndex": "AdpHpbXXGghQXPMHIkyW0mhu1hIAnQ==",
+  "isDeliveryReceiptRequested": null,
+  "isReadReceiptRequested": false,
+  "isRead": true,
+  "isDraft": false,
+  "webLink": "https://outlook.office365.com/owa/?ItemID=AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFZU%2FvfAAA%3D&exvsurl=1&viewmodel=ReadMessageItem",
+  "inferenceClassification": "focused",
+  "meetingMessageType": "meetingRequest",
+  "type": "seriesMaster",
+  "isOutOfDate": false,
+  "isAllDay": false,
+  "isDelegated": false,
+  "responseRequested": true,
+  "allowNewTimeProposals": null,
+  "meetingRequestType": "newMeetingRequest",
+  "body": {
+    "contentType": "html",
+    "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head><body><div class=\"elementToProof\" style=\"font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif; font-size:12pt; color:rgb(0,0,0)\">How come the sun is hot?<br></div><br><div style=\"width:100%\"><span style=\"white-space:nowrap; color:#5F5F5F; opacity:.36\">________________________________________________________________________________</span> </div><div class=\"me-email-text\" lang=\"en-US\" style=\"color:#252424; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\"><div style=\"margin-top:24px; margin-bottom:20px\"><span style=\"font-size:24px; color:#252424\">Microsoft Teams meeting</span> </div><div style=\"margin-bottom:20px\"><div style=\"margin-top:0px; margin-bottom:0px; font-weight:bold\"><span style=\"font-size:14px; color:#252424\">Join on your computer, mobile app or room device</span> </div><a class=\"me-email-headline\" href=\"https://teams.microsoft.com/l/meetup-join/19%3ameeting_OGM4MWVlYjUtMjllMi00ZjY5LWE5YjgtMTc4MjJhMWI1MjRl%40thread.v2/0?context=%7b%22Tid%22%3a%22fb8afbaa-e94c-4ea5-8a8a-24aff04d7874%22%2c%22Oid%22%3a%227ceb8e03-bdc5-4509-a136-457526165ec0%22%7d\" target=\"_blank\" rel=\"noreferrer noopener\" style=\"font-size:14px; font-family:'Segoe UI Semibold','Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif; text-decoration:underline; color:#6264a7\">Click here to join the meeting</a> </div><div style=\"margin-bottom:20px; margin-top:20px\"><div style=\"margin-bottom:4px\"><span data-tid=\"meeting-code\" style=\"font-size:14px; color:#252424\">Meeting ID: <span style=\"font-size:16px; color:#252424\">290 273 192 285</span> </span><br><span style=\"font-size:14px; color:#252424\">Passcode: </span><span style=\"font-size:16px; color:#252424\">CwEBTS </span><div style=\"font-size:14px\"><a class=\"me-email-link\" target=\"_blank\" href=\"https://www.microsoft.com/en-us/microsoft-teams/download-app\" rel=\"noreferrer noopener\" style=\"font-size:14px; text-decoration:underline; color:#6264a7; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\">Download Teams</a> | <a class=\"me-email-link\" target=\"_blank\" href=\"https://www.microsoft.com/microsoft-teams/join-a-meeting\" rel=\"noreferrer noopener\" style=\"font-size:14px; text-decoration:underline; color:#6264a7; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\">Join on the web</a></div></div></div><div style=\"margin-bottom:24px; margin-top:20px\"><a class=\"me-email-link\" target=\"_blank\" href=\"https://aka.ms/JoinTeamsMeeting\" rel=\"noreferrer noopener\" style=\"font-size:14px; text-decoration:underline; color:#6264a7; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\">Learn More</a> | <a class=\"me-email-link\" target=\"_blank\" href=\"https://teams.microsoft.com/meetingOptions/?organizerId=7ceb8e03-bdc5-4509-a136-457526165ec0&amp;tenantId=fb8afbaa-e94c-4ea5-8a8a-24aff04d7874&amp;threadId=19_meeting_OGM4MWVlYjUtMjllMi00ZjY5LWE5YjgtMTc4MjJhMWI1MjRl@thread.v2&amp;messageId=0&amp;language=en-US\" rel=\"noreferrer noopener\" style=\"font-size:14px; text-decoration:underline; color:#6264a7; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\">Meeting options</a> </div></div><div style=\"font-size:14px; margin-bottom:4px; font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif\"></div><div style=\"font-size:12px\"></div><div></div><div style=\"width:100%\"><span style=\"white-space:nowrap; color:#5F5F5F; opacity:.36\">________________________________________________________________________________</span> </div></body></html>"
+  },
+  "sender": {
+    "emailAddress": {
+      "name": "Johanna Lorenz",
+      "address": "JohannaL@10rqc2.onmicrosoft.com"
+    }
+  },
+  "from": {
+    "emailAddress": {
+      "name": "Johanna Lorenz",
+      "address": "JohannaL@10rqc2.onmicrosoft.com"
+    }
+  },
+  "toRecipients": [
+    {
+      "emailAddress": {
+        "name": "Faker 1",
+        "address": "fakeid1@provider.com"
+      }
+    }
+  ],
+  "ccRecipients": [
+    {
+      "emailAddress": {
+        "name": "Faker 2",
+        "address": "fakeid2@provider.com"
+      }
+    }
+  ],
+  "bccRecipients": [],
+  "replyTo": [],
+  "flag": {
+    "flagStatus": "notFlagged"
+  },
+  "startDateTime": {
+    "dateTime": "2024-01-22T02:30:00.0000000",
+    "timeZone": "UTC"
+  },
+  "endDateTime": {
+    "dateTime": "2024-01-22T03:00:00.0000000",
+    "timeZone": "UTC"
+  },
+  "location": {
+    "displayName": "Microsoft Teams Meeting",
+    "locationType": "default",
+    "uniqueIdType": "unknown"
+  },
+  "recurrence": {
+    "pattern": {
+      "type": "daily",
+      "interval": 1,
+      "month": 0,
+      "dayOfMonth": 0,
+      "firstDayOfWeek": "sunday",
+      "index": "first"
+    },
+    "range": {
+      "type": "endDate",
+      "startDate": "2024-01-21",
+      "endDate": "2024-01-24",
+      "recurrenceTimeZone": "tzone://Microsoft/Utc",
+      "numberOfOccurrences": 0
+    }
+  },
+  "previousLocation": null,
+  "previousStartDateTime": null,
+  "previousEndDateTime": null
+}

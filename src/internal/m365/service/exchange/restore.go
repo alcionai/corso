@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -77,19 +78,43 @@ func (h *exchangeHandler) ConsumeRestoreCollections(
 			directoryCache[category] = gcr
 		}
 
-		containerID, gcc, err := exchange.CreateDestination(
-			ictx,
-			handler,
-			handler.FormatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath()),
-			resourceID,
-			directoryCache[category],
-			errs)
-		if err != nil {
-			el.AddRecoverable(ictx, err)
-			continue
+		restoreFolderPath := handler.FormatRestoreDestination(rcc.RestoreConfig.Location, dc.FullPath())
+
+		ictx = clues.Add(ictx, "restore_folder_path", restoreFolderPath)
+
+		var containerID string
+
+		// Only attempt to create a new folder if it's not the default contacts
+		// folder. Contacts is weird in that it allows creating sub folders with the
+		// same name as the default contacts folder, but which are technically
+		// nested folders.
+		//
+		// Without this check we'll end up restoring to Contacts/Contacts instead of
+		// Contacts if in-place restore is requested and the root Contacts folder
+		// had items.
+		if handler.ShouldSetContainerToDefaultRoot(restoreFolderPath.String(), dc.FullPath()) {
+			logger.Ctx(ictx).Info("using default contact folder")
+
+			containerID = handler.DefaultRootContainer()
+		} else {
+			logger.Ctx(ictx).Info("creating restore folder")
+
+			newContainerID, gcc, err := exchange.CreateDestination(
+				ictx,
+				handler,
+				restoreFolderPath,
+				resourceID,
+				directoryCache[category],
+				errs)
+			if err != nil {
+				el.AddRecoverable(ictx, err)
+				continue
+			}
+
+			directoryCache[category] = gcc
+			containerID = newContainerID
 		}
 
-		directoryCache[category] = gcc
 		ictx = clues.Add(ictx, "restore_destination_id", containerID)
 
 		collisionKeyToItemID, err := handler.GetItemsInContainerByCollisionKey(ictx, resourceID, containerID)
