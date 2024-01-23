@@ -674,6 +674,13 @@ func (suite *WrapperIntegrationSuite) TestUpdatePersistentConfig() {
 			err := connection.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
 			require.NoError(t, err, "initializing repo: %v", clues.ToCore(err))
 
+			// Need to close and reopen the repo due to kopia caching of values.
+			err = connection.Close(ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			err = connection.Connect(ctx, repository.Options{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
 			startParams, startBlobConfig, err := connection.getPersistentConfig(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
