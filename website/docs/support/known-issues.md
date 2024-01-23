@@ -43,3 +43,7 @@ Below is a list of known Corso issues and limitations:
   updated the locale since the backup was created.
 
 * In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
+
+* Sharepoint list item "attachments" aren't Backup-ed up, Restore-d and Export-ed.
+  This is because of limitation of GRAPH APIs to provide the relevant info in responses.
+  An issue has been created to track the progress: https://github.com/alcionai/corso/issues/5085
