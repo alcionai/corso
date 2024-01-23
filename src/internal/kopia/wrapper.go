@@ -223,8 +223,12 @@ func hostAndUserFromReasons(reasons []identity.Reasoner) (userAndHost, error) {
 		reasonMap = map[string]struct{}{}
 	)
 
-	for _, reason := range reasons {
-		if tenant == "" {
+	for i, reason := range reasons {
+		// Use a check on the iteration index instead of empty string so we can
+		// differentiate between the first iteration and a reason with an empty
+		// value (should result in an error if there's another reason with a
+		// non-empty value).
+		if i == 0 {
 			tenant = reason.Tenant()
 		} else if tenant != reason.Tenant() {
 			return userAndHost{}, clues.New("multiple tenant IDs in backup reasons").
@@ -233,7 +237,7 @@ func hostAndUserFromReasons(reasons []identity.Reasoner) (userAndHost, error) {
 					"new_tenant_id", reason.Tenant())
 		}
 
-		if resource == "" {
+		if i == 0 {
 			resource = reason.ProtectedResource()
 		} else if resource != reason.ProtectedResource() {
 			return userAndHost{}, clues.New("multiple protected resource IDs in backup reasons").
@@ -252,7 +256,7 @@ func hostAndUserFromReasons(reasons []identity.Reasoner) (userAndHost, error) {
 	host := strings.Join(allReasons, "-")
 	user := strings.Join([]string{tenant, resource}, "-")
 
-	if len(user) == 0 {
+	if len(user) == 0 || user == "-" {
 		return userAndHost{}, clues.New("empty user value")
 	}
 
