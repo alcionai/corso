@@ -870,7 +870,6 @@ func RunDriveAssistBaseGroupsUpdate(
 		opts    = control.DefaultOptions()
 	)
 
-	opts.ToggleFeatures.UseDeltaTree = true
 	opts.ItemExtensionFactory = []extensions.CreateItemExtensioner{
 		NewCreateSingleFileFailExtension(),
 	}
