@@ -76,8 +76,6 @@ func (svc ServiceType) HumanString() string {
 }
 
 func (svc ServiceType) ToMetadata() ServiceType {
-	res := UnknownService
-
 	//exhaustive:enforce
 	switch svc {
 	case ExchangeService:
@@ -98,8 +96,8 @@ func (svc ServiceType) ToMetadata() ServiceType {
 	case GroupsMetadataService:
 		fallthrough
 	case UnknownService:
-		res = svc
+		return svc
 	}
 
-	return res
+	return UnknownService
 }
