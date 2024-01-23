@@ -175,193 +175,193 @@ jobs:
 
       # generate new entries to roll into the next load test
       # only runs if the test was successful
-      - name: Exchange - Create new data
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          go run . exchange emails \
-          --user ${{ env.TEST_USER }} \
-          --tenant ${{ secrets.TENANT_ID }} \
-          --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }} \
-          --count 4
+      # - name: Exchange - Create new data
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           go run . exchange emails \
+#           --user ${{ env.TEST_USER }} \
+#           --tenant ${{ secrets.TENANT_ID }} \
+#           --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }} \
+#           --count 4
 
-      - name: Exchange - Backup
-        timeout-minutes: 30
-        id: exchange-backup
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: exchange
-          kind: first-backup
-          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Exchange - Backup
+#         timeout-minutes: 30
+#         id: exchange-backup
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: exchange
+#           kind: first-backup
+#           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+#           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-      - name: Exchange - Incremental backup
-        timeout-minutes: 30
-        id: exchange-backup-incremental
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: exchange
-          kind: incremental
-          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Exchange - Incremental backup
+#         timeout-minutes: 30
+#         id: exchange-backup-incremental
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: exchange
+#           kind: incremental
+#           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+#           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-      - name: Exchange - Non delta backup
-        timeout-minutes: 30
-        id: exchange-backup-non-delta
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: exchange
-          kind: non-delta
-          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Exchange - Non delta backup
+#         timeout-minutes: 30
+#         id: exchange-backup-non-delta
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: exchange
+#           kind: non-delta
+#           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
+#           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-      - name: Exchange - Incremental backup after non-delta
-        timeout-minutes: 30
-        id: exchange-backup-incremental-after-non-delta
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: exchange
-          kind: non-delta-incremental
-          backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Exchange - Incremental backup after non-delta
+#         timeout-minutes: 30
+#         id: exchange-backup-incremental-after-non-delta
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: exchange
+#           kind: non-delta-incremental
+#           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
+#           restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+#           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
 
-##########################################################################################################################################
+# ##########################################################################################################################################
 
-# Onedrive
+# # Onedrive
 
-      # generate new entries for test
-      - name: OneDrive - Create new data
-        id: new-data-creation-onedrive
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+#       # generate new entries for test
+#       - name: OneDrive - Create new data
+#         id: new-data-creation-onedrive
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          go run . onedrive files  \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
-            --count 4
+#           go run . onedrive files  \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+#             --count 4
 
-          echo result="${suffix}" >> $GITHUB_OUTPUT
+#           echo result="${suffix}" >> $GITHUB_OUTPUT
 
-      - name: OneDrive - Backup
-        id: onedrive-backup
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: onedrive
-          kind: first-backup
-          backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: OneDrive - Backup
+#         id: onedrive-backup
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: onedrive
+#           kind: first-backup
+#           backup-args: '--user "${{ env.TEST_USER }}"'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-      # generate some more enteries for incremental check
-      - name: OneDrive - Create new data (for incremental)
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          go run . onedrive files  \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
-            --count 4
+#       # generate some more enteries for incremental check
+#       - name: OneDrive - Create new data (for incremental)
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           go run . onedrive files  \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }} \
+#             --count 4
 
-      - name: OneDrive - Incremental backup
-        id: onedrive-incremental
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: onedrive
-          kind: incremental
-          backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: OneDrive - Incremental backup
+#         id: onedrive-incremental
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: onedrive
+#           kind: incremental
+#           backup-args: '--user "${{ env.TEST_USER }}"'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-##########################################################################################################################################
+# ##########################################################################################################################################
 
-# Sharepoint Library
+# # Sharepoint Library
 
-      # generate new entries for test
-      - name: SharePoint - Create new data
-        id: new-data-creation-sharepoint
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+#       # generate new entries for test
+#       - name: SharePoint - Create new data
+#         id: new-data-creation-sharepoint
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
-            --count 4
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+#             --count 4
 
-          echo result="${suffix}" >> $GITHUB_OUTPUT
+#           echo result="${suffix}" >> $GITHUB_OUTPUT
 
-      - name: SharePoint - Backup
-        id: sharepoint-backup
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: sharepoint
-          kind: first-backup
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
-          category: libraries
+#       - name: SharePoint - Backup
+#         id: sharepoint-backup
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: sharepoint
+#           kind: first-backup
+#           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
+#           category: libraries
 
-      # generate some more enteries for incremental check
-      - name: SharePoint - Create new data (for incremental)
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
-            --count 4
+#       # generate some more enteries for incremental check
+#       - name: SharePoint - Create new data (for incremental)
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }} \
+#             --count 4
 
-      - name: SharePoint - Incremental backup
-        id: sharepoint-incremental
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: sharepoint
-          kind: incremental
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
-          category: libraries
+#       - name: SharePoint - Incremental backup
+#         id: sharepoint-incremental
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: sharepoint
+#           kind: incremental
+#           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
+#           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
+#           category: libraries
 
 ##########################################################################################################################################
 
@@ -459,60 +459,60 @@ jobs:
 # Groups and Teams
 
       # generate new entries for test
-      - name: Groups - Create new data
-        id: new-data-creation-groups
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+      # - name: Groups - Create new data
+#         id: new-data-creation-groups
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
 
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
-            --count 4
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+#             --count 4
 
-          echo result="${suffix}" >> $GITHUB_OUTPUT
+#           echo result="${suffix}" >> $GITHUB_OUTPUT
 
-      - name: Groups - Backup
-        id: groups-backup
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: groups
-          kind: first-backup
-          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Groups - Backup
+#         id: groups-backup
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: groups
+#           kind: first-backup
+#           backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
-      # generate some more entries for incremental check
-      - name: Groups - Create new data (for incremental)
-        timeout-minutes: 30
-        working-directory: ./src/cmd/factory
-        run: |
-          go run . sharepoint files  \
-            --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
-            --user ${{ env.TEST_USER }} \
-            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
-            --tenant ${{ secrets.TENANT_ID }} \
-            --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }} \
-            --count 4
+#       # generate some more entries for incremental check
+#       - name: Groups - Create new data (for incremental)
+#         timeout-minutes: 30
+#         working-directory: ./src/cmd/factory
+#         run: |
+#           go run . sharepoint files  \
+#             --site ${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }} \
+#             --user ${{ env.TEST_USER }} \
+#             --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+#             --tenant ${{ secrets.TENANT_ID }} \
+#             --destination ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }} \
+#             --count 4
 
-      - name: Groups - Incremental backup
-        id: groups-incremental
-        timeout-minutes: 30
-        uses: ./.github/actions/backup-restore-test
-        with:
-          service: groups
-          kind: incremental
-          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
-          restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
-          log-dir: ${{ env.CORSO_LOG_DIR }}
-          with-export: true
+#       - name: Groups - Incremental backup
+#         id: groups-incremental
+#         timeout-minutes: 30
+#         uses: ./.github/actions/backup-restore-test
+#         with:
+#           service: groups
+#           kind: incremental
+#           backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+#           restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+#           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+#           log-dir: ${{ env.CORSO_LOG_DIR }}
+#           with-export: true
 
 ##########################################################################################################################################
 
