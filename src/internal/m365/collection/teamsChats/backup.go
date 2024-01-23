@@ -139,7 +139,7 @@ func populateCollection[I chatsItemer](
 	cl.Add(count.ItemsAdded, int64(len(includedItems)))
 	cl.Add(count.ItemsRemoved, 0)
 
-	p, err := bh.canonicalPath()
+	p, err := bh.CanonicalPath()
 	if err != nil {
 		err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 		errs.AddRecoverable(ctx, err)

@@ -61,7 +61,7 @@ func (bh usersChatsBackupHandler) includeItem(
 	return scope.Matches(selectors.TeamsChatsChat, ptr.Val(ch.GetTopic()))
 }
 
-func (bh usersChatsBackupHandler) canonicalPath() (path.Path, error) {
+func (bh usersChatsBackupHandler) CanonicalPath() (path.Path, error) {
 	return path.BuildPrefix(
 		bh.tenantID,
 		bh.protectedResourceID,

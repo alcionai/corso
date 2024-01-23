@@ -84,7 +84,7 @@ func (bh mockBackupHandler) includeItem(
 	return !bh.doNotInclude
 }
 
-func (bh mockBackupHandler) canonicalPath() (path.Path, error) {
+func (bh mockBackupHandler) CanonicalPath() (path.Path, error) {
 	return path.BuildPrefix(
 		"tenant",
 		"protectedResource",
