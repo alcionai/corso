@@ -409,6 +409,39 @@ func (suite *BasicKopiaIntegrationSuite) TestConsumeBackupCollections_SetsSource
 				path.FilesCategory.String(),
 		},
 		{
+			name: "EmptyTenant",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  "-" + testUser,
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyResource",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-",
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyTenantAndResource Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "EmptyAndPopulatedTenant Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
 			name: "DifferentTenants Errors",
 			reasons: []identity.Reasoner{
 				identity.NewReason(testTenant+"1", testUser, path.ExchangeService, path.EmailCategory),
@@ -437,8 +470,8 @@ func (suite *BasicKopiaIntegrationSuite) TestConsumeBackupCollections_SetsSource
 
 			for i, reason := range test.reasons {
 				colPath, err := path.Build(
-					reason.Tenant(),
-					reason.ProtectedResource(),
+					testTenant,
+					testUser,
 					reason.Service(),
 					reason.Category(),
 					false,
