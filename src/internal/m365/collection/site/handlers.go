@@ -36,6 +36,7 @@ type getItemser interface {
 
 type restoreHandler interface {
 	PostLister
+	PatchLister
 	DeleteLister
 	GetLister
 	GetListsByCollisionKeyser
@@ -47,6 +48,14 @@ type PostLister interface {
 		listName string,
 		storedList models.Listable,
 		errs *fault.Bus,
+	) (models.Listable, error)
+}
+
+type PatchLister interface {
+	PatchList(
+		ctx context.Context,
+		listID string,
+		list models.Listable,
 	) (models.Listable, error)
 }
 

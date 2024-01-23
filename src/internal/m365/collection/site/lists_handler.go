@@ -73,6 +73,14 @@ func (rh listsRestoreHandler) PostList(
 	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedList, errs)
 }
 
+func (rh listsRestoreHandler) PatchList(
+	ctx context.Context,
+	listID string,
+	list models.Listable,
+) (models.Listable, error) {
+	return rh.ac.PatchList(ctx, rh.protectedResource, listID, list)
+}
+
 func (rh listsRestoreHandler) DeleteList(
 	ctx context.Context,
 	listID string,
