@@ -160,7 +160,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemType: SharePointList,
 						Created:  now,
 						Modified: now,
-						WebURL:   "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/list1",
+						WebURL:   "https://example.com/Lists/list1",
 						List: &ListInfo{
 							Name:      "list1",
 							ItemCount: 50,
@@ -190,7 +190,7 @@ func (suite *DetailsUnitSuite) TestDetailsEntry_HeadersValues() {
 						ItemType: SharePointList,
 						Created:  now,
 						Modified: now,
-						WebURL:   "https://10rqc2.sharepoint.com/sites/site-4754-small-lists/Lists/Shared%20Documents",
+						WebURL:   "https://example.com/Lists/Shared%20Documents",
 						List: &ListInfo{
 							Name:      "Shared%20Documents",
 							ItemCount: 50,
