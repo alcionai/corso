@@ -212,7 +212,45 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	}
 }
 
-func (suite *SharePointRestoreSuite) TestRestoreListItem_collisions() {
+func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		listName     = "MockListing"
+		listTemplate = "genericList"
+		restoreCfg   = testdata.DefaultRestoreConfig("")
+		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+		service      = createTestService(t, suite.creds)
+		list         = stubList(listTemplate, listName)
+		newList      = stubList(listTemplate, listName)
+		cl           = count.New()
+	)
+
+	mockData := generateListData(t, service, list)
+
+	collisionKeyToItemID := map[string]string{
+		api.ListCollisionKey(newList): "some-list-id",
+	}
+
+	deets, err := restoreListItem(
+		ctx,
+		lrh,
+		mockData,
+		suite.siteID,
+		restoreCfg, // OnCollision is skip by default
+		collisionKeyToItemID,
+		cl,
+		fault.New(true))
+	require.Error(t, err, clues.ToCore(err))
+	assert.Equal(t, core.ErrAlreadyExists.Error(), err.Error())
+	assert.Empty(t, deets)
+	assert.Less(t, int64(0), cl.Get(count.CollisionSkip))
+}
+
+func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
