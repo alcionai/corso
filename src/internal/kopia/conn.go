@@ -34,13 +34,8 @@ const (
 	defaultCompressor       = "zstd-better-compression"
 	// Interval of 0 disables scheduling.
 	defaultSchedulingInterval = time.Second * 0
-	defaultMinEpochDuration   = time.Hour * 8
-)
 
-var (
-	ErrSettingDefaultConfig = clues.New("setting default repo config values")
-	ErrorRepoAlreadyExists  = clues.New("repo already exists")
-
+	defaultMinEpochDuration = time.Hour * 8
 	// minEpochDurationLowerBound is the minimum corso will allow the kopia epoch
 	// duration to be set to. This number can still be tuned further, right now
 	// it's just to make sure it's not set to something totally wild.
@@ -58,6 +53,11 @@ var (
 	// the epoch should be changed. This is just the min amount of time since the
 	// last epoch change that's required.
 	minEpochDurationUpperBound = 7 * 24 * time.Hour
+)
+
+var (
+	ErrSettingDefaultConfig = clues.New("setting default repo config values")
+	ErrorRepoAlreadyExists  = clues.New("repo already exists")
 )
 
 // Having all fields set to 0 causes it to keep max-int versions of snapshots.
