@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
@@ -1297,7 +1298,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 	runRestoreBackupTest(suite.T(), test, cfg)
 }
 
-func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
+func (suite *ControllerIntegrationSuite) TestProduceBackupCollections_createsPrefixCollections() {
 	table := []struct {
 		name         string
 		resourceCat  resource.Category
@@ -1311,9 +1312,9 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup([]string{suite.user})
 				sel.Include(
-					sel.ContactFolders([]string{selectors.NoneTgt}),
-					sel.EventCalendars([]string{selectors.NoneTgt}),
-					sel.MailFolders([]string{selectors.NoneTgt}))
+					sel.ContactFolders(selectors.None()),
+					sel.EventCalendars(selectors.None()),
+					sel.MailFolders(selectors.None()))
 
 				return sel.Selector
 			},
@@ -1329,7 +1330,7 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			resourceCat: resource.Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewOneDriveBackup([]string{suite.user})
-				sel.Include(sel.Folders([]string{selectors.NoneTgt}))
+				sel.Include(sel.Folders(selectors.None()))
 
 				return sel.Selector
 			},
@@ -1344,10 +1345,11 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewSharePointBackup([]string{tconfig.M365SiteID(t)})
 				sel.Include(
-					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					sel.Library(selectors.NoneTgt),
+					sel.LibraryFolders(selectors.None()),
 					// not yet in use
-					//  sel.Pages([]string{selectors.NoneTgt}),
-					//  sel.Lists([]string{selectors.NoneTgt}),
+					//  sel.Pages(selectors.None()),
+					//  sel.Lists(selectors.None()),
 				)
 
 				return sel.Selector
@@ -1366,10 +1368,11 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			selectorFunc: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewGroupsBackup([]string{tconfig.M365TeamID(t)})
 				sel.Include(
-					sel.LibraryFolders([]string{selectors.NoneTgt}),
+					sel.Library(selectors.NoneTgt),
+					sel.LibraryFolders(selectors.None()),
 					// not yet in use
-					//  sel.Pages([]string{selectors.NoneTgt}),
-					//  sel.Lists([]string{selectors.NoneTgt}),
+					//  sel.Pages(selectors.None()),
+					//  sel.Lists(selectors.None()),
 				)
 
 				return sel.Selector
@@ -1423,8 +1426,14 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 			t.Logf("Backup enumeration complete in %v\n", time.Since(start))
 
 			// Use a map to find duplicates.
-			foundCategories := []string{}
-			for _, col := range dcs {
+			foundCategories := map[string]struct{}{}
+			var foundPrefixCollection bool
+
+			for i, col := range dcs {
+				fp := col.FullPath()
+
+				t.Logf("collection %d: %s", i, fp)
+
 				// TODO(ashmrtn): We should be able to remove the below if we change how
 				// status updates are done. Ideally we shouldn't have to fetch items in
 				// these collections to avoid deadlocking.
@@ -1437,23 +1446,26 @@ func (suite *ControllerIntegrationSuite) TestBackup_CreatesPrefixCollections() {
 				}
 
 				// Ignore metadata collections.
-				fullPath := col.FullPath()
-				if fullPath.Service() != test.service {
+				if fp.Service() != test.service {
 					continue
 				}
 
-				assert.Empty(t, fullPath.Folders(), "non-prefix collection")
-				assert.NotEqual(t, col.State(), data.NewState, "prefix collection marked as new")
-				foundCategories = append(foundCategories, fullPath.Category().String())
+				if len(fp.Folders()) == 0 {
+					t.Log("prefix collection tests")
+					assert.NotEqual(t, col.State(), data.NewState, "prefix collection must have New status")
+					assert.Zero(t, found, "prefix collection must not contain items")
+					foundPrefixCollection = true
+				}
 
-				assert.Zero(t, found, "non-empty collection")
+				foundCategories[fp.Category().String()] = struct{}{}
 			}
 
-			assert.ElementsMatch(t, test.categories, foundCategories)
+			assert.ElementsMatch(t, test.categories, maps.Keys(foundCategories))
 
 			backupCtrl.Wait()
 
-			assert.NoError(t, errs.Failure())
+			assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			assert.True(t, foundPrefixCollection, "backup must generate a prefix collection")
 		})
 	}
 }

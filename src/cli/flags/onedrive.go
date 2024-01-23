@@ -13,7 +13,7 @@ const (
 	FileModifiedAfterFN  = "file-modified-after"
 	FileModifiedBeforeFN = "file-modified-before"
 
-	UseDeltaTreeFN = "use-delta-tree"
+	UseOldDeltaProcessFN = "use-old-delta-process"
 )
 
 var (
@@ -25,7 +25,7 @@ var (
 	FileModifiedAfterFV  string
 	FileModifiedBeforeFV string
 
-	UseDeltaTreeFV bool
+	UseOldDeltaProcessFV bool
 )
 
 // AddOneDriveDetailsAndRestoreFlags adds flags that are common to both the

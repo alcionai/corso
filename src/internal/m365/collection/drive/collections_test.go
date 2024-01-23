@@ -2634,7 +2634,9 @@ func (suite *CollectionsUnitSuite) TestGet() {
 				tenant,
 				idname.NewProvider(user, user),
 				func(*support.ControllerOperationStatus) {},
-				control.Options{ToggleFeatures: control.Toggles{}},
+				control.Options{ToggleFeatures: control.Toggles{
+					UseOldDeltaProcess: true,
+				}},
 				count.New())
 
 			prevDelta := "prev-delta"
