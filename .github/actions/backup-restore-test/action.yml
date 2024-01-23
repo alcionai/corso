@@ -56,7 +56,9 @@ runs:
         echo Backup ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-backup-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-backup-${{inputs.kind }}.log
         ./corso backup create '${{ inputs.service }}' \
             --no-stats --hide-progress --json \
             ${{ inputs.backup-args }} |
@@ -75,7 +77,9 @@ runs:
         echo Restore ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
         ./corso restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
@@ -106,7 +110,9 @@ runs:
         echo "---------------------------"
         echo Sanity Test Restore ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-validate-${{inputs.kind }}.log
         ./sanity-test restore ${{ inputs.service }}
 
     - name: Export ${{ inputs.service }} ${{ inputs.kind }}
@@ -119,9 +125,11 @@ runs:
         echo Export ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
-            /tmp/export-${{ inputs.service }}-${{inputs.kind }} \
+            /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }} \
             --no-stats \
             --hide-progress \
             ${{ inputs.export-args }} \
@@ -134,7 +142,7 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}${{ inputs.category && '-' }}${{ inputs.category }}-${{ inputs.kind }}
         SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
         SANITY_BACKUP_ID: ${{ inputs.backup-id }}
         # applies only for sharepoint lists
@@ -144,7 +152,9 @@ runs:
         echo "---------------------------"
         echo Sanity-Test Export ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-validate-${{inputs.kind }}.log
         ./sanity-test export ${{ inputs.service }}
 
     - name: Export archive ${{ inputs.service }} ${{ inputs.kind }}
@@ -157,17 +167,19 @@ runs:
         echo Export Archive ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-restore-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
         ./corso export '${{ inputs.service }}' \
-            /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive \
+            /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }}-archive \
             --no-stats \
             --hide-progress \
             --archive \
             ${{ inputs.export-args }} \
             --backup '${{ steps.backup.outputs.result }}'
 
-          unzip /tmp/export-${{ inputs.service }}-${{inputs.kind }}-archive/*.zip \
-            -d /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+          unzip /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }}-archive/*.zip \
+            -d /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }}-unzipped
           cat /tmp/corsologs
 
     - name: Check archive export ${{ inputs.service }} ${{ inputs.kind }}
@@ -175,7 +187,7 @@ runs:
       shell: bash
       working-directory: src
       env:
-        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}-${{inputs.kind }}-unzipped
+        SANITY_TEST_RESTORE_CONTAINER: /tmp/export-${{ inputs.service }}${{ inputs.category && '-' }}${{ inputs.category }}-${{inputs.kind }}-unzipped
         SANITY_TEST_SOURCE_CONTAINER: ${{ inputs.restore-container }}
         SANITY_BACKUP_ID: ${{ inputs.backup-id }}
         # applies only for sharepoint lists
@@ -185,7 +197,9 @@ runs:
         echo "---------------------------"
         echo Sanity-Test Export Archive ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}-validate-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-validate-${{inputs.kind }}.log
         ./sanity-test export ${{ inputs.service }}
 
     - name: List ${{ inputs.service }} ${{ inputs.kind }}
@@ -196,7 +210,9 @@ runs:
         echo Backup list ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}-list-${{inputs.kind }}.log
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}${CATEGORY_SUFFIX}-list-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
@@ -217,7 +233,10 @@ runs:
         echo Backup List w/ Backup ${{ inputs.service }} ${{ inputs.kind }}
         echo "---------------------------"
         set -euo pipefail
-        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}-single-${{inputs.kind }}.log
+        # Include category in the log file name if present
+        CATEGORY_SUFFIX=""
+        [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
+        CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}${CATEGORY_SUFFIX}-single-${{inputs.kind }}.log
         ./corso backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
