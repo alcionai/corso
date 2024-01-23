@@ -19,15 +19,19 @@ var _ backupHandler[models.Conversationable, models.Postable] = &conversationsBa
 type conversationsBackupHandler struct {
 	ac                api.Conversations
 	protectedResource string
+	// SMTP address for the group
+	resourceEmail string
 }
 
 func NewConversationBackupHandler(
 	protectedResource string,
 	ac api.Conversations,
+	resourceEmail string,
 ) conversationsBackupHandler {
 	return conversationsBackupHandler{
 		ac:                ac,
 		protectedResource: protectedResource,
+		resourceEmail:     resourceEmail,
 	}
 }
 
@@ -134,6 +138,14 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 	dgi *details.GroupsInfo,
 	c models.Conversationable,
 ) {
+	// Posts are always sent to the group email address, along with additional
+	// recipients if any. Currently we don't have a way to get the unique
+	// recipient list for individual posts due to graph api limitations.
+	//
+	// Store the group mail address in details so that SDK users can use it.
+	// This information will also be persisted in metadata files so that we
+	// can use it during export & restore.
+	dgi.Post.Recipients = []string{bh.resourceEmail}
 	dgi.Post.Topic = ptr.Val(c.GetTopic())
 }
 
