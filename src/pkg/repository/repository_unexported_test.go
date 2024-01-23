@@ -886,13 +886,16 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			sel := selectors.NewExchangeBackup([]string{brunhilda})
+			sel.Include(sel.MailFolders(selectors.Any()))
+
 			b := writeBackup(
 				t,
 				ctx,
 				suite.kw,
 				suite.sw,
 				tenantID, "snapID", test.writeBupID,
-				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				sel.Selector,
 				brunhilda, brunhilda,
 				test.deets,
 				&fault.Errors{},
@@ -993,13 +996,16 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			sel := selectors.NewExchangeBackup([]string{brunhilda})
+			sel.Include(sel.MailFolders(selectors.Any()))
+
 			b := writeBackup(
 				t,
 				ctx,
 				suite.kw,
 				suite.sw,
 				tenantID, "snapID", test.writeBupID,
-				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				sel.Selector,
 				brunhilda, brunhilda,
 				test.deets,
 				test.errors,
