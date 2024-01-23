@@ -162,7 +162,7 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgSiteID,
 		os.Getenv(EnvCorsoM365TestSiteID),
 		vpr.GetString(TestCfgSiteID),
-		"4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
+		"10rqc2.sharepoint.com,4892edf5-2ebf-46be-a6e5-a40b2cbf1c1a,38ab6d06-fc82-4417-af93-22d8733c22be")
 	fallbackTo(
 		testEnv,
 		TestCfgTeamID,
@@ -174,7 +174,7 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgTeamSiteID,
 		os.Getenv(EnvCorsoM365TestTeamSiteID),
 		vpr.GetString(TestCfgTeamSiteID),
-		"8df7082a-62eb-4165-97f9-ead8cf04c0d8,11810f05-e8bd-45e2-9728-92e434260750")
+		"10rqc2.sharepoint.com,8df7082a-62eb-4165-97f9-ead8cf04c0d8,11810f05-e8bd-45e2-9728-92e434260750")
 	fallbackTo(
 		testEnv,
 		TestCfgSecondaryTeamID,
@@ -204,7 +204,7 @@ func ReadTestConfig() (map[string]string, error) {
 		TestCfgSecondarySiteID,
 		os.Getenv(EnvCorsoSecondaryM365TestSiteID),
 		vpr.GetString(TestCfgSecondarySiteID),
-		"053684d8-ca6c-4376-a03e-2567816bb091,9b3e9abe-6a5e-4084-8b44-ea5a356fe02c")
+		"10rqc2.sharepoint.com,053684d8-ca6c-4376-a03e-2567816bb091,9b3e9abe-6a5e-4084-8b44-ea5a356fe02c")
 	fallbackTo(
 		testEnv,
 		TestCfgUnlicensedUserID,
