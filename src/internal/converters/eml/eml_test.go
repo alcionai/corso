@@ -1,11 +1,13 @@
 package eml
 
 import (
+	"bytes"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	ical "github.com/arran4/golang-ical"
 	"github.com/jhillyerd/enmime"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/converters/eml/testdata"
+	"github.com/alcionai/corso/src/internal/converters/ics"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -187,4 +190,138 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 			assert.NoError(t, err, "converting to eml")
 		})
 	}
+}
+
+func (suite *EMLUnitSuite) TestConvert_eml_ics() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(testdata.EmailWithEventInfo)
+
+	out, err := FromJSON(ctx, body)
+	assert.NoError(t, err, "converting to eml")
+
+	rmsg, err := api.BytesToMessageable(body)
+	require.NoError(t, err, "creating message")
+
+	msg := rmsg.(*models.EventMessageRequest)
+
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
+	require.NotNil(t, eml, "eml should not be nil")
+
+	require.Equal(t, 1, len(eml.OtherParts), "eml should have 1 attachment")
+	require.Equal(t, "text/calendar", eml.OtherParts[0].ContentType, "eml attachment should be a calendar")
+
+	catt := *eml.OtherParts[0]
+	cal, err := ical.ParseCalendar(bytes.NewReader(catt.Content))
+	require.NoError(t, err, "parsing calendar")
+
+	event := cal.Events()[0]
+
+	assert.Equal(t, ptr.Val(msg.GetId()), event.Id())
+	assert.Equal(t, ptr.Val(msg.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
+
+	assert.Equal(
+		t,
+		msg.GetCreatedDateTime().Format(ics.ICalDateTimeFormat),
+		event.GetProperty(ical.ComponentPropertyCreated).Value)
+	assert.Equal(
+		t,
+		msg.GetLastModifiedDateTime().Format(ics.ICalDateTimeFormat),
+		event.GetProperty(ical.ComponentPropertyLastModified).Value)
+
+	st, err := ics.GetUTCTime(
+		ptr.Val(msg.GetStartDateTime().GetDateTime()),
+		ptr.Val(msg.GetStartDateTime().GetTimeZone()))
+	require.NoError(t, err, "getting start time")
+
+	et, err := ics.GetUTCTime(
+		ptr.Val(msg.GetEndDateTime().GetDateTime()),
+		ptr.Val(msg.GetEndDateTime().GetTimeZone()))
+	require.NoError(t, err, "getting end time")
+
+	assert.Equal(
+		t,
+		st.Format(ics.ICalDateTimeFormat),
+		event.GetProperty(ical.ComponentPropertyDtStart).Value)
+	assert.Equal(
+		t,
+		et.Format(ics.ICalDateTimeFormat),
+		event.GetProperty(ical.ComponentPropertyDtEnd).Value)
+
+	tos := msg.GetToRecipients()
+	ccs := msg.GetCcRecipients()
+	att := event.Attendees()
+
+	assert.Equal(t, len(tos)+len(ccs), len(att))
+
+	for _, to := range tos {
+		found := false
+
+		for _, attendee := range att {
+			if "mailto:"+ptr.Val(to.GetEmailAddress().GetAddress()) == attendee.Value {
+				found = true
+
+				assert.Equal(t, "REQ-PARTICIPANT", attendee.ICalParameters["ROLE"][0])
+
+				break
+			}
+		}
+
+		assert.True(t, found, "to recipient not found in attendees")
+	}
+
+	for _, cc := range ccs {
+		found := false
+
+		for _, attendee := range att {
+			if "mailto:"+ptr.Val(cc.GetEmailAddress().GetAddress()) == attendee.Value {
+				found = true
+
+				assert.Equal(t, "OPT-PARTICIPANT", attendee.ICalParameters["ROLE"][0])
+
+				break
+			}
+		}
+
+		assert.True(t, found, "cc recipient not found in attendees")
+	}
+}
+
+func (suite *EMLUnitSuite) TestConvert_eml_ics_from_event_obj() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(testdata.EmailWithEventObject)
+
+	out, err := FromJSON(ctx, body)
+	assert.NoError(t, err, "converting to eml")
+
+	rmsg, err := api.BytesToMessageable(body)
+	require.NoError(t, err, "creating message")
+
+	msg := rmsg.(*models.EventMessageRequest)
+	evt := msg.GetEvent()
+
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
+	require.NotNil(t, eml, "eml should not be nil")
+
+	require.Equal(t, 1, len(eml.OtherParts), "eml should have 1 attachment")
+	require.Equal(t, "text/calendar", eml.OtherParts[0].ContentType, "eml attachment should be a calendar")
+
+	catt := *eml.OtherParts[0]
+	cal, err := ical.ParseCalendar(bytes.NewReader(catt.Content))
+	require.NoError(t, err, "parsing calendar")
+
+	event := cal.Events()[0]
+
+	assert.Equal(t, ptr.Val(evt.GetId()), event.Id())
+	assert.NotEqual(t, ptr.Val(msg.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
+	assert.Equal(t, ptr.Val(evt.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
 }
