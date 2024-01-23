@@ -210,6 +210,9 @@ func (w Wrapper) ConsumeBackupCollections(
 	return s, progress.deets, progress.toMerge, progress.errs.Failure()
 }
 
+// userAndHost is used as a passing mechanism for values that will be fed into
+// kopia's UserName and Host fields for SourceInfo. It exists to avoid returning
+// two strings from the hostAndUserFromReasons function.
 type userAndHost struct {
 	user string
 	host string
