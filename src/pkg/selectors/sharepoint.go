@@ -410,6 +410,46 @@ func (s *sharePoint) ModifiedBefore(timeStrings string) []SharePointScope {
 	}
 }
 
+func (s *sharePoint) ListModifiedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeInfoScope[SharePointScope](
+			SharePointListItem,
+			SharePointListInfoModifiedAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+func (s *sharePoint) ListModifiedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeInfoScope[SharePointScope](
+			SharePointListItem,
+			SharePointListInfoModifiedBefore,
+			[]string{timeStrings},
+			filters.Greater),
+	}
+}
+
+func (s *sharePoint) ListCreatedAfter(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeInfoScope[SharePointScope](
+			SharePointListItem,
+			SharePointListInfoCreatedAfter,
+			[]string{timeStrings},
+			filters.Less),
+	}
+}
+
+func (s *sharePoint) ListCreatedBefore(timeStrings string) []SharePointScope {
+	return []SharePointScope{
+		makeInfoScope[SharePointScope](
+			SharePointListItem,
+			SharePointListInfoCreatedBefore,
+			[]string{timeStrings},
+			filters.Greater),
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -439,6 +479,11 @@ const (
 	SharePointInfoCreatedBefore  sharePointCategory = "SharePointInfoCreatedBefore"
 	SharePointInfoModifiedAfter  sharePointCategory = "SharePointInfoModifiedAfter"
 	SharePointInfoModifiedBefore sharePointCategory = "SharePointInfoModifiedBefore"
+
+	SharePointListInfoModifiedAfter  sharePointCategory = "SharePointListInfoModifiedAfter"
+	SharePointListInfoModifiedBefore sharePointCategory = "SharePointListInfoModifiedBefore"
+	SharePointListInfoCreatedAfter   sharePointCategory = "SharePointListInfoCreatedAfter"
+	SharePointListInfoCreatedBefore  sharePointCategory = "SharePointListInfoCreatedBefore"
 
 	// library drive selection
 	SharePointInfoLibraryDrive sharePointCategory = "SharePointInfoLibraryDrive"
@@ -479,7 +524,9 @@ func (c sharePointCategory) leafCat() categorizer {
 		SharePointInfoCreatedAfter, SharePointInfoCreatedBefore,
 		SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
 		return SharePointLibraryItem
-	case SharePointList, SharePointListItem:
+	case SharePointList, SharePointListItem,
+		SharePointListInfoModifiedAfter, SharePointListInfoModifiedBefore,
+		SharePointListInfoCreatedAfter, SharePointListInfoCreatedBefore:
 		return SharePointListItem
 	case SharePointPage, SharePointPageFolder:
 		return SharePointPage
@@ -715,9 +762,11 @@ func (s SharePointScope) matchesInfo(dii details.ItemInfo) bool {
 	switch infoCat {
 	case SharePointWebURL:
 		i = info.WebURL
-	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore:
+	case SharePointInfoCreatedAfter, SharePointInfoCreatedBefore,
+		SharePointListInfoCreatedAfter, SharePointListInfoCreatedBefore:
 		i = dttm.Format(info.Created)
-	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore:
+	case SharePointInfoModifiedAfter, SharePointInfoModifiedBefore,
+		SharePointListInfoModifiedAfter, SharePointListInfoModifiedBefore:
 		i = dttm.Format(info.Modified)
 	case SharePointInfoLibraryDrive:
 		ds := []string{}

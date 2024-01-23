@@ -50,6 +50,10 @@ func validateCommonTimeFlags(opts any) error {
 		flags.FileCreatedBeforeFN,
 		flags.FileModifiedAfterFN,
 		flags.FileModifiedBeforeFN,
+		flags.ListCreatedAfterFN,
+		flags.ListCreatedBeforeFN,
+		flags.ListModifiedAfterFN,
+		flags.ListModifiedBeforeFN,
 	}
 
 	isFlagPopulated := func(opts any, flag string) bool {

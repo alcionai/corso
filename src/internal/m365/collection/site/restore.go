@@ -16,6 +16,9 @@ import (
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -31,12 +34,17 @@ func restoreListItem(
 	ctx context.Context,
 	rh restoreHandler,
 	itemData data.Item,
-	siteID, destName string,
+	siteID string,
+	restoreCfg control.RestoreConfig,
+	collisionKeyToItemID map[string]string,
+	ctr *count.Bus,
 	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	var (
-		dii    = details.ItemInfo{}
-		itemID = itemData.ID()
+		dii             = details.ItemInfo{}
+		itemID          = itemData.ID()
+		destName        = restoreCfg.Location
+		collisionPolicy = restoreCfg.OnCollision
 	)
 
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
@@ -54,25 +62,101 @@ func restoreListItem(
 		return dii, clues.WrapWC(ctx, err, "generating list from stored bytes")
 	}
 
-	newName := formatListsRestoreDestination(destName, itemID, storedList)
+	var (
+		collisionKey = api.ListCollisionKey(storedList)
+		collisionID  string
+		restoredList models.Listable
+		newName      = formatListsRestoreDestination(destName, itemID, storedList)
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
+			log.Debug("skipping item with collision")
+
+			return dii, clues.Stack(core.ErrAlreadyExists)
+		}
+
+		collisionID = id
+	}
+
+	if collisionPolicy != control.Replace {
+		restoredList, err = rh.PostList(ctx, newName, storedList, errs)
+		if err != nil {
+			return dii, clues.Wrap(err, "restoring list")
+		}
+	} else {
+		restoredList, err = handleListReplace(
+			ctx,
+			collisionID,
+			storedList,
+			newName,
+			rh,
+			ctr,
+			errs)
+		if err != nil {
+			return dii, clues.Stack(err)
+		}
+	}
 
 	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, storedList, errs)
-	if err != nil {
-		return dii, graph.Wrap(ctx, err, "restoring list")
-	}
 
 	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil
 }
 
+func handleListReplace(
+	ctx context.Context,
+	listID string,
+	listFromBackup models.Listable,
+	newName string,
+	rh restoreHandler,
+	ctr *count.Bus,
+	errs *fault.Bus,
+) (models.Listable, error) {
+	restoredList, err := rh.PostList(
+		ctx,
+		newName,
+		listFromBackup,
+		errs)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "restoring list")
+	}
+
+	err = rh.DeleteList(ctx, listID)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "deleting collided list")
+	}
+
+	patchList := models.NewList()
+	patchList.SetDisplayName(listFromBackup.GetDisplayName())
+	_, err = rh.PatchList(
+		ctx,
+		ptr.Val(restoredList.GetId()),
+		patchList)
+
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "patching list")
+	}
+
+	restoredList.SetDisplayName(listFromBackup.GetDisplayName())
+	ctr.Inc(count.CollisionReplace)
+
+	return restoredList, nil
+}
+
 func RestoreListCollection(
 	ctx context.Context,
 	rh restoreHandler,
 	dc data.RestoreCollection,
-	restoreContainerName string,
+	restoreCfg control.RestoreConfig,
 	deets *details.Builder,
+	collisionKeyToItemID map[string]string,
+	ctr *count.Bus,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
@@ -108,7 +192,9 @@ func RestoreListCollection(
 				rh,
 				itemData,
 				siteID,
-				restoreContainerName,
+				restoreCfg,
+				collisionKeyToItemID,
+				ctr,
 				errs)
 			if errors.Is(err, api.ErrSkippableListTemplate) {
 				// should never be encountered as lists with skippable template are not backed up
