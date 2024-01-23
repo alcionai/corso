@@ -57,6 +57,10 @@ const (
 	HyperlinkDescriptionKey = "Description"
 	HyperlinkURLKey         = "Url"
 
+	MetadataLabelKey    = "Label"
+	MetadataTermGUIDKey = "TermGuid"
+	MetadataWssIDKey    = "WssId"
+
 	LinkTitleFieldNamePart  = "LinkTitle"
 	ChildCountFieldNamePart = "ChildCount"
 	LookupIDFieldNamePart   = "LookupId"

@@ -703,6 +703,57 @@ func (suite *ListsUnitSuite) TestConcatenateHyperlinkFields() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestHasMetadataFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name              string
+		additionalData    map[string]any
+		expectedFields    map[string]any
+		expectedFieldName string
+		expectedResult    string
+		hasMetadataFields bool
+	}{
+		{
+			name: "Has all metadata fields",
+			additionalData: map[string]any{
+				"MdCol": map[string]any{
+					MetadataLabelKey:    ptr.To("Engineering"),
+					MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+					MetadataWssIDKey:    ptr.To(4),
+				},
+			},
+			expectedFields: map[string]any{
+				MetadataLabelKey:    ptr.To("Engineering"),
+				MetadataTermGUIDKey: ptr.To("6b5d3ce9-3043-499f-8be6-e92fb57bed96"),
+				MetadataWssIDKey:    ptr.To(4),
+			},
+			expectedFieldName: "MdCol",
+			hasMetadataFields: true,
+		},
+		{
+			name: "Missing few metadata fields",
+			additionalData: map[string]any{
+				"MdCol": map[string]any{
+					MetadataLabelKey: ptr.To("Engineering"),
+				},
+			},
+			expectedFields:    nil,
+			expectedFieldName: "",
+			hasMetadataFields: false,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			nestedFields, fName, isMetadata := hasMetadataFields(test.additionalData)
+			assert.Equal(t, test.expectedFields, nestedFields)
+			assert.Equal(t, test.expectedFieldName, fName)
+			assert.Equal(t, test.hasMetadataFields, isMetadata)
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

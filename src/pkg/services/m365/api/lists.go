@@ -367,7 +367,10 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	return newColumn
 }
 
-func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinitionable) {
+func setColumnType(
+	newColumn *models.ColumnDefinition,
+	orig models.ColumnDefinitionable,
+) {
 	switch {
 	case orig.GetText() != nil:
 		newColumn.SetText(orig.GetText())
@@ -456,6 +459,10 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any
 		additionalData[fieldName] = concatenatedHyperlink
 	}
 
+	if metadataField, fieldName, ok := hasMetadataFields(additionalData); ok {
+		additionalData[fieldName] = metadataField[MetadataLabelKey]
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -505,6 +512,22 @@ func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, 
 
 		if keys.HasKeys(nestedFields,
 			[]string{HyperlinkDescriptionKey, HyperlinkURLKey}...) {
+			return nestedFields, fieldName, true
+		}
+	}
+
+	return nil, "", false
+}
+
+func hasMetadataFields(additionalData map[string]any) (map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		nestedFields, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if keys.HasKeys(nestedFields,
+			[]string{MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey}...) {
 			return nestedFields, fieldName, true
 		}
 	}
