@@ -246,7 +246,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 		cl,
 		fault.New(true))
 	require.Error(t, err, clues.ToCore(err))
-	assert.True(t, errors.Is(core.ErrAlreadyExists, err))
+	assert.Equal(t, core.ErrAlreadyExists.Error(), err.Error())
 	assert.Empty(t, deets)
 	assert.Less(t, int64(0), cl.Get(count.CollisionSkip))
 }
