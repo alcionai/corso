@@ -30,6 +30,7 @@ type SharePointOpts struct {
 	ListModifiedBefore string
 	ListCreatedBefore  string
 	ListCreatedAfter   string
+	AllowListsRestore  bool
 
 	PageFolder []string
 	Page       []string
@@ -81,6 +82,7 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		ListModifiedBefore: flags.ListModifiedBeforeFV,
 		ListCreatedAfter:   flags.ListCreatedAfterFV,
 		ListCreatedBefore:  flags.ListCreatedBeforeFV,
+		AllowListsRestore:  flags.AllowListsRestoreFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
