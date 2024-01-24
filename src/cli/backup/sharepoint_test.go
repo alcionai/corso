@@ -253,14 +253,12 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 			cats:   []string{"invalid category"},
 			expect: assert.Error,
 		},
-		// [TODO](hitesh): Uncomment when lists are enabled
-
-		// {
-		// 	name:   "site with lists category",
-		// 	site:   []string{"smarf"},
-		// 	cats:   []string{flags.DataLists},
-		// 	expect: assert.NoError,
-		// },
+		{
+			name:   "site with lists category",
+			site:   []string{"smarf"},
+			cats:   []string{flags.DataLists},
+			expect: assert.NoError,
+		},
 
 		// [TODO]: Uncomment when pages are enabled
 
