@@ -49,6 +49,7 @@ with.
 ## Sharepoint List Anomalies
 
 Here is an example of GRPAH API response of columns of a list:
+
 ```json
 [
   {
@@ -70,7 +71,8 @@ Here is an example of GRPAH API response of columns of a list:
     }
   }
 ]
-``` 
+```
+
 This column is recognizable to be a `text` column from the response.
 
 Some columns in sharepoint list aren't recognizable from the GRAPH API response.
@@ -81,9 +83,11 @@ The value they hold are therefore not reinstated to the way the originally were.
 <TabItem value="hyp" label="Hyperlink">
 
 ### Originally created hyperlink column in Site
+
 ![diagram of list with Hyperlink column in a site](../../blog/images/Hyperlink-Column.png)
 
-### GRAPH API response for the column
+### GRAPH API response for the hyperlink column
+
 ```json
 [
   {
@@ -101,7 +105,8 @@ The value they hold are therefore not reinstated to the way the originally were.
 ]
 ```
 
-### GRAPH API response for the item data
+### GRAPH API response for the item data with hyperlink column
+
 ```json
 {
   "Title": "item-1",
@@ -113,18 +118,22 @@ The value they hold are therefore not reinstated to the way the originally were.
 ```
 
 ### Restored hyperlink column
+
 ![diagram of restored list with Hyperlink column in a site](../../blog/images/Restored-Hyperlink-Column.png)
 
-### Issue tracker
-https://github.com/microsoftgraph/msgraph-sdk-go/issues/640
+### Issue tracker for hyperlink column support
+
+To track progress, see <https://github.com/microsoftgraph/msgraph-sdk-go/issues/640>.
 
 </TabItem>
 <TabItem value="loc" label="Location">
 
 ### Originally created location column in Site
+
 ![diagram of list with Location column in a site](../../blog/images/Location-Column.png)
 
-### GRAPH API response for the column
+### GRAPH API response for the location column
+
 ```json
 [
   {
@@ -142,7 +151,8 @@ https://github.com/microsoftgraph/msgraph-sdk-go/issues/640
 ]
 ```
 
-### GRAPH API response for the item data
+### GRAPH API response for the item data with location column
+
 ```json
 {
     "Title": "item-1",
@@ -175,9 +185,11 @@ https://github.com/microsoftgraph/msgraph-sdk-go/issues/640
 ```
 
 ### Restored location column
+
 ![diagram of restored list with Location column in a site](../../blog/images/Restored-Location-Column.png)
 
-### Issue tracker
-https://github.com/microsoftgraph/msgraph-sdk-go/issues/638
+### Issue tracker for location column support
+
+To track progress, see <https://github.com/microsoftgraph/msgraph-sdk-go/issues/638>.
 </TabItem>
 </Tabs>
