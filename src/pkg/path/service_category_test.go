@@ -163,9 +163,10 @@ func (suite *ServiceCategoryUnitSuite) TestToServiceType() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, test.expected, ToServiceType(test.service))
+			assert.Equal(
+				suite.T(),
+				test.expected.String(),
+				ToServiceType(test.service).String())
 		})
 	}
 }
@@ -189,9 +190,10 @@ func (suite *ServiceCategoryUnitSuite) TestToCategoryType() {
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
-			assert.Equal(t, test.expected, ToCategoryType(test.category))
+			assert.Equal(
+				suite.T(),
+				test.expected.String(),
+				ToCategoryType(test.category).String())
 		})
 	}
 }

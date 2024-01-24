@@ -49,7 +49,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 				return mockGU{}
 			},
 			expect:    assert.True,
-			expectErr: assert.Error,
+			expectErr: assert.NoError,
 		},
 	}
 	for _, test := range table {
