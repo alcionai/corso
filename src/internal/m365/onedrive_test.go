@@ -510,7 +510,6 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 			restoreCfg.IncludePermissions = true
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
@@ -763,7 +762,6 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.IncludePermissions = true
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
@@ -857,7 +855,6 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 			restoreCfg.IncludePermissions = false
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
@@ -1066,7 +1063,6 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			restoreCfg.IncludePermissions = true
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
@@ -1265,7 +1261,6 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			restoreCfg.IncludePermissions = true
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
@@ -1385,7 +1380,6 @@ func testRestoreFolderNamedFolderRegression(
 			restoreCfg.IncludePermissions = true
 
 			opts := control.DefaultOptions()
-			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         suite.Tenant(),
