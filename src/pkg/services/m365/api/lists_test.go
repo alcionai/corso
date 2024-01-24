@@ -332,7 +332,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 		name             string
 		getList          func() *models.List
 		length           int
-		expectedColNames map[string]any
+		expectedColNames map[string]*columnDetails
 	}{
 		{
 			name: "all legacy columns",
@@ -346,7 +346,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]any{TitleColumnName: nil},
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
 		},
 		{
 			name: "title and legacy columns",
@@ -361,7 +361,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]any{TitleColumnName: nil},
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
 		},
 		{
 			name: "readonly and legacy columns",
@@ -376,7 +376,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length:           0,
-			expectedColNames: map[string]any{TitleColumnName: nil},
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
 		},
 		{
 			name: "legacy and a text column",
@@ -391,9 +391,9 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				return lst
 			},
 			length: 1,
-			expectedColNames: map[string]any{
-				TitleColumnName: nil,
-				textColumnName:  nil,
+			expectedColNames: map[string]*columnDetails{
+				TitleColumnName: {},
+				textColumnName:  {},
 			},
 		},
 	}
