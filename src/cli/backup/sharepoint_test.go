@@ -253,7 +253,6 @@ func (suite *SharePointUnitSuite) TestValidateSharePointBackupCreateFlags() {
 			cats:   []string{"invalid category"},
 			expect: assert.Error,
 		},
-
 		{
 			name:   "site with lists category",
 			site:   []string{"smarf"},

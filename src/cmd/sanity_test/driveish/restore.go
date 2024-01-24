@@ -45,7 +45,7 @@ func CheckRestoration(
 		"drive_id", driveID,
 		"drive_name", driveName)
 
-	root := populateSanitree(ctx, ac, driveID)
+	root := populateSanitree(ctx, ac, driveID, envs.RestoreContainer)
 
 	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
@@ -85,12 +85,24 @@ func permissionIn(
 	ctx context.Context,
 	ac api.Client,
 	driveID, itemID string,
+	cannotAllowErrors bool,
 ) []common.PermissionInfo {
 	pi := []common.PermissionInfo{}
 
 	pcr, err := ac.Drives().GetItemPermission(ctx, driveID, itemID)
 	if err != nil {
-		common.Fatal(ctx, "getting permission", err)
+		if cannotAllowErrors {
+			common.Fatal(ctx, "getting permission", err)
+		}
+
+		common.Infof(
+			ctx,
+			"ignoring error getting permissions for %q\nerror: %s,%+v",
+			itemID,
+			err.Error(),
+			clues.ToCore(err))
+
+		return []common.PermissionInfo{}
 	}
 
 	for _, perm := range pcr.GetValue() {

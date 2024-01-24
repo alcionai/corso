@@ -31,7 +31,8 @@ func CheckExport(
 	root := populateSanitree(
 		ctx,
 		ac,
-		driveID)
+		driveID,
+		envs.RestoreContainer)
 
 	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(

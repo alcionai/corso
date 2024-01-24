@@ -25,7 +25,12 @@ type SharePointOpts struct {
 	FileModifiedAfter  string
 	FileModifiedBefore string
 
-	Lists []string
+	Lists              []string
+	ListModifiedAfter  string
+	ListModifiedBefore string
+	ListCreatedBefore  string
+	ListCreatedAfter   string
+	AllowListsRestore  bool
 
 	PageFolder []string
 	Page       []string
@@ -46,6 +51,14 @@ func (s SharePointOpts) GetFileTimeField(flag string) string {
 		return s.FileModifiedAfter
 	case flags.FileModifiedBeforeFN:
 		return s.FileModifiedBefore
+	case flags.ListModifiedAfterFN:
+		return s.ListModifiedAfter
+	case flags.ListModifiedBeforeFN:
+		return s.ListModifiedBefore
+	case flags.ListCreatedBeforeFN:
+		return s.ListCreatedBefore
+	case flags.ListCreatedAfterFN:
+		return s.ListCreatedAfter
 	default:
 		return ""
 	}
@@ -64,7 +77,12 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		FileModifiedAfter:  flags.FileModifiedAfterFV,
 		FileModifiedBefore: flags.FileModifiedBeforeFV,
 
-		Lists: flags.ListFV,
+		Lists:              flags.ListFV,
+		ListModifiedAfter:  flags.ListModifiedAfterFV,
+		ListModifiedBefore: flags.ListModifiedBeforeFV,
+		ListCreatedAfter:   flags.ListCreatedAfterFV,
+		ListCreatedBefore:  flags.ListCreatedBeforeFV,
+		AllowListsRestore:  flags.AllowListsRestoreFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -235,4 +253,8 @@ func FilterSharePointRestoreInfoSelectors(
 	AddSharePointInfo(sel, opts.FileCreatedBefore, sel.CreatedBefore)
 	AddSharePointInfo(sel, opts.FileModifiedAfter, sel.ModifiedAfter)
 	AddSharePointInfo(sel, opts.FileModifiedBefore, sel.ModifiedBefore)
+	AddSharePointInfo(sel, opts.ListModifiedAfter, sel.ListModifiedAfter)
+	AddSharePointInfo(sel, opts.ListModifiedBefore, sel.ListModifiedBefore)
+	AddSharePointInfo(sel, opts.ListCreatedAfter, sel.ListCreatedAfter)
+	AddSharePointInfo(sel, opts.ListCreatedBefore, sel.ListCreatedBefore)
 }
