@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Events can now be exported from Exchange backups as .ics files.
+- Update repo init configuration to reduce the total number of GET requests sent
+  to the object store when using corso. This affects repos that have many
+  backups created in them per day the most.
 
 ### Fixed
 - Retry transient 400 "invalidRequest" errors during onedrive & sharepoint backup.
@@ -19,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
+- Backup List additionally shows the data category for each backup.
 
 ### Known issues
 - Backing up a group mailbox item may fail if it has a very large number of attachments (500+).
