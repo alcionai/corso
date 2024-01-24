@@ -210,6 +210,22 @@ func (suite *ServiceCategoryUnitSuite) TestToMetadata() {
 			expect: GroupsMetadataService,
 		},
 		{
+			input:  ExchangeMetadataService,
+			expect: ExchangeMetadataService,
+		},
+		{
+			input:  OneDriveMetadataService,
+			expect: OneDriveMetadataService,
+		},
+		{
+			input:  SharePointMetadataService,
+			expect: SharePointMetadataService,
+		},
+		{
+			input:  GroupsMetadataService,
+			expect: GroupsMetadataService,
+		},
+		{
 			input:  UnknownService,
 			expect: UnknownService,
 		},
