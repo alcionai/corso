@@ -11,11 +11,21 @@ func StubChats(ids ...string) []models.Chatable {
 	sl := make([]models.Chatable, 0, len(ids))
 
 	for _, id := range ids {
-		ch := models.NewChat()
-		ch.SetTopic(ptr.To(id))
-		ch.SetId(ptr.To(id))
+		chat := models.NewChat()
+		chat.SetTopic(ptr.To(id))
+		chat.SetId(ptr.To(id))
 
-		sl = append(sl, ch)
+		// we should expect to get the latest message preview by default
+		lastMsgPrv := models.NewChatMessageInfo()
+		lastMsgPrv.SetId(ptr.To(uuid.NewString()))
+
+		body := models.NewItemBody()
+		body.SetContent(ptr.To(id))
+		lastMsgPrv.SetBody(body)
+
+		chat.SetLastMessagePreview(lastMsgPrv)
+
+		sl = append(sl, chat)
 	}
 
 	return sl
@@ -24,17 +34,24 @@ func StubChats(ids ...string) []models.Chatable {
 func StubChatMessages(ids ...string) []models.ChatMessageable {
 	sl := make([]models.ChatMessageable, 0, len(ids))
 
+	var lastMsg models.ChatMessageable
+
 	for _, id := range ids {
-		cm := models.NewChatMessage()
-		cm.SetId(ptr.To(uuid.NewString()))
+		msg := models.NewChatMessage()
+		msg.SetId(ptr.To(uuid.NewString()))
 
 		body := models.NewItemBody()
 		body.SetContent(ptr.To(id))
 
-		cm.SetBody(body)
+		msg.SetBody(body)
 
-		sl = append(sl, cm)
+		sl = append(sl, msg)
+		lastMsg = msg
 	}
+
+	lastMsgPrv := models.NewChatMessageInfo()
+	lastMsgPrv.SetId(lastMsg.GetId())
+	lastMsgPrv.SetBody(lastMsg.GetBody())
 
 	return sl
 }

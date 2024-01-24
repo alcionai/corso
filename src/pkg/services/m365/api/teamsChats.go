@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/microsoftgraph/msgraph-sdk-go/chats"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -62,13 +63,47 @@ func (c Chats) GetChatByID(
 // ---------------------------------------------------------------------------
 
 func TeamsChatInfo(chat models.Chatable) *details.TeamsChatsInfo {
+	var (
+		// in case of an empty chat, we want to use Val instead of OrNow
+		lastModTime      = ptr.Val(chat.GetLastUpdatedDateTime())
+		lastMsgPreview   = chat.GetLastMessagePreview()
+		lastMsgCreatedAt time.Time
+		members          = chat.GetMembers()
+		memberNames      = []string{}
+		msgs             = chat.GetMessages()
+		preview          string
+		err              error
+	)
+
+	if lastMsgPreview != nil {
+		preview, _, err = getChatMessageContentPreview(lastMsgPreview, noAttachments{})
+		if err != nil {
+			preview = "malformed or unparseable html" + preview
+		}
+
+		// in case of an empty mod time, we want to use the chat's mod time
+		// therefore Val instaed of OrNow
+		lastMsgCreatedAt = ptr.Val(lastMsgPreview.GetCreatedDateTime())
+		if lastModTime.Before(lastMsgCreatedAt) {
+			lastModTime = lastMsgCreatedAt
+		}
+	}
+
+	for _, m := range members {
+		memberNames = append(memberNames, ptr.Val(m.GetDisplayName()))
+	}
+
 	return &details.TeamsChatsInfo{
 		ItemType: details.TeamsChat,
-		Modified: ptr.OrNow(chat.GetLastUpdatedDateTime()),
+		Modified: lastModTime,
 
 		Chat: details.ChatInfo{
-			CreatedAt: ptr.OrNow(chat.GetCreatedDateTime()),
-			Name:      ptr.Val(chat.GetTopic()),
+			CreatedAt:          ptr.OrNow(chat.GetCreatedDateTime()),
+			LastMessageAt:      lastMsgCreatedAt,
+			LastMessagePreview: preview,
+			Members:            memberNames,
+			MessageCount:       len(msgs),
+			Name:               ptr.Val(chat.GetTopic()),
 		},
 	}
 }

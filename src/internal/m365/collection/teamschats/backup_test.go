@@ -96,15 +96,13 @@ func (bh mockBackupHandler) CanonicalPath() (path.Path, error) {
 func (bh mockBackupHandler) getItem(
 	_ context.Context,
 	_ string,
-	itemID string,
+	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
-	chat := models.NewChat()
+	chatID := ptr.Val(chat.GetId())
 
-	chat.SetId(ptr.To(itemID))
-	chat.SetTopic(ptr.To(itemID))
-	chat.SetMessages(bh.chatMessages[itemID])
+	chat.SetMessages(bh.chatMessages[chatID])
 
-	return chat, bh.info[itemID], bh.getMessageErr[itemID]
+	return chat, bh.info[chatID], bh.getMessageErr[chatID]
 }
 
 // ---------------------------------------------------------------------------

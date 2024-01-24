@@ -152,20 +152,17 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 			break
 		}
 
-		itemID := ptr.Val(item.GetId())
 		modTime := ptr.Val(item.GetLastUpdatedDateTime())
 
 		wg.Add(1)
 		semaphoreCh <- struct{}{}
 
-		go func(id string, modTime time.Time) {
+		go func(item I, modTime time.Time) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			ictx := clues.Add(
-				ctx,
-				"item_id", id,
-				"parent_path", path.LoggableDir(col.LocationPath().String()))
+			itemID := ptr.Val(item.GetId())
+			ictx := clues.Add(ctx, "item_id", itemID)
 
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
@@ -173,12 +170,12 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 					modTime:       modTime,
 					getAndAugment: col.getAndAugment,
 					resourceID:    col.protectedResource,
-					itemID:        id,
+					item:          item,
 					containerIDs:  col.FullPath().Folders(),
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
 				},
-				id,
+				itemID,
 				modTime,
 				col.Counter,
 				el)
@@ -188,7 +185,7 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 			if progressMessage != nil {
 				progressMessage <- struct{}{}
 			}
-		}(itemID, modTime)
+		}(item, modTime)
 	}
 
 	wg.Wait()
@@ -197,7 +194,7 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 type lazyItemGetter[I chatsItemer] struct {
 	getAndAugment getItemAndAugmentInfoer[I]
 	resourceID    string
-	itemID        string
+	item          I
 	parentPath    string
 	containerIDs  path.Elements
 	modTime       time.Time
@@ -214,7 +211,7 @@ func (lig *lazyItemGetter[I]) GetData(
 	item, info, err := lig.getAndAugment.getItem(
 		ctx,
 		lig.resourceID,
-		lig.itemID)
+		lig.item)
 	if err != nil {
 		// For items that were deleted in flight, add the skip label so that
 		// they don't lead to recoverable failures during backup.

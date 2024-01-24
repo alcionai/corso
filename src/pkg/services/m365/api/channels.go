@@ -162,7 +162,7 @@ func channelMessageInfo(
 		modTime = lastReplyAt
 	}
 
-	preview, contentLen, err := getChatMessageContentPreview(msg)
+	preview, contentLen, err := getChatMessageContentPreview(msg, msg)
 	if err != nil {
 		preview = "malformed or unparseable html" + preview
 	}
@@ -180,7 +180,7 @@ func channelMessageInfo(
 	var lr details.ChannelMessageInfo
 
 	if lastReply != nil {
-		preview, contentLen, err = getChatMessageContentPreview(lastReply)
+		preview, contentLen, err = getChatMessageContentPreview(lastReply, lastReply)
 		if err != nil {
 			preview = "malformed or unparseable html: " + preview
 		}
@@ -239,12 +239,28 @@ func GetChatMessageFrom(msg models.ChatMessageable) string {
 	return ""
 }
 
-func getChatMessageContentPreview(msg models.ChatMessageable) (string, int64, error) {
-	content, origSize, err := stripChatMessageHTML(msg)
+// a hack for fulfilling getAttachmentser when the model doesn't
+// provide GetAttachments()
+type noAttachments struct{}
+
+func (noAttachments) GetAttachments() []models.ChatMessageAttachmentable {
+	return []models.ChatMessageAttachmentable{}
+}
+
+type getBodyer interface {
+	GetBody() models.ItemBodyable
+}
+
+type getAttachmentser interface {
+	GetAttachments() []models.ChatMessageAttachmentable
+}
+
+func getChatMessageContentPreview(msg getBodyer, atts getAttachmentser) (string, int64, error) {
+	content, origSize, err := stripChatMessageHTML(msg, atts)
 	return str.Preview(content, 128), origSize, clues.Stack(err).OrNil()
 }
 
-func stripChatMessageHTML(msg models.ChatMessageable) (string, int64, error) {
+func stripChatMessageHTML(msg getBodyer, atts getAttachmentser) (string, int64, error) {
 	var (
 		content  string
 		origSize int64
@@ -256,7 +272,7 @@ func stripChatMessageHTML(msg models.ChatMessageable) (string, int64, error) {
 
 	origSize = int64(len(content))
 
-	content = replaceAttachmentMarkup(content, msg.GetAttachments())
+	content = replaceAttachmentMarkup(content, atts.GetAttachments())
 	content, err := html2text.FromString(content)
 
 	return content, origSize, clues.Stack(err).OrNil()
