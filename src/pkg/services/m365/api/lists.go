@@ -21,6 +21,7 @@ var ErrSkippableListTemplate = clues.New("unable to create lists with skippable 
 
 type columnDetails struct {
 	isPersonColumn    bool
+	isLookupColumn    bool
 	isMultipleEnabled bool
 }
 
@@ -404,6 +405,8 @@ func setColumnType(
 	case orig.GetNumber() != nil:
 		newColumn.SetNumber(orig.GetNumber())
 	case orig.GetLookup() != nil:
+		colDetails.isLookupColumn = true
+		colDetails.isMultipleEnabled = ptr.Val(orig.GetLookup().GetAllowMultipleValues())
 		newColumn.SetLookup(orig.GetLookup())
 	case orig.GetThumbnail() != nil:
 		newColumn.SetThumbnail(orig.GetThumbnail())
@@ -525,7 +528,8 @@ func populateMultipleValues(val any, filteredData map[string]any, colName string
 		return
 	}
 
-	if !colDetails.isPersonColumn {
+	if !colDetails.isPersonColumn &&
+		!colDetails.isLookupColumn {
 		return
 	}
 
@@ -536,9 +540,20 @@ func populateMultipleValues(val any, filteredData map[string]any, colName string
 
 	lookupIDs := make([]float64, 0)
 
+	checkFields := func(colDetails *columnDetails) []string {
+		if colDetails.isLookupColumn {
+			return []string{LookupIDKey, LookupValueKey}
+		}
+
+		if colDetails.isPersonColumn {
+			return []string{LookupIDKey, LookupValueKey, PersonEmailKey}
+		}
+
+		return []string{}
+	}
+
 	for _, nestedFields := range multiNestedFields {
-		if md, ok := nestedFields.(map[string]any); ok && keys.HasKeys(md,
-			[]string{LookupIDKey, LookupValueKey, PersonEmailKey}...) {
+		if md, ok := nestedFields.(map[string]any); ok && keys.HasKeys(md, checkFields(colDetails)...) {
 			lookupID, ok := md[LookupIDKey].(*float64)
 			if !ok {
 				continue
@@ -567,7 +582,8 @@ func setMultipleEnabled(val any, colDetails *columnDetails) {
 }
 
 func updateColName(colName string, colDetails *columnDetails) string {
-	if !colDetails.isPersonColumn {
+	if !colDetails.isPersonColumn &&
+		!colDetails.isLookupColumn {
 		return colName
 	}
 
@@ -584,7 +600,7 @@ func specifyODataType(filteredData map[string]any, colDetails *columnDetails, co
 	}
 
 	switch {
-	case colDetails.isPersonColumn:
+	case colDetails.isPersonColumn || colDetails.isLookupColumn:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameIntVal
 	default:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal

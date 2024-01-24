@@ -787,6 +787,45 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 				"PersonsLookupId@odata.type": "Collection(Edm.Int32)",
 			},
 		},
+		{
+			name: "lookup column, single value",
+			additionalData: map[string]any{
+				"ReferLookupId": ptr.To(10),
+			},
+			colDetails: map[string]*columnDetails{
+				"Refer": {isLookupColumn: true},
+			},
+			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"ReferLookupId": ptr.To(10),
+			},
+		},
+		{
+			name: "lookup column, multiple values",
+			additionalData: map[string]any{
+				"Refers": []any{
+					map[string]any{
+						"LookupId":    ptr.To(float64(10)),
+						"LookupValue": ptr.To("item-1"),
+					},
+					map[string]any{
+						"LookupId":    ptr.To(float64(11)),
+						"LookupValue": ptr.To("item-1"),
+					},
+				},
+			},
+			colDetails: map[string]*columnDetails{
+				"Refers": {
+					isLookupColumn:    true,
+					isMultipleEnabled: true,
+				},
+			},
+			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"RefersLookupId":            []float64{10, 11},
+				"RefersLookupId@odata.type": "Collection(Edm.Int32)",
+			},
+		},
 	}
 
 	for _, test := range tests {
