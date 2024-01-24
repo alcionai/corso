@@ -52,7 +52,7 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 # Restore all files in the "Documents" library.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --library Documents --folder "Display Templates/Style Sheets" 
-	
+
 # Restore lists by their name(s)
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --list "list-name-1,list-name-2"
