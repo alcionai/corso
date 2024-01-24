@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backup attachments associated with group mailbox items.
 - Groups and Teams backups no longer fail when a resource has no display name.
 - Contacts in-place restore failed if the restore destination was empty.
+- Link shares with external users are now backed up and restored as expected
 
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event description for exchange exports might look slightly different for certain events.
 - Exchange in-place restore may restore items in well-known folders to different folders if the user has well-known folder names change based on locale and has updated the locale since the backup was created.
 - In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
+- External users with access through shared links will not receive these links as they are not sent via email during restore.
 
 ## [v0.18.0] (beta) - 2024-01-02
 

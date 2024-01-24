@@ -1083,8 +1083,19 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	_, secondaryUserID := suite.SecondaryUser()
-	_, tertiaryUserID := suite.TertiaryUser()
+	secondaryUserName, secondaryUserID := suite.SecondaryUser()
+	secondaryUser := metadata.Entity{
+		ID:         secondaryUserID,
+		Email:      secondaryUserName,
+		EntityType: metadata.GV2User,
+	}
+
+	tertiaryUserName, tertiaryUserID := suite.TertiaryUser()
+	tertiaryUser := metadata.Entity{
+		ID:         tertiaryUserID,
+		Email:      tertiaryUserName,
+		EntityType: metadata.GV2User,
+	}
 
 	// Get the default drive ID for the test user.
 	driveID := mustGetDefaultDriveID(
@@ -1138,9 +1149,9 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{secondaryUserID},
-						Scope:     "users",
-						Type:      "edit",
+						Entities: []metadata.Entity{secondaryUser},
+						Scope:    "users",
+						Type:     "edit",
 					},
 				},
 				SharingMode: metadata.SharingModeCustom,
@@ -1199,9 +1210,9 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{tertiaryUserID},
-						Scope:     "anonymous",
-						Type:      "edit",
+						Entities: []metadata.Entity{tertiaryUser},
+						Scope:    "anonymous",
+						Type:     "edit",
 					},
 				},
 			},
@@ -1212,9 +1223,9 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{tertiaryUserID},
-						Scope:     "users",
-						Type:      "edit",
+						Entities: []metadata.Entity{tertiaryUser},
+						Scope:    "users",
+						Type:     "edit",
 					},
 				},
 				SharingMode: metadata.SharingModeCustom,

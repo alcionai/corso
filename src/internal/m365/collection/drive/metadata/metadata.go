@@ -5,7 +5,12 @@ import (
 )
 
 type Entity struct {
-	ID         string  `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
+
+	// Email is necessary when the user is external to the
+	// organization and we do not have an ID associated with the user.
+	Email string `json:"email,omitempty"`
+
 	EntityType GV2Type `json:"entityType,omitempty"`
 }
 
