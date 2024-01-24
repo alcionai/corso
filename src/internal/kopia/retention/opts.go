@@ -136,3 +136,29 @@ func (r *Opts) setBlobConfigMode(
 
 	return nil
 }
+
+func (r Opts) Verify(ctx context.Context) error {
+	if !r.blobCfg.IsRetentionEnabled() {
+		if r.params.ExtendObjectLocks {
+			return clues.NewWC(
+				ctx,
+				"retention disabled but maintenance lock extension enabled")
+		}
+
+		// Both disabled.
+		return nil
+	}
+
+	// Rest of function handles case where retention is enabled in the blob config
+	// blob.
+	if !r.params.ExtendObjectLocks {
+		return clues.NewWC(
+			ctx,
+			"retention enabled but maintenance lock extension disabled")
+	}
+
+	return clues.Stack(maintenance.CheckExtendRetention(
+		ctx,
+		r.blobCfg,
+		&r.params)).OrNil()
+}
