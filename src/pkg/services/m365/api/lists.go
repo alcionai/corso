@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/alcionai/clues"
@@ -17,6 +18,10 @@ import (
 )
 
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
+
+type columnDetails struct {
+	isMultipleEnabled bool
+}
 
 // ---------------------------------------------------------------------------
 // controller
@@ -277,7 +282,7 @@ func BytesToListable(bytes []byte) (models.Listable, error) {
 // not attached in this method.
 // ListItems are not included in creation of new list, and have to be restored
 // in separate call.
-func ToListable(orig models.Listable, listName string) (models.Listable, map[string]any) {
+func ToListable(orig models.Listable, listName string) (models.Listable, map[string]*columnDetails) {
 	newList := models.NewList()
 
 	newList.SetContentTypes(orig.GetContentTypes())
@@ -294,7 +299,7 @@ func ToListable(orig models.Listable, listName string) (models.Listable, map[str
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	columnNames := map[string]any{TitleColumnName: nil}
+	columnNames := map[string]*columnDetails{TitleColumnName: {}}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -316,8 +321,7 @@ func ToListable(orig models.Listable, listName string) (models.Listable, map[str
 			continue
 		}
 
-		columns = append(columns, cloneColumnDefinitionable(cd))
-		columnNames[ptr.Val(cd.GetName())] = nil
+		columns = append(columns, cloneColumnDefinitionable(cd, columnNames))
 	}
 
 	newList.SetColumns(columns)
@@ -327,7 +331,10 @@ func ToListable(orig models.Listable, listName string) (models.Listable, map[str
 
 // cloneColumnDefinitionable utility function for encapsulating models.ColumnDefinitionable data
 // into new object for upload.
-func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDefinitionable {
+func cloneColumnDefinitionable(
+	orig models.ColumnDefinitionable,
+	columnNames map[string]*columnDetails,
+) models.ColumnDefinitionable {
 	newColumn := models.NewColumnDefinition()
 
 	// column attributes
@@ -351,7 +358,7 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
 
 	// column types
-	setColumnType(newColumn, orig)
+	setColumnType(newColumn, orig, columnNames)
 
 	// Requires nil checks to avoid Graph error: 'General exception while processing'
 	defaultValue := orig.GetDefaultValue()
@@ -367,7 +374,11 @@ func cloneColumnDefinitionable(orig models.ColumnDefinitionable) models.ColumnDe
 	return newColumn
 }
 
-func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinitionable) {
+func setColumnType(
+	newColumn *models.ColumnDefinition,
+	orig models.ColumnDefinitionable,
+	columnNames map[string]*columnDetails,
+) {
 	switch {
 	case orig.GetText() != nil:
 		newColumn.SetText(orig.GetText())
@@ -400,12 +411,14 @@ func setColumnType(newColumn *models.ColumnDefinition, orig models.ColumnDefinit
 	default:
 		newColumn.SetText(models.NewTextColumn())
 	}
+
+	columnNames[ptr.Val(newColumn.GetName())] = &columnDetails{}
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
 // M365 data into it set fields.
 // - https://learn.microsoft.com/en-us/graph/api/resources/listitem?view=graph-rest-1.0
-func CloneListItem(orig models.ListItemable, columnNames map[string]any) models.ListItemable {
+func CloneListItem(orig models.ListItemable, columnNames map[string]*columnDetails) models.ListItemable {
 	newItem := models.NewListItem()
 
 	// list item data
@@ -442,7 +455,7 @@ func CloneListItem(orig models.ListItemable, columnNames map[string]any) models.
 // additionalData map
 // Further documentation on FieldValueSets:
 // - https://learn.microsoft.com/en-us/graph/api/resources/fieldvalueset?view=graph-rest-1.0
-func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any) models.FieldValueSetable {
+func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]*columnDetails) models.FieldValueSetable {
 	fields := models.NewFieldValueSet()
 
 	additionalData := setAdditionalDataByColumnNames(orig, columnNames)
@@ -463,7 +476,7 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]any
 
 func setAdditionalDataByColumnNames(
 	orig models.FieldValueSetable,
-	columnNames map[string]any,
+	columnNames map[string]*columnDetails,
 ) map[string]any {
 	if orig == nil {
 		return make(map[string]any)
@@ -472,13 +485,29 @@ func setAdditionalDataByColumnNames(
 	fieldData := orig.GetAdditionalData()
 	filteredData := make(map[string]any)
 
-	for colName := range columnNames {
-		if _, ok := fieldData[colName]; ok {
+	for colName, colDetails := range columnNames {
+		if val, ok := fieldData[colName]; ok {
+			setMultipleEnabled(val, colDetails)
+
 			filteredData[colName] = fieldData[colName]
 		}
+
+		specifyODataType(filteredData, colDetails, colName)
 	}
 
 	return filteredData
+}
+
+func setMultipleEnabled(val any, colDetails *columnDetails) {
+	if reflect.TypeOf(val).Kind() == reflect.Slice {
+		colDetails.isMultipleEnabled = true
+	}
+}
+
+func specifyODataType(filteredData map[string]any, colDetails *columnDetails, colName string) {
+	if colDetails.isMultipleEnabled {
+		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
+	}
 }
 
 func hasAddressFields(additionalData map[string]any) (map[string]any, string, bool) {

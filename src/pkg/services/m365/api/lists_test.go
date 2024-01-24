@@ -162,12 +162,12 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_GetValidation() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			colNames := map[string]*columnDetails{}
 
 			orig := test.getOrig()
-			newCd := cloneColumnDefinitionable(orig)
+			newCd := cloneColumnDefinitionable(orig, colNames)
 
 			require.NotEmpty(t, newCd)
-
 			test.expect(t, newCd.GetValidation())
 		})
 	}
@@ -219,9 +219,10 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_GetDefaultValue() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			colNames := map[string]*columnDetails{}
 
 			orig := test.getOrig()
-			newCd := cloneColumnDefinitionable(orig)
+			newCd := cloneColumnDefinitionable(orig, colNames)
 
 			require.NotEmpty(t, newCd)
 			test.expect(t, newCd)
@@ -277,9 +278,8 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_ColumnType() {
 	for _, test := range tests {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
-			orig := test.getOrig()
-			newCd := cloneColumnDefinitionable(orig)
+			colNames := map[string]*columnDetails{}
+			newCd := cloneColumnDefinitionable(test.getOrig(), colNames)
 
 			require.NotEmpty(t, newCd)
 			assert.True(t, test.checkFn(newCd))
@@ -432,7 +432,7 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames := map[string]any{}
+	colNames := map[string]*columnDetails{}
 
 	fs := retrieveFieldData(origFs, colNames)
 	fsAdditionalData := fs.GetAdditionalData()
@@ -442,7 +442,7 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs = models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames["itemName"] = struct{}{}
+	colNames["itemName"] = &columnDetails{}
 
 	fs = retrieveFieldData(origFs, colNames)
 	fsAdditionalData = fs.GetAdditionalData()
@@ -509,8 +509,8 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	origFs := models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames := map[string]any{
-		"MyAddress": nil,
+	colNames := map[string]*columnDetails{
+		"MyAddress": {},
 	}
 
 	fs := retrieveFieldData(origFs, colNames)
@@ -699,6 +699,75 @@ func (suite *ListsUnitSuite) TestConcatenateHyperlinkFields() {
 		suite.Run(test.name, func() {
 			result := concatenateHyperLinkFields(test.hyperlinkFields)
 			assert.Equal(t, test.expectedResult, result)
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
+	t := suite.T()
+
+	tests := []struct {
+		name           string
+		additionalData map[string]any
+		colName        string
+		assertFn       assert.BoolAssertionFunc
+	}{
+		{
+			name: "choice column, single value",
+			additionalData: map[string]any{
+				"choice": "good",
+			},
+			colName:  "choice",
+			assertFn: assert.False,
+		},
+		{
+			name: "choice column, multiple values",
+			additionalData: map[string]any{
+				"choice": []string{"good", "ok"},
+			},
+			colName:  "choice",
+			assertFn: assert.True,
+		},
+		{
+			name: "person column, single value",
+			additionalData: map[string]any{
+				"PersonsLookupId": 10,
+			},
+			colName:  "PersonsLookupId",
+			assertFn: assert.False,
+		},
+		{
+			name: "person column, multiple values",
+			additionalData: map[string]any{
+				"Persons": []map[string]any{
+					{
+						"LookupId":    10,
+						"LookupValue": "Who1",
+						"Email":       "Who1@10rqc2.onmicrosoft.com",
+					},
+					{
+						"LookupId":    11,
+						"LookupValue": "Who2",
+						"Email":       "Who2@10rqc2.onmicrosoft.com",
+					},
+				},
+			},
+			colName:  "Persons",
+			assertFn: assert.True,
+		},
+	}
+
+	for _, test := range tests {
+		origFs := models.NewFieldValueSet()
+		origFs.SetAdditionalData(test.additionalData)
+
+		colNames := map[string]*columnDetails{
+			test.colName: {},
+		}
+
+		suite.Run(test.name, func() {
+			setAdditionalDataByColumnNames(origFs, colNames)
+			test.assertFn(t, colNames[test.colName].isMultipleEnabled)
 		})
 	}
 }

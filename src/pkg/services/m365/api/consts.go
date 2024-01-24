@@ -61,6 +61,9 @@ const (
 	ChildCountFieldNamePart = "ChildCount"
 	LookupIDFieldNamePart   = "LookupId"
 
+	ODataTypeFieldNamePart      = "@odata.type"
+	ODataTypeFieldNameStringVal = "Collection(Edm.String)"
+
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"
 
