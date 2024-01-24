@@ -36,7 +36,10 @@ type getItemser interface {
 
 type restoreHandler interface {
 	PostLister
+	PatchLister
 	DeleteLister
+	GetLister
+	GetListsByCollisionKeyser
 }
 
 type PostLister interface {
@@ -48,9 +51,35 @@ type PostLister interface {
 	) (models.Listable, error)
 }
 
+type PatchLister interface {
+	PatchList(
+		ctx context.Context,
+		listID string,
+		list models.Listable,
+	) (models.Listable, error)
+}
+
 type DeleteLister interface {
 	DeleteList(
 		ctx context.Context,
 		listID string,
 	) error
+}
+
+type GetLister interface {
+	GetList(
+		ctx context.Context,
+		listID string,
+	) (models.Listable, *details.SharePointInfo, error)
+}
+
+type GetListsByCollisionKeyser interface {
+	// GetListsByCollisionKey looks up all lists currently in
+	// the site, and returns them in a map[collisionKey]listID.
+	// The collision key is displayName of the list
+	// which uniquely identifies the list.
+	// Collision key checks are used during restore to handle the on-
+	// collision restore configurations that cause the list restore to get
+	// skipped, replaced, or copied.
+	GetListsByCollisionKey(ctx context.Context) (map[string]string, error)
 }
