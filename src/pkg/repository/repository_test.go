@@ -36,6 +36,29 @@ func TestRepositoryUnitSuite(t *testing.T) {
 	suite.Run(t, &RepositoryUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
+func (suite *RepositoryUnitSuite) TestClose() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	t.Cleanup(flush)
+
+	acct := tconfig.NewFakeM365Account(t)
+
+	st, err := storage.NewStorage(storage.ProviderUnknown)
+	require.NoError(t, err, clues.ToCore(err))
+
+	r, err := New(
+		ctx,
+		acct,
+		st,
+		control.DefaultOptions(),
+		NewRepoID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = r.Close(ctx)
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
 func (suite *RepositoryUnitSuite) TestInitialize() {
 	table := []struct {
 		name     string
