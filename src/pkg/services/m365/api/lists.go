@@ -20,6 +20,7 @@ import (
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 type columnDetails struct {
+	isPersonColumn    bool
 	isMultipleEnabled bool
 }
 
@@ -379,6 +380,8 @@ func setColumnType(
 	orig models.ColumnDefinitionable,
 	columnNames map[string]*columnDetails,
 ) {
+	colDetails := &columnDetails{}
+
 	switch {
 	case orig.GetText() != nil:
 		newColumn.SetText(orig.GetText())
@@ -407,12 +410,14 @@ func setColumnType(
 	case orig.GetTerm() != nil:
 		newColumn.SetTerm(orig.GetTerm())
 	case orig.GetPersonOrGroup() != nil:
+		colDetails.isPersonColumn = true
+		colDetails.isMultipleEnabled = ptr.Val(orig.GetPersonOrGroup().GetAllowMultipleSelection())
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	default:
 		newColumn.SetText(models.NewTextColumn())
 	}
 
-	columnNames[ptr.Val(newColumn.GetName())] = &columnDetails{}
+	columnNames[ptr.Val(newColumn.GetName())] = colDetails
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
@@ -485,27 +490,103 @@ func setAdditionalDataByColumnNames(
 	fieldData := orig.GetAdditionalData()
 	filteredData := make(map[string]any)
 
-	for colName, colDetails := range columnNames {
-		if val, ok := fieldData[colName]; ok {
-			setMultipleEnabled(val, colDetails)
-
-			filteredData[colName] = fieldData[colName]
+	// for certain columns like 'person', the column name is for example 'personName'
+	// if the list item for that column holds single value,
+	// the field data is fetched as '{"personNameLookupId": "10"}'
+	// if the list item for that column holds multiple values,
+	// the field data is fetched as '{"personName": [{"lookupId": 10}, {"lookupId": 11}]}'.
+	// Hence this is function helps us to determine which name to use while accessing stored data
+	nameForGet := func(isMultipleEnabled bool, colName, updatedName string) string {
+		if isMultipleEnabled {
+			return colName
 		}
 
-		specifyODataType(filteredData, colDetails, colName)
+		return updatedName
+	}
+
+	for colName, colDetails := range columnNames {
+		updatedColName := updateColName(colName, colDetails)
+		getColName := nameForGet(colDetails.isMultipleEnabled, colName, updatedColName)
+
+		if val, ok := fieldData[getColName]; ok {
+			setMultipleEnabled(val, colDetails)
+			filteredData[updatedColName] = val
+			populateMultipleValues(val, filteredData, updatedColName, colDetails)
+		}
+
+		specifyODataType(filteredData, colDetails, updatedColName)
 	}
 
 	return filteredData
 }
 
+func populateMultipleValues(val any, filteredData map[string]any, colName string, colDetails *columnDetails) {
+	if !colDetails.isMultipleEnabled {
+		return
+	}
+
+	if !colDetails.isPersonColumn {
+		return
+	}
+
+	multiNestedFields, ok := val.([]any)
+	if !ok || len(multiNestedFields) == 0 {
+		return
+	}
+
+	lookupIDs := make([]float64, 0)
+
+	for _, nestedFields := range multiNestedFields {
+		if md, ok := nestedFields.(map[string]any); ok && keys.HasKeys(md,
+			[]string{LookupIDKey, LookupValueKey, PersonEmailKey}...) {
+			lookupID, ok := md[LookupIDKey].(*float64)
+			if !ok {
+				continue
+			}
+
+			lookupIDs = append(lookupIDs, ptr.Val(lookupID))
+		}
+	}
+
+	filteredData[colName] = lookupIDs
+}
+
 func setMultipleEnabled(val any, colDetails *columnDetails) {
+	// already set while column definition
+	// not required to determined from field values
+	if colDetails.isMultipleEnabled {
+		return
+	}
+
+	// for columns like choice, the columnDefinition property 'allowMultipleValues'
+	// is not available, even though it has an option to hold single/multiple values.
+	// Hence we determine single/multiple from the actual field data.
 	if reflect.TypeOf(val).Kind() == reflect.Slice {
 		colDetails.isMultipleEnabled = true
 	}
 }
 
+func updateColName(colName string, colDetails *columnDetails) string {
+	if !colDetails.isPersonColumn {
+		return colName
+	}
+
+	return colName + LookupIDFieldNamePart
+}
+
+// when creating list items with multiple values for a single column
+// we let the API know that we are sending a collection.
+// Hence this adds an additional field '<columnName>@@odata.type'
+// with value depending on type of column.
 func specifyODataType(filteredData map[string]any, colDetails *columnDetails, colName string) {
-	if colDetails.isMultipleEnabled {
+	if !colDetails.isMultipleEnabled {
+		return
+	}
+
+	switch {
+	case colDetails.isPersonColumn:
+		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameIntVal
+	default:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
 	}
 }

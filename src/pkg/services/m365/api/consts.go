@@ -57,12 +57,18 @@ const (
 	HyperlinkDescriptionKey = "Description"
 	HyperlinkURLKey         = "Url"
 
+	LookupIDKey    = "LookupId"
+	LookupValueKey = "LookupValue"
+
+	PersonEmailKey = "Email"
+
 	LinkTitleFieldNamePart  = "LinkTitle"
 	ChildCountFieldNamePart = "ChildCount"
 	LookupIDFieldNamePart   = "LookupId"
 
 	ODataTypeFieldNamePart      = "@odata.type"
 	ODataTypeFieldNameStringVal = "Collection(Edm.String)"
+	ODataTypeFieldNameIntVal    = "Collection(Edm.Int32)"
 
 	ReadOnlyOrHiddenFieldNamePrefix = "_"
 	DescoratorFieldNamePrefix       = "@"

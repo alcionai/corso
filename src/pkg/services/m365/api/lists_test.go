@@ -709,51 +709,83 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 	tests := []struct {
 		name           string
 		additionalData map[string]any
-		colName        string
+		colDetails     map[string]*columnDetails
 		assertFn       assert.BoolAssertionFunc
+		expectedResult map[string]any
 	}{
 		{
 			name: "choice column, single value",
 			additionalData: map[string]any{
-				"choice": "good",
+				"choice": ptr.To("good"),
 			},
-			colName:  "choice",
+			colDetails: map[string]*columnDetails{
+				"choice": {},
+			},
 			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"choice": ptr.To("good"),
+			},
 		},
 		{
 			name: "choice column, multiple values",
 			additionalData: map[string]any{
-				"choice": []string{"good", "ok"},
+				"choice": []*string{
+					ptr.To("good"),
+					ptr.To("ok"),
+				},
 			},
-			colName:  "choice",
+			colDetails: map[string]*columnDetails{
+				"choice": {},
+			},
 			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"choice@odata.type": "Collection(Edm.String)",
+				"choice": []*string{
+					ptr.To("good"),
+					ptr.To("ok"),
+				},
+			},
 		},
 		{
 			name: "person column, single value",
 			additionalData: map[string]any{
-				"PersonsLookupId": 10,
+				"PersonsLookupId": ptr.To(10),
 			},
-			colName:  "PersonsLookupId",
+			colDetails: map[string]*columnDetails{
+				"Persons": {isPersonColumn: true},
+			},
 			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"PersonsLookupId": ptr.To(10),
+			},
 		},
 		{
 			name: "person column, multiple values",
 			additionalData: map[string]any{
-				"Persons": []map[string]any{
-					{
-						"LookupId":    10,
-						"LookupValue": "Who1",
-						"Email":       "Who1@10rqc2.onmicrosoft.com",
+				"Persons": []any{
+					map[string]any{
+						"LookupId":    ptr.To(float64(10)),
+						"LookupValue": ptr.To("Who1"),
+						"Email":       ptr.To("Who1@10rqc2.onmicrosoft.com"),
 					},
-					{
-						"LookupId":    11,
-						"LookupValue": "Who2",
-						"Email":       "Who2@10rqc2.onmicrosoft.com",
+					map[string]any{
+						"LookupId":    ptr.To(float64(11)),
+						"LookupValue": ptr.To("Who2"),
+						"Email":       ptr.To("Who2@10rqc2.onmicrosoft.com"),
 					},
 				},
 			},
-			colName:  "Persons",
+			colDetails: map[string]*columnDetails{
+				"Persons": {
+					isPersonColumn:    true,
+					isMultipleEnabled: true,
+				},
+			},
 			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"PersonsLookupId":            []float64{10, 11},
+				"PersonsLookupId@odata.type": "Collection(Edm.Int32)",
+			},
 		},
 	}
 
@@ -761,13 +793,9 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 		origFs := models.NewFieldValueSet()
 		origFs.SetAdditionalData(test.additionalData)
 
-		colNames := map[string]*columnDetails{
-			test.colName: {},
-		}
-
 		suite.Run(test.name, func() {
-			setAdditionalDataByColumnNames(origFs, colNames)
-			test.assertFn(t, colNames[test.colName].isMultipleEnabled)
+			res := setAdditionalDataByColumnNames(origFs, test.colDetails)
+			assert.Equal(t, test.expectedResult, res)
 		})
 	}
 }
