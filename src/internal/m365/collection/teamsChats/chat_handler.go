@@ -58,6 +58,13 @@ func (bh usersChatsBackupHandler) includeItem(
 	ch models.Chatable,
 	scope selectors.TeamsChatsScope,
 ) bool {
+	// corner case: many Topics are empty, and empty inputs are automatically
+	// set to non-matching in the selectors code.  This allows us to include
+	// everything without needing to check the topic value in that case.
+	if scope.IsAny(selectors.TeamsChatsChat) {
+		return true
+	}
+
 	return scope.Matches(selectors.TeamsChatsChat, ptr.Val(ch.GetTopic()))
 }
 
