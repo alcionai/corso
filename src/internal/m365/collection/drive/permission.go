@@ -2,7 +2,6 @@ package drive
 
 import (
 	"context"
-	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
@@ -362,7 +361,7 @@ func UpdateLinkShares(
 			}
 		}
 
-		ictx = clues.Add(ictx, "link_share_entities", strings.Join(entities, ","))
+		ictx = clues.Add(ictx, "link_share_entities", clues.HideAll(entities))
 
 		// https://learn.microsoft.com/en-us/graph/api/driveitem-createlink?view=graph-rest-beta&tabs=http
 		// v1.0 version of the graph API does not support creating a

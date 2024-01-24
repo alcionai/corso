@@ -48,7 +48,7 @@ func (p Permission) Equals(other Permission) bool {
 	}
 
 	// NOTE: v1 of permissions only contain emails, v2 only contains IDs.
-	// The current one will contains both ID and email.
+	// The current one will contain both ID and email.
 	if len(p.EntityID) > 0 && len(other.EntityID) > 0 &&
 		p.EntityID != other.EntityID {
 		return false
@@ -191,7 +191,7 @@ func FilterPermissions(ctx context.Context, perms []models.Permissionable) []Per
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
 			EntityID:   ent.ID,
-			Email:      ent.Email, // not necessary if we have email, but useful for debugging
+			Email:      ent.Email, // not necessary if we have ID, but useful for debugging
 			EntityType: ent.EntityType,
 			Expiration: p.GetExpirationDateTime(),
 		})
@@ -245,7 +245,7 @@ func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []Link
 }
 
 func getIdentityDetails(ctx context.Context, gv2 models.SharePointIdentitySetable) (Entity, bool) {
-	switch true {
+	switch {
 	case gv2.GetUser() != nil:
 		add := gv2.GetUser().GetAdditionalData()
 		email, _ := str.AnyToString(add["email"]) // empty will be dropped automatically when writing

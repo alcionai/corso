@@ -225,6 +225,7 @@ func getPermsAndResourceOwnerPerms(
 	switch gv2t {
 	case GV2App, GV2Device, GV2Group, GV2User:
 		identity := models.NewIdentity()
+		identity.SetId(&resourceOwner)
 
 		switch gv2t {
 		case GV2User:
@@ -245,7 +246,6 @@ func getPermsAndResourceOwnerPerms(
 	case GV2SiteUser, GV2SiteGroup:
 		spIdentity := models.NewSharePointIdentity()
 		spIdentity.SetId(&resourceOwner)
-		spIdentity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
 		switch gv2t {
 		case GV2SiteUser:
@@ -262,10 +262,14 @@ func getPermsAndResourceOwnerPerms(
 
 	ownersPerm := Permission{
 		ID:         permID,
-		Email:      resourceOwner,
 		Roles:      []string{"read"},
 		EntityID:   resourceOwner,
 		EntityType: gv2t,
+	}
+
+	if gv2t == GV2User {
+		// we currently don't parse out emails for others
+		ownersPerm.Email = resourceOwner
 	}
 
 	return perm, ownersPerm
@@ -519,7 +523,7 @@ func (suite *PermissionsUnitTestSuite) TestEqual() {
 		{
 			// should not ideally happen, not entirely sure if it
 			// should be false as we could just be missing the id
-			name: "same id one with no email",
+			name: "same email one with no id",
 			perm1: Permission{
 				EntityID:   "user-id1",
 				Email:      "id1@provider.com",
@@ -546,20 +550,6 @@ func (suite *PermissionsUnitTestSuite) TestEqual() {
 				EntityType: GV2User,
 			},
 			expected: false,
-		},
-		{
-			name: "same id same role",
-			perm1: Permission{
-				EntityID:   "user-id1",
-				Roles:      []string{"read"},
-				EntityType: GV2User,
-			},
-			perm2: Permission{
-				EntityID:   "user-id1",
-				Roles:      []string{"read"},
-				EntityType: GV2User,
-			},
-			expected: true,
 		},
 		{
 			name: "same email different role",
@@ -685,7 +675,6 @@ func (suite *PermissionsUnitTestSuite) TestFilterLinkShares() {
 
 				spi11 := models.NewUser()
 				spi11.SetId(ptr.To("user-id1"))
-				spi11.SetAdditionalData(map[string]any{"email": ptr.To("id1@provider")})
 
 				spi12 := models.NewUser()
 				spi12.SetAdditionalData(map[string]any{"email": ptr.To("id2@provider")})
@@ -706,7 +695,7 @@ func (suite *PermissionsUnitTestSuite) TestFilterLinkShares() {
 			},
 			expected: [][]Entity{
 				{
-					{ID: "user-id1", Email: "id1@provider", EntityType: GV2User},
+					{ID: "user-id1", EntityType: GV2User},
 					{Email: "id2@provider", EntityType: GV2User},
 				},
 			},
