@@ -1,7 +1,11 @@
 package groups
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -130,6 +134,42 @@ func (bh conversationsBackupHandler) getItem(
 		containerIDs[0],
 		containerIDs[1],
 		postID)
+}
+
+// ConversationPostMetadata contains metadata about a conversation post.
+// It gets stored in a separate file in kopia
+type ConversationPostMetadata struct {
+	// TODO(pandeyabs): Remove this?
+	PostID     string   `json:"postID,omitempty"`
+	Recipients []string `json:"recipients,omitempty"`
+	Topic      string   `json:"topic,omitempty"`
+	// ReceivedTime time.Time `json:"receivedTime,omitempty"`
+	// InReplyTo  string   `json:"inReplyTo,omitempty"`
+}
+
+// func HasMetaSuffix(name string) bool {
+// 	return strings.HasSuffix(name, metaFileSuffix)
+// }
+
+//lint:ignore U1000 false linter issue due to generics
+func (bh conversationsBackupHandler) getItemMetadata(
+	ctx context.Context,
+	c models.Conversationable,
+	itemID string,
+	receivedTime time.Time,
+) (io.ReadCloser, int, error) {
+	meta := ConversationPostMetadata{
+		PostID:     itemID,
+		Recipients: []string{bh.resourceEmail},
+		Topic:      ptr.Val(c.GetTopic()),
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, clues.WrapWC(ctx, err, "serializing post metadata")
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
 //lint:ignore U1000 false linter issue due to generics

@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -134,6 +135,15 @@ func (bh mockBackupHandler) getItem(
 	itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.messages[itemID], bh.info[itemID], bh.getMessageErr[itemID]
+}
+
+func (bh mockBackupHandler) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+	_ string,
+	_ time.Time,
+) (io.ReadCloser, int, error) {
+	return nil, 0, ErrMetadataFilesNotSupported
 }
 
 // ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/clues"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
+	"github.com/spatialcurrent/go-lazy/pkg/lazy"
 
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -33,6 +34,9 @@ var (
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
+
+	metaFileSuffix = ".meta"
+	dataFileSuffix = ".data"
 )
 
 // updateStatus is a utility function used to send the status update through
@@ -370,6 +374,46 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				"item_id", id,
 				"parent_path", path.LoggableDir(col.LocationPath().String()))
 
+			// Handle metadata file first before adding data file.
+			// TODO(pandeyabs): Mention why.
+			itemMeta, itemMetaSize, err := col.getAndAugment.getItemMetadata(
+				ictx,
+				col.contains.container,
+				id,
+				modTime)
+			if err != nil && !errors.Is(err, ErrMetadataFilesNotSupported) {
+				err = clues.StackWC(ictx, err).Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ictx, err)
+
+				return
+			}
+
+			if err == nil {
+				metaReader := lazy.NewLazyReadCloser(func() (io.ReadCloser, error) {
+					progReader := observe.ItemProgress(
+						ctx,
+						itemMeta,
+						observe.ItemBackupMsg,
+						clues.Hide(id+metaFileSuffix),
+						int64(itemMetaSize))
+					return progReader, nil
+				})
+
+				storeItem, err := data.NewPrefetchedItem(
+					metaReader,
+					id+metaFileSuffix,
+					// Use same modTime as post's.
+					modTime)
+				if err != nil {
+					errs.AddRecoverable(ctx, clues.StackWC(ctx, err).
+						Label(fault.LabelForceNoBackupCreation))
+
+					return
+				}
+
+				col.stream <- storeItem
+			}
+
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
 				&lazyItemGetter[C, I]{
@@ -381,7 +425,11 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
 				},
-				id,
+				// TODO(pandeyabs): Persist as .data file for conversations only.
+				// Not for channels, i.e. only add the .data suffix for conv backups.
+				// This is safe for now since channels don't utilize lazy fetch collection
+				// yet.
+				id+dataFileSuffix,
 				modTime,
 				col.Counter,
 				el)

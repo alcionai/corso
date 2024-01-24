@@ -2,6 +2,8 @@ package groups
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
@@ -23,6 +25,8 @@ type groupsItemer interface {
 
 type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
+	// TODO(pandeyabs): Do we need this duplication?
+	getItemMetadataer[C, I]
 	getContainerser[C]
 	getContainerItemIDser
 	getItemAndAugmentInfoer[C, I]
@@ -33,6 +37,7 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 
 type getItemAndAugmentInfoer[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
+	getItemMetadataer[C, I]
 	augmentItemInfoer[C]
 }
 
@@ -49,6 +54,15 @@ type getItemer[I groupsItemer] interface {
 		containerIDs path.Elements,
 		itemID string,
 	) (I, *details.GroupsInfo, error)
+}
+
+type getItemMetadataer[C graph.GetIDer, I groupsItemer] interface {
+	getItemMetadata(
+		ctx context.Context,
+		c C,
+		itemID string,
+		receivedTime time.Time,
+	) (io.ReadCloser, int, error)
 }
 
 // gets all containers for the resource

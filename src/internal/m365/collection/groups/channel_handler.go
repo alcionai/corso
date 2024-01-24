@@ -2,6 +2,8 @@ package groups
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -13,6 +15,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
+
+var ErrMetadataFilesNotSupported = clues.New("metadata files not supported")
 
 var _ backupHandler[models.Channelable, models.ChatMessageable] = &channelsBackupHandler{}
 
@@ -103,6 +107,19 @@ func (bh channelsBackupHandler) getItem(
 	messageID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.ac.GetChannelMessage(ctx, groupID, containerIDs[0], messageID)
+}
+
+// Channel messages don't carry metadata files. Return unsupported error.
+// Adding this method for interface compliance.
+//
+//lint:ignore U1000 false linter issue due to generics
+func (bh channelsBackupHandler) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+	_ string,
+	_ time.Time,
+) (io.ReadCloser, int, error) {
+	return nil, 0, ErrMetadataFilesNotSupported
 }
 
 //lint:ignore U1000 false linter issue due to generics

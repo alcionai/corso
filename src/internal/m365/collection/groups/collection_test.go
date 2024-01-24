@@ -170,6 +170,16 @@ func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.C
 	// no-op
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (getAndAugmentChannelMessage) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+	_ string,
+	_ time.Time,
+) (io.ReadCloser, int, error) {
+	return nil, 0, ErrMetadataFilesNotSupported
+}
+
 func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
 	var (
 		t             = suite.T()
@@ -295,6 +305,16 @@ func (m *getAndAugmentConversation) getItem(
 	p.SetId(ptr.To(postID))
 
 	return p, &details.GroupsInfo{}, m.GetItemErr
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (m *getAndAugmentConversation) getItemMetadata(
+	_ context.Context,
+	_ models.Conversationable,
+	_ string,
+	_ time.Time,
+) (io.ReadCloser, int, error) {
+	return nil, 0, nil
 }
 
 //
