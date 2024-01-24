@@ -34,6 +34,8 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
+const defaultCorsoPin = "corso"
+
 // common manifest tags
 const (
 	TagBackupID       = "backup-id"
@@ -392,6 +394,10 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 
 			man.Tags = tags
+			// Add one pin to keep kopia's retention policy from collecting it if it
+			// ends up enabled for some reason. The value in the pin doesn't matter.
+			// We don't need to remove any pins.
+			man.UpdatePins(append(man.Pins, defaultCorsoPin), nil)
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = clues.WrapWC(ctx, err, "saving snapshot")
