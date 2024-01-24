@@ -73,9 +73,28 @@ func (rh listsRestoreHandler) PostList(
 	return rh.ac.PostList(ctx, rh.protectedResource, listName, storedList, errs)
 }
 
+func (rh listsRestoreHandler) PatchList(
+	ctx context.Context,
+	listID string,
+	list models.Listable,
+) (models.Listable, error) {
+	return rh.ac.PatchList(ctx, rh.protectedResource, listID, list)
+}
+
 func (rh listsRestoreHandler) DeleteList(
 	ctx context.Context,
 	listID string,
 ) error {
 	return rh.ac.DeleteList(ctx, rh.protectedResource, listID)
+}
+
+func (rh listsRestoreHandler) GetList(
+	ctx context.Context,
+	listID string,
+) (models.Listable, *details.SharePointInfo, error) {
+	return rh.ac.GetListByID(ctx, rh.protectedResource, listID)
+}
+
+func (rh listsRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
+	return rh.ac.GetListsByCollisionKey(ctx, rh.protectedResource)
 }

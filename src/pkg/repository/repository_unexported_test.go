@@ -803,13 +803,16 @@ func writeBackup(
 		sstore = streamstore.NewStreamer(kw, tID, serv)
 	)
 
-	err := sstore.Collect(ctx, streamstore.DetailsCollector(deets))
+	reasons, err := sel.Reasons(tID, false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	err = sstore.Collect(ctx, streamstore.DetailsCollector(deets))
 	require.NoError(t, err, "collecting details in streamstore")
 
 	err = sstore.Collect(ctx, streamstore.FaultErrorsCollector(fe))
 	require.NoError(t, err, "collecting errors in streamstore")
 
-	ssid, err := sstore.Write(ctx, errs)
+	ssid, err := sstore.Write(ctx, reasons, errs)
 	require.NoError(t, err, "writing to streamstore")
 
 	tags := map[string]string{
@@ -883,13 +886,16 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupDetails() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			sel := selectors.NewExchangeBackup([]string{brunhilda})
+			sel.Include(sel.MailFolders(selectors.Any()))
+
 			b := writeBackup(
 				t,
 				ctx,
 				suite.kw,
 				suite.sw,
 				tenantID, "snapID", test.writeBupID,
-				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				sel.Selector,
 				brunhilda, brunhilda,
 				test.deets,
 				&fault.Errors{},
@@ -990,13 +996,16 @@ func (suite *RepositoryModelIntgSuite) TestGetBackupErrors() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			sel := selectors.NewExchangeBackup([]string{brunhilda})
+			sel.Include(sel.MailFolders(selectors.Any()))
+
 			b := writeBackup(
 				t,
 				ctx,
 				suite.kw,
 				suite.sw,
 				tenantID, "snapID", test.writeBupID,
-				selectors.NewExchangeBackup([]string{brunhilda}).Selector,
+				sel.Selector,
 				brunhilda, brunhilda,
 				test.deets,
 				test.errors,

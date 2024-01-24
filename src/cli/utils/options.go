@@ -28,7 +28,7 @@ func Control() control.Options {
 	opt.ToggleFeatures.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
 	opt.ToggleFeatures.DisableLazyItemReader = flags.DisableLazyItemReaderFV
 	opt.ToggleFeatures.ExchangeImmutableIDs = flags.EnableImmutableIDFV
-	opt.ToggleFeatures.UseDeltaTree = flags.UseDeltaTreeFV
+	opt.ToggleFeatures.UseOldDeltaProcess = flags.UseOldDeltaProcessFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
 
 	return opt
@@ -58,7 +58,7 @@ func ParseBackupOptions() control.BackupConfig {
 	opt.M365.DeltaPageSize = dps
 	opt.M365.DisableDeltaEndpoint = flags.DisableDeltaFV
 	opt.M365.ExchangeImmutableIDs = flags.EnableImmutableIDFV
-	opt.M365.UseDriveDeltaTree = flags.UseDeltaTreeFV
+	opt.M365.UseOldDriveDeltaProcess = flags.UseOldDeltaProcessFV
 	opt.ServiceRateLimiter.DisableSlidingWindowLimiter = flags.DisableSlidingWindowLimiterFV
 	opt.Parallelism.ItemFetch = flags.FetchParallelismFV
 	opt.Incrementals.ForceFullEnumeration = flags.DisableIncrementalsFV

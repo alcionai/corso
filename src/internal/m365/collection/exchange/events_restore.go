@@ -20,7 +20,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var _ itemRestorer = &eventRestoreHandler{}
+var (
+	_ itemRestorer   = &eventRestoreHandler{}
+	_ restoreHandler = &eventRestoreHandler{}
+)
 
 type eventRestoreHandler struct {
 	ac api.Events
@@ -40,6 +43,13 @@ func (h eventRestoreHandler) NewContainerCache(userID string) graph.ContainerRes
 		enumer: h.ac,
 		getter: h.ac,
 	}
+}
+
+func (h eventRestoreHandler) ShouldSetContainerToDefaultRoot(
+	restoreFolderPath string,
+	collectionPath path.Path,
+) bool {
+	return false
 }
 
 func (h eventRestoreHandler) FormatRestoreDestination(

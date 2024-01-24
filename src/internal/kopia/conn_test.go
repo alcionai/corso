@@ -234,8 +234,8 @@ func (suite *WrapperIntegrationSuite) TestGetPolicyOrDefault_GetsDefault() {
 	}()
 
 	si := snapshot.SourceInfo{
-		Host:     corsoHost,
-		UserName: corsoUser,
+		Host:     "exchangeemail",
+		UserName: "tenantID-resourceID",
 		Path:     "test-path-root",
 	}
 
@@ -271,8 +271,8 @@ func (suite *WrapperIntegrationSuite) TestSetCompressor() {
 	// Check the global policy will be the effective policy in future snapshots
 	// for some source info.
 	si := snapshot.SourceInfo{
-		Host:     corsoHost,
-		UserName: corsoUser,
+		Host:     "exchangeemail",
+		UserName: "tenantID-resourceID",
 		Path:     "test-path-root",
 	}
 

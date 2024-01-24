@@ -11,6 +11,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -94,21 +95,53 @@ func (lh *ListHandler) Check(t *testing.T, expected []string) {
 }
 
 type ListRestoreHandler struct {
-	List models.Listable
-	Err  error
+	deleteListErr error
+	postListErr   error
+	patchListErr  error
+}
+
+func NewListRestoreHandler(deleteListErr error, postListErr, patchListErr error) *ListRestoreHandler {
+	return &ListRestoreHandler{
+		deleteListErr: deleteListErr,
+		postListErr:   postListErr,
+		patchListErr:  patchListErr,
+	}
 }
 
 func (lh *ListRestoreHandler) PostList(
 	ctx context.Context,
 	listName string,
-	storedListBytes []byte,
+	storedList models.Listable,
+	_ *fault.Bus,
 ) (models.Listable, error) {
+	ls, _ := api.ToListable(storedList, listName)
+	return ls, lh.postListErr
+}
+
+func (lh *ListRestoreHandler) PatchList(
+	ctx context.Context,
+	listID string,
+	list models.Listable,
+) (models.Listable, error) {
+	return nil, lh.patchListErr
+}
+
+func (lh *ListRestoreHandler) GetList(
+	ctx context.Context,
+	listID string,
+) (models.Listable, *details.SharePointInfo, error) {
 	ls := models.NewList()
+	ls.SetId(ptr.To(listID))
 
-	lh.List = ls
-	lh.List.SetDisplayName(ptr.To(listName))
+	return ls, api.ListToSPInfo(ls), nil
+}
 
-	return lh.List, lh.Err
+func (lh *ListRestoreHandler) DeleteList(_ context.Context, _ string) error {
+	return lh.deleteListErr
+}
+
+func (lh *ListRestoreHandler) GetListsByCollisionKey(ctx context.Context) (map[string]string, error) {
+	return map[string]string{}, nil
 }
 
 func StubLists(ids ...string) []models.Listable {

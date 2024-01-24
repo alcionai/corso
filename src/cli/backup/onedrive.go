@@ -67,11 +67,11 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddUserFlag(c)
 		flags.AddGenericBackupFlags(c)
 		fs.BoolVar(
-			&flags.UseDeltaTreeFV,
-			flags.UseDeltaTreeFN,
+			&flags.UseOldDeltaProcessFV,
+			flags.UseOldDeltaProcessFN,
 			false,
-			"process backups using the delta tree instead of standard enumeration")
-		cobra.CheckErr(fs.MarkHidden(flags.UseDeltaTreeFN))
+			"process backups using the old delta processor instead of tree-based enumeration")
+		cobra.CheckErr(fs.MarkHidden(flags.UseOldDeltaProcessFN))
 
 	case listCommand:
 		c, _ = utils.AddCommand(cmd, oneDriveListCmd())
