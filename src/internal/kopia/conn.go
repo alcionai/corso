@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -735,4 +736,75 @@ func (w *conn) updatePersistentConfig(
 		formatManager.SetParameters(ctx, mutableParams, blobCfg, reqFeatures),
 		"persisting updated config").
 		OrNil()
+}
+
+func (w *conn) verifyDefaultPolicyConfigOptions(ctx context.Context) error {
+	var errs *clues.Err
+
+	globalPol, err := w.getGlobalPolicyOrEmpty(ctx)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	ctx = clues.Add(ctx, "current_global_policy", globalPol.String())
+
+	if globalPol.CompressionPolicy.CompressorName != defaultCompressor {
+		errs = clues.Stack(errs, clues.NewWC(
+			ctx,
+			"current compressor doesn't match default").
+			With("expected_compression_policy", defaultCompressor))
+	}
+
+	// Need to use deep equals because the values are pointers to optional types.
+	// That makes regular equality checks fail even if the data contained in each
+	// policy is the same.
+	if !reflect.DeepEqual(globalPol.RetentionPolicy, defaultRetention) {
+		// Unfortunately the policy has pointers to things and doesn't serialize
+		// well. This makes it difficult to add the expected retention policy.
+		errs = clues.Stack(errs, clues.NewWC(
+			ctx,
+			"current snapshot retention policy doesn't match default"))
+	}
+
+	if globalPol.SchedulingPolicy.Interval() != defaultSchedulingInterval {
+		errs = clues.Stack(errs, clues.NewWC(
+			ctx,
+			"current scheduling policy doesn't match default").
+			With(
+				"expected_scheduling_policy", defaultSchedulingInterval))
+	}
+
+	return errs.OrNil()
+}
+
+func (w *conn) verifyRetentionConfig(ctx context.Context) error {
+	directRepo, ok := w.Repository.(repo.DirectRepository)
+	if !ok {
+		return clues.NewWC(ctx, "getting repo handle")
+	}
+
+	blobConfig, maintenanceParams, err := getRetentionConfigs(ctx, directRepo)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	return clues.Stack(retention.OptsFromConfigs(
+		*blobConfig,
+		*maintenanceParams).Verify(ctx)).OrNil()
+}
+
+// verifyDefaultConfigOptions checks the following configurations:
+// kopia global policy:
+//   - kopia snapshot retention is disabled
+//   - kopia compression matches the default compression for corso
+//   - kopia scheduling is disabled
+//
+// object locking:
+//   - maintenance and blob config blob parameters are consistent (i.e. all
+//     enabled or all disabled)
+func (w *conn) verifyDefaultConfigOptions(ctx context.Context) error {
+	errs := clues.Stack(w.verifyDefaultPolicyConfigOptions(ctx))
+	errs = clues.Stack(errs, w.verifyRetentionConfig(ctx))
+
+	return errs.OrNil()
 }
