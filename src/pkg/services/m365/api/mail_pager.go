@@ -28,11 +28,12 @@ type mailFoldersPageCtrl struct {
 
 func (c Mail) NewMailFoldersPager(
 	userID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.MailFolderable] {
 	options := &users.ItemMailFoldersRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemMailFoldersRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -67,9 +68,8 @@ func (p *mailFoldersPageCtrl) ValidModTimes() bool {
 func (c Mail) EnumerateContainers(
 	ctx context.Context,
 	userID, _ string, // baseContainerID not needed here
-	immutableIDs bool,
 ) ([]models.MailFolderable, error) {
-	containers, err := pagers.BatchEnumerateItems(ctx, c.NewMailFoldersPager(userID, immutableIDs))
+	containers, err := pagers.BatchEnumerateItems(ctx, c.NewMailFoldersPager(userID))
 	return containers, graph.Stack(ctx, err).OrNil()
 }
 
@@ -87,11 +87,12 @@ type mailsPageCtrl struct {
 
 func (c Mail) NewMailPager(
 	userID, containerID string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.NonDeltaHandler[models.Messageable] {
 	options := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
-		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(maxNonDeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{},
 		// do NOT set Top.  It limits the total items received.
 	}
@@ -131,7 +132,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 	userID, containerID string,
 ) (map[string]string, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewMailPager(userID, containerID, false, mailCollisionKeyProps()...)
+	pager := c.NewMailPager(userID, containerID, mailCollisionKeyProps()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -152,7 +153,7 @@ func (c Mail) GetItemsInContainer(
 	userID, containerID string,
 ) ([]models.Messageable, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewMailPager(userID, containerID, false)
+	pager := c.NewMailPager(userID, containerID)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -167,7 +168,7 @@ func (c Mail) GetItemIDsInContainer(
 	userID, containerID string,
 ) (map[string]struct{}, error) {
 	ctx = clues.Add(ctx, "container_id", containerID)
-	pager := c.NewMailPager(userID, containerID, false, idAnd()...)
+	pager := c.NewMailPager(userID, containerID, idAnd()...)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
@@ -216,13 +217,14 @@ func getMailDeltaBuilder(
 func (c Mail) NewMailDeltaPager(
 	ctx context.Context,
 	userID, containerID, prevDeltaLink string,
-	immutableIDs bool,
 	selectProps ...string,
 ) pagers.DeltaHandler[models.Messageable] {
 	options := &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemMailFoldersItemMessagesDeltaRequestBuilderGetQueryParameters{},
-		Headers:         newPreferHeaders(preferPageSize(c.options.DeltaPageSize), preferImmutableIDs(immutableIDs)),
+		Headers: newPreferHeaders(
+			preferPageSize(c.options.DeltaPageSize),
+			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
 	if len(selectProps) > 0 {
@@ -273,12 +275,10 @@ func (c Mail) GetAddedAndRemovedItemIDs(
 		userID,
 		containerID,
 		prevDeltaLink,
-		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 	pager := c.NewMailPager(
 		userID,
 		containerID,
-		config.UseImmutableIDs,
 		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Messageable](

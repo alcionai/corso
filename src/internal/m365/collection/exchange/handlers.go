@@ -40,7 +40,6 @@ type itemGetterSerializer interface {
 	GetItem(
 		ctx context.Context,
 		user, itemID string,
-		immutableIDs bool,
 		errs *fault.Bus,
 	) (serialization.Parsable, *details.ExchangeInfo, error)
 	Serialize(
@@ -67,6 +66,10 @@ type restoreHandler interface {
 	containerAPI
 	getItemsByCollisionKeyser
 	NewContainerCache(userID string) graph.ContainerResolver
+	ShouldSetContainerToDefaultRoot(
+		restoreFolderPath string,
+		collectionPath path.Path,
+	) bool
 	FormatRestoreDestination(
 		destinationContainerName string,
 		collectionFullPath path.Path,

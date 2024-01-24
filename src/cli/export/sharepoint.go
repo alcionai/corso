@@ -3,29 +3,20 @@ package export
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // called by export.go to map subcommands to provider-specific handling.
 func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
-	var (
-		c  *cobra.Command
-		fs *pflag.FlagSet
-	)
+	var c *cobra.Command
 
 	switch cmd.Use {
 	case exportCommand:
-		c, fs = utils.AddCommand(cmd, sharePointExportCmd())
+		c, _ = utils.AddCommand(cmd, sharePointExportCmd())
 
 		c.Use = c.Use + " " + sharePointServiceCommandUseSuffix
-
-		// Flags addition ordering should follow the order we want them to appear in help and docs:
-		// More generic (ex: --user) and more frequently used flags take precedence.
-		fs.SortFlags = false
 
 		flags.AddBackupIDFlag(c, true)
 		flags.AddSharePointDetailsAndRestoreFlags(c)
@@ -94,9 +85,6 @@ func exportSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
-
-	// Exclude lists from exports since they are not supported yet.
-	sel.Exclude(sel.Lists(selectors.Any()))
 
 	return runExport(
 		ctx,

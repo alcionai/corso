@@ -279,12 +279,20 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 				FileCreatedBefore:  dttm.Now(),
 				FileModifiedAfter:  dttm.Now(),
 				FileModifiedBefore: dttm.Now(),
+				ListCreatedAfter:   dttm.Now(),
+				ListCreatedBefore:  dttm.Now(),
+				ListModifiedAfter:  dttm.Now(),
+				ListModifiedBefore: dttm.Now(),
 				Populated: flags.PopulatedFlags{
 					flags.SiteFN:               struct{}{},
 					flags.FileCreatedAfterFN:   struct{}{},
 					flags.FileCreatedBeforeFN:  struct{}{},
 					flags.FileModifiedAfterFN:  struct{}{},
 					flags.FileModifiedBeforeFN: struct{}{},
+					flags.ListCreatedAfterFN:   struct{}{},
+					flags.ListCreatedBeforeFN:  struct{}{},
+					flags.ListModifiedAfterFN:  struct{}{},
+					flags.ListModifiedBeforeFN: struct{}{},
 				},
 			},
 			expect: assert.NoError,
@@ -350,6 +358,50 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 			},
 			expect: assert.Error,
 		},
+		{
+			name:     "invalid list created after",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				ListCreatedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.ListCreatedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid list created before",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				ListCreatedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.ListCreatedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid list modified after",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				ListModifiedAfter: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.ListModifiedAfterFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
+		{
+			name:     "invalid list modified before",
+			backupID: "id",
+			opts: utils.SharePointOpts{
+				ListModifiedBefore: "1235",
+				Populated: flags.PopulatedFlags{
+					flags.ListModifiedBeforeFN: struct{}{},
+				},
+			},
+			expect: assert.Error,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -359,36 +411,35 @@ func (suite *SharePointUtilsSuite) TestValidateSharePointRestoreFlags() {
 	}
 }
 
-// [TODO] uncomment the test cases once sharepoint list backup is enabled
 func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
 	table := []struct {
 		name           string
 		cats           []string
 		expectScopeLen int
 	}{
-		// {
-		// 	name:           "none",
-		// 	cats:           []string{},
-		// 	expectScopeLen: 2,
-		// },
+		{
+			name:           "none",
+			cats:           []string{},
+			expectScopeLen: 2,
+		},
 		{
 			name:           "libraries",
 			cats:           []string{flags.DataLibraries},
 			expectScopeLen: 1,
 		},
-		// {
-		// 	name:           "lists",
-		// 	cats:           []string{flags.DataLists},
-		// 	expectScopeLen: 1,
-		// },
-		// {
-		// 	name: "all allowed",
-		// 	cats: []string{
-		// 		flags.DataLibraries,
-		// 		flags.DataLists,
-		// 	},
-		// 	expectScopeLen: 2,
-		// },
+		{
+			name:           "lists",
+			cats:           []string{flags.DataLists},
+			expectScopeLen: 1,
+		},
+		{
+			name: "all allowed",
+			cats: []string{
+				flags.DataLibraries,
+				flags.DataLists,
+			},
+			expectScopeLen: 2,
+		},
 		{
 			name:           "bad inputs",
 			cats:           []string{"foo"},

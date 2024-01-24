@@ -139,6 +139,13 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 			errCheck:  require.NoError,
 		},
 		{
+			name:      "timezone from TZ database",
+			timestamp: "2021-01-01T12:00:00Z",
+			timezone:  "America/Los_Angeles",
+			time:      time.Date(2021, 1, 1, 20, 0, 0, 0, time.UTC),
+			errCheck:  require.NoError,
+		},
+		{
 			name:      "invalid time",
 			timestamp: "invalid",
 			timezone:  "UTC",
@@ -156,7 +163,7 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 
 	for _, tt := range table {
 		suite.Run(tt.name, func() {
-			t, err := getUTCTime(tt.timestamp, tt.timezone)
+			t, err := GetUTCTime(tt.timestamp, tt.timezone)
 			tt.errCheck(suite.T(), err)
 
 			if !tt.time.Equal(time.Time{}) {
@@ -607,8 +614,28 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 				return e
 			},
 			check: func(out string) {
-				assert.Contains(t, out, "DESCRIPTION:body preview", "body preview")
 				assert.Contains(t, out, "X-ALT-DESC;FMTTYPE=text/html:<html><body>body</body></html>", "body")
+			},
+		},
+		{
+			name: "html body with utf8",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				body := models.NewItemBody()
+				btype, err := models.ParseBodyType("html")
+				require.NoError(t, err, "parse body type")
+
+				body.SetContentType(btype.(*models.BodyType))
+				body.SetContent(ptr.To("<html><body>മലയാളം</body></html>"))
+
+				e.SetBodyPreview(ptr.To("body preview"))
+				e.SetBody(body)
+
+				return e
+			},
+			check: func(out string) {
+				assert.Contains(t, out, "DESCRIPTION:മലയാളം", "body")
 			},
 		},
 		{

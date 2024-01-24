@@ -305,37 +305,63 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		op.Errors.Fail(clues.Wrap(err, "running backup"))
 	}
 
+	// Not expected to fail here as we make a similar call in op.do but we do need
+	// to make sure we pass some sort of reason for persisting the streamstore
+	// data.
+	reasons, err := op.Selectors.Reasons(op.account.ID(), false)
+	if err != nil {
+		reasons = []identity.Reasoner{identity.NewReason(
+			op.account.ID(),
+			op.Selectors.ID(),
+			path.UnknownService,
+			path.UnknownCategory)}
+	}
+
 	LogFaultErrors(ctx, op.Errors.Errors(), "running backup")
+	op.doPersistence(
+		ctx,
+		reasons,
+		&opStats,
+		sstore,
+		deets,
+		startTime)
+	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
 
-	// -----
-	// Persistence
-	// -----
+	logger.Ctx(ctx).Infow(
+		"completed backup",
+		"results", op.Results,
+		"failure", op.Errors.Failure())
 
-	err = op.persistResults(startTime, &opStats, op.Counter)
+	return op.Errors.Failure()
+}
+
+func (op *BackupOperation) doPersistence(
+	ctx context.Context,
+	reasons []identity.Reasoner,
+	opStats *backupStats,
+	detailsStore streamstore.Streamer,
+	deets *details.Builder,
+	start time.Time,
+) {
+	observe.Message(ctx, observe.ProgressCfg{}, "Finalizing storage")
+
+	err := op.persistResults(start, opStats, op.Counter)
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup results"))
-		return op.Errors.Failure()
+		return
 	}
 
 	err = op.createBackupModels(
 		ctx,
-		sstore,
-		opStats,
+		reasons,
+		detailsStore,
+		*opStats,
 		op.Results.BackupID,
 		op.BackupVersion,
 		deets.Details())
 	if err != nil {
 		op.Errors.Fail(clues.Wrap(err, "persisting backup models"))
-		return op.Errors.Failure()
 	}
-
-	finalizeErrorHandling(ctx, op.Options, op.Errors, "running backup")
-
-	if op.Errors.Failure() == nil {
-		logger.Ctx(ctx).Infow("completed backup", "results", op.Results)
-	}
-
-	return op.Errors.Failure()
 }
 
 // do is purely the action of running a backup.  All pre/post behavior
@@ -899,6 +925,7 @@ func (op *BackupOperation) persistResults(
 // stores the operation details, results, and selectors in the backup manifest.
 func (op *BackupOperation) createBackupModels(
 	ctx context.Context,
+	reasons []identity.Reasoner,
 	sscw streamstore.CollectorWriter,
 	opStats backupStats,
 	backupID model.StableID,
@@ -942,7 +969,12 @@ func (op *BackupOperation) createBackupModels(
 		return clues.Wrap(err, "collecting errors for persistence")
 	}
 
-	ssid, err := sscw.Write(ctx, errs)
+	metadataReasons := make([]identity.Reasoner, 0, len(reasons))
+	for _, reason := range reasons {
+		metadataReasons = append(metadataReasons, reason.ToMetadata())
+	}
+
+	ssid, err := sscw.Write(ctx, metadataReasons, errs)
 	if err != nil {
 		return clues.Wrap(err, "persisting details and errors")
 	}

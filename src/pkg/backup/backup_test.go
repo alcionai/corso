@@ -368,9 +368,9 @@ func (suite *BackupUnitSuite) TestStats_headersValues() {
 
 	expectHeaders := []string{
 		"ID",
-		"Bytes Uploaded",
-		"Items Uploaded",
-		"Items Skipped",
+		"Bytes uploaded",
+		"Items uploaded",
+		"Items skipped",
 		"Errors",
 	}
 

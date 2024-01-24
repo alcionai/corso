@@ -35,19 +35,17 @@ type Conversations struct {
 func (c Conversations) GetConversationPost(
 	ctx context.Context,
 	groupID, conversationID, threadID, postID string,
-	cc CallConfig,
 ) (models.Postable, *details.GroupsInfo, error) {
 	config := &groups.ItemConversationsItemThreadsItemPostsPostItemRequestBuilderGetRequestConfiguration{
 		QueryParameters: &groups.ItemConversationsItemThreadsItemPostsPostItemRequestBuilderGetQueryParameters{},
 	}
 
-	if len(cc.Select) > 0 {
-		config.QueryParameters.Select = cc.Select
-	}
-
-	if len(cc.Expand) > 0 {
-		config.QueryParameters.Expand = append(config.QueryParameters.Expand, cc.Expand...)
-	}
+	// Expand inReplyTo property to additionally get the parent post contents.
+	// This will be persisted as part of post data.
+	//
+	// This additional data will be useful for building a reply tree if we decide to
+	// do in-order restore/export in future.
+	config.QueryParameters.Expand = append(config.QueryParameters.Expand, "inReplyTo")
 
 	post, err := c.Stable.
 		Client().

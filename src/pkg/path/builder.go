@@ -232,18 +232,7 @@ func (pb Builder) ToStreamStorePath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	case GroupsService:
-		metadataService = GroupsMetadataService
-	}
+	metadataService := service.ToMetadata()
 
 	return &dataLayerResourcePath{
 		Builder: *pb.withPrefix(
@@ -275,18 +264,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	case GroupsService:
-		metadataService = GroupsMetadataService
-	}
+	metadataService := service.ToMetadata()
 
 	rp := dataLayerResourcePath{
 		Builder: *pb.withPrefix(
@@ -327,57 +305,6 @@ func (pb Builder) ToDataLayerPath(
 	return &dataLayerResourcePath{
 		Builder:  *pb.withPrefix(prefixItems...),
 		service:  service,
-		category: category,
-		hasItem:  isItem,
-	}, nil
-}
-
-func (pb Builder) ToDataLayerExchangePathForCategory(
-	tenant, resource string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, resource, ExchangeService, category, isItem)
-}
-
-func (pb Builder) ToDataLayerOneDrivePath(
-	tenant, resource string,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, resource, OneDriveService, FilesCategory, isItem)
-}
-
-func (pb Builder) ToDataLayerSharePointPath(
-	tenant, site string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	return pb.ToDataLayerPath(tenant, site, SharePointService, category, isItem)
-}
-
-func (pb Builder) ToDataLayerSharePointListPath(
-	tenant, site string,
-	category CategoryType,
-	isItem bool,
-) (Path, error) {
-	if err := ValidateServiceAndCategory(SharePointService, category); err != nil {
-		return nil, err
-	}
-
-	if err := verifyInputValues(tenant, site); err != nil {
-		return nil, err
-	}
-
-	prefixItems := []string{
-		tenant,
-		SharePointService.String(),
-		site,
-		category.String(),
-	}
-
-	return &dataLayerResourcePath{
-		Builder:  *pb.withPrefix(prefixItems...),
-		service:  SharePointService,
 		category: category,
 		hasItem:  isItem,
 	}, nil

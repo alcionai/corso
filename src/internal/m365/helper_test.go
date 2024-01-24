@@ -731,8 +731,22 @@ func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
 		return false
 	}
 
-	if !slices.Equal(expected.Entities, got.Entities) {
+	if len(expected.Entities) != len(got.Entities) {
 		return false
+	}
+
+	for i, e := range expected.Entities {
+		if !strings.EqualFold(e.ID, got.Entities[i].ID) {
+			return false
+		}
+
+		if !strings.EqualFold(e.Email, got.Entities[i].Email) {
+			return false
+		}
+
+		if e.EntityType != got.Entities[i].EntityType {
+			return false
+		}
 	}
 
 	if (expected.Expiration == nil && got.Expiration != nil) ||

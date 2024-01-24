@@ -37,3 +37,11 @@ Below is a list of known Corso issues and limitations:
 * Restoring the data into a different Group from the one it was backed up from isn't currently supported.
 
 * Backing up a group mailbox item may fail if it has a large number of attachments (500+).
+
+* Exchange in-place restore may restore items in well-known folders to different
+  folders if the user has well-known folder names change based on locale and has
+  updated the locale since the backup was created.
+
+* In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
+
+* External users with access through shared links won't receive these links as they're not sent via email during restore.

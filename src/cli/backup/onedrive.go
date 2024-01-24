@@ -60,7 +60,6 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 	switch cmd.Use {
 	case createCommand:
 		c, fs = utils.AddCommand(cmd, oneDriveCreateCmd())
-		fs.SortFlags = false
 
 		c.Use = c.Use + " " + oneDriveServiceCommandCreateUseSuffix
 		c.Example = oneDriveServiceCommandCreateExamples
@@ -68,22 +67,20 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddUserFlag(c)
 		flags.AddGenericBackupFlags(c)
 		fs.BoolVar(
-			&flags.UseDeltaTreeFV,
-			flags.UseDeltaTreeFN,
+			&flags.UseOldDeltaProcessFV,
+			flags.UseOldDeltaProcessFN,
 			false,
-			"process backups using the delta tree instead of standard enumeration")
-		cobra.CheckErr(fs.MarkHidden(flags.UseDeltaTreeFN))
+			"process backups using the old delta processor instead of tree-based enumeration")
+		cobra.CheckErr(fs.MarkHidden(flags.UseOldDeltaProcessFN))
 
 	case listCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveListCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, oneDriveListCmd())
 
 		flags.AddBackupIDFlag(c, false)
 		flags.AddAllBackupListFlags(c)
 
 	case detailsCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveDetailsCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, oneDriveDetailsCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDetailsUseSuffix
 		c.Example = oneDriveServiceCommandDetailsExamples
@@ -93,8 +90,7 @@ func addOneDriveCommands(cmd *cobra.Command) *cobra.Command {
 		flags.AddOneDriveDetailsAndRestoreFlags(c)
 
 	case deleteCommand:
-		c, fs = utils.AddCommand(cmd, oneDriveDeleteCmd())
-		fs.SortFlags = false
+		c, _ = utils.AddCommand(cmd, oneDriveDeleteCmd())
 
 		c.Use = c.Use + " " + oneDriveServiceCommandDeleteUseSuffix
 		c.Example = oneDriveServiceCommandDeleteExamples

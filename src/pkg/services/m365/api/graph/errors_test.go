@@ -83,6 +83,11 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 			err:    graphTD.ODataErr(string(ApplicationThrottled)),
 			expect: assert.True,
 		},
+		{
+			name:   "too many requests resp status",
+			err:    graphTD.ODataErrWithStatus(http.StatusTooManyRequests, "err"),
+			expect: assert.True,
+		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
@@ -165,6 +170,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 	table := []struct {
 		name   string
 		err    error
+		inner  error
 		expect assert.BoolAssertionFunc
 	}{
 		{
@@ -180,23 +186,49 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 		{
 			name:   "non-matching oDataErr",
 			err:    graphTD.ODataErr("fnords"),
+			inner:  graphTD.ODataInner("fnords"),
 			expect: assert.False,
 		},
 		{
 			name:   "not-found oDataErr",
+			err:    graphTD.ODataErr(string(notFound)),
+			inner:  graphTD.ODataInner(string(notFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "error item not-found oDataErr",
 			err:    graphTD.ODataErr(string(ErrorItemNotFound)),
+			inner:  graphTD.ODataInner(string(ErrorItemNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "item not-found oDataErr",
+			err:    graphTD.ODataErr(string(ItemNotFound)),
+			inner:  graphTD.ODataInner(string(ItemNotFound)),
 			expect: assert.True,
 		},
 		{
 			name:   "sync-not-found oDataErr",
 			err:    graphTD.ODataErr(string(syncFolderNotFound)),
+			inner:  graphTD.ODataInner(string(syncFolderNotFound)),
+			expect: assert.True,
+		},
+		{
+			name:   "not found resp status",
+			err:    graphTD.ODataErrWithStatus(http.StatusNotFound, "err"),
 			expect: assert.True,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
+			t := suite.T()
+
 			ode := parseODataErr(test.err)
-			test.expect(suite.T(), isErrNotFound(ode, test.err))
+			test.expect(t, isErrNotFound(ode, test.err))
+
+			if test.inner != nil {
+				test.expect(t, isErrNotFound(ode, test.inner))
+			}
 		})
 	}
 }

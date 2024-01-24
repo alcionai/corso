@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -455,52 +456,54 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	t := suite.T()
 
+	displayName := "B123 Unit 1852 Prime Residences Tagaytay"
+	street := "Prime Residences CityLand 1852"
+	state := "Calabarzon"
+	postal := "4120"
+	country := "Philippines"
+	city := "Tagaytay"
+	lat := 14.1153
+	lon := 120.962
+
 	additionalData := map[string]any{
 		"MyAddress": map[string]any{
-			AddressFieldName: map[string]any{
-				"city":            "Tagaytay",
-				"countryOrRegion": "Philippines",
-				"postalCode":      "4120",
-				"state":           "Calabarzon",
-				"street":          "Prime Residences CityLand 1852",
+			AddressKey: map[string]any{
+				CityKey:       ptr.To(city),
+				CountryKey:    ptr.To(country),
+				PostalCodeKey: ptr.To(postal),
+				StateKey:      ptr.To(state),
+				StreetKey:     ptr.To(street),
 			},
-			CoordinatesFieldName: map[string]any{
-				"latitude":  "14.1153",
-				"longitude": "120.962",
+			CoordinatesKey: map[string]any{
+				LatitudeKey:  ptr.To(lat),
+				LongitudeKey: ptr.To(lon),
 			},
-			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
-			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
+			DisplayNameKey: ptr.To(displayName),
+			LocationURIKey: ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
+			UniqueIDKey:    ptr.To("https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032"),
 		},
-		CountryOrRegionFieldName: "Philippines",
-		StateFieldName:           "Calabarzon",
-		CityFieldName:            "Tagaytay",
-		PostalCodeFieldName:      "4120",
-		StreetFieldName:          "Prime Residences CityLand 1852",
-		GeoLocFieldName: map[string]any{
-			"latitude":  14.1153,
-			"longitude": 120.962,
+		CountryOrRegionFN: ptr.To(country),
+		StateFN:           ptr.To(state),
+		CityFN:            ptr.To(city),
+		PostalCodeFN:      ptr.To(postal),
+		StreetFN:          ptr.To(street),
+		GeoLocFN: map[string]any{
+			"latitude":  ptr.To(lat),
+			"longitude": ptr.To(lon),
 		},
-		DispNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
+		DispNameFN: ptr.To(displayName),
 	}
 
 	expectedData := map[string]any{
-		"MyAddress": map[string]any{
-			AddressFieldName: map[string]any{
-				"city":            "Tagaytay",
-				"countryOrRegion": "Philippines",
-				"postalCode":      "4120",
-				"state":           "Calabarzon",
-				"street":          "Prime Residences CityLand 1852",
-			},
-			CoordinatesFieldName: map[string]any{
-				"latitude":  "14.1153",
-				"longitude": "120.962",
-			},
-			DisplayNameFieldName: "B123 Unit 1852 Prime Residences Tagaytay",
-			LocationURIFieldName: "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-			UniqueIDFieldName:    "https://www.bingapis.com/api/v6/localbusinesses/YN8144x496766267081923032",
-		},
+		"MyAddress": fmt.Sprintf("%s,%s,%s,%s,%s,%s,%v,%v",
+			displayName,
+			street,
+			city,
+			state,
+			country,
+			postal,
+			lat,
+			lon),
 	}
 
 	origFs := models.NewFieldValueSet()
@@ -513,6 +516,191 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	fs := retrieveFieldData(origFs, colNames)
 	fsAdditionalData := fs.GetAdditionalData()
 	assert.Equal(t, expectedData, fsAdditionalData)
+}
+
+func (suite *ListsUnitSuite) TestConcatenateAddressFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name           string
+		addressFields  map[string]any
+		expectedResult string
+	}{
+		{
+			name: "Valid Address",
+			addressFields: map[string]any{
+				DisplayNameKey: ptr.To("John Doe"),
+				AddressKey: map[string]any{
+					StreetKey:     ptr.To("123 Main St"),
+					CityKey:       ptr.To("Cityville"),
+					StateKey:      ptr.To("State"),
+					CountryKey:    ptr.To("Country"),
+					PostalCodeKey: ptr.To("12345"),
+				},
+				CoordinatesKey: map[string]any{
+					LatitudeKey:  ptr.To(40.7128),
+					LongitudeKey: ptr.To(-74.0060),
+				},
+			},
+			expectedResult: "John Doe,123 Main St,Cityville,State,Country,12345,40.7128,-74.006",
+		},
+		{
+			name: "Empty Address Fields",
+			addressFields: map[string]any{
+				DisplayNameKey: ptr.To("John Doe"),
+			},
+			expectedResult: "John Doe",
+		},
+		{
+			name:           "Empty Input",
+			addressFields:  map[string]any{},
+			expectedResult: "",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			result := concatenateAddressFields(test.addressFields)
+			assert.Equal(t, test.expectedResult, result, "address should match")
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestHasAddressFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name           string
+		additionalData map[string]any
+		expectedFields map[string]any
+		expectedName   string
+		expectedFound  bool
+	}{
+		{
+			name: "Address Fields Found",
+			additionalData: map[string]any{
+				"person1": map[string]any{
+					AddressKey: map[string]any{
+						StreetKey:     "123 Main St",
+						CityKey:       "Cityville",
+						StateKey:      "State",
+						CountryKey:    "Country",
+						PostalCodeKey: "12345",
+					},
+					CoordinatesKey: map[string]any{
+						LatitudeKey:  "40.7128",
+						LongitudeKey: "-74.0060",
+					},
+					DisplayNameKey: "John Doe",
+					LocationURIKey: "some loc",
+					UniqueIDKey:    "some id",
+				},
+			},
+			expectedFields: map[string]any{
+				AddressKey: map[string]any{
+					StreetKey:     "123 Main St",
+					CityKey:       "Cityville",
+					StateKey:      "State",
+					CountryKey:    "Country",
+					PostalCodeKey: "12345",
+				},
+				CoordinatesKey: map[string]any{
+					LatitudeKey:  "40.7128",
+					LongitudeKey: "-74.0060",
+				},
+				DisplayNameKey: "John Doe",
+				LocationURIKey: "some loc",
+				UniqueIDKey:    "some id",
+			},
+			expectedName:  "person1",
+			expectedFound: true,
+		},
+		{
+			name: "No Address Fields",
+			additionalData: map[string]any{
+				"person1": map[string]any{
+					"name": "John Doe",
+					"age":  30,
+				},
+				"person2": map[string]any{
+					"name": "Jane Doe",
+					"age":  25,
+				},
+			},
+			expectedFields: nil,
+			expectedName:   "",
+			expectedFound:  false,
+		},
+		{
+			name:           "Empty Input",
+			additionalData: map[string]any{},
+			expectedFields: nil,
+			expectedName:   "",
+			expectedFound:  false,
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			fields, fieldName, found := hasAddressFields(test.additionalData)
+			require.Equal(t, test.expectedFound, found, "address fields identification should match")
+			assert.Equal(t, test.expectedName, fieldName, "address field name should match")
+			assert.Equal(t, test.expectedFields, fields, "address fields should match")
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestConcatenateHyperlinkFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name            string
+		hyperlinkFields map[string]any
+		expectedResult  string
+	}{
+		{
+			name: "Valid Hyperlink",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey:         ptr.To("https://www.example.com"),
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
+			},
+			expectedResult: "https://www.example.com,Example Website",
+		},
+		{
+			name: "Empty Hyperlink Fields",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey:         nil,
+				HyperlinkDescriptionKey: nil,
+			},
+			expectedResult: "",
+		},
+		{
+			name: "Missing Description",
+			hyperlinkFields: map[string]any{
+				HyperlinkURLKey: ptr.To("https://www.example.com"),
+			},
+			expectedResult: "https://www.example.com",
+		},
+		{
+			name: "Missing URL",
+			hyperlinkFields: map[string]any{
+				HyperlinkDescriptionKey: ptr.To("Example Website"),
+			},
+			expectedResult: "Example Website",
+		},
+		{
+			name:            "Empty Input",
+			hyperlinkFields: map[string]any{},
+			expectedResult:  "",
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			result := concatenateHyperLinkFields(test.hyperlinkFields)
+			assert.Equal(t, test.expectedResult, result)
+		})
+	}
 }
 
 type ListsAPIIntgSuite struct {
@@ -586,6 +774,7 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 				list.SetId(ptr.To(listID))
 				list.SetDisplayName(ptr.To(listName))
 				list.SetList(listInfo)
+				list.SetCreatedDateTime(ptr.To(time.Now()))
 				list.SetLastModifiedDateTime(ptr.To(time.Now()))
 
 				txtColumnDef := models.NewColumnDefinition()
@@ -723,8 +912,8 @@ func (suite *ListsAPIIntgSuite) TestLists_GetListByID() {
 			assert.Equal(t, listName, info.List.Name)
 			assert.Equal(t, int64(1), info.List.ItemCount)
 			assert.Equal(t, listTemplate, info.List.Template)
-			assert.NotEmpty(t, info.List.Modified)
 			assert.NotEmpty(t, info.Modified)
+			assert.NotEmpty(t, info.Created)
 		})
 	}
 }
@@ -826,6 +1015,50 @@ func (suite *ListsAPIIntgSuite) TestLists_PostList_invalidTemplate() {
 			assert.Equal(t, ErrSkippableListTemplate.Error(), err.Error())
 		})
 	}
+}
+
+func (suite *ListsAPIIntgSuite) TestLists_PatchList() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		acl         = suite.its.ac.Lists()
+		siteID      = suite.its.site.id
+		listName    = "old-list-name"
+		newListName = "new-list-name"
+	)
+
+	fieldsData, list := getFieldsDataAndList()
+
+	createdList, err := acl.PostList(ctx, siteID, listName, list, fault.New(true))
+	require.NoError(t, err, clues.ToCore(err))
+	assert.Equal(t, listName, ptr.Val(createdList.GetDisplayName()))
+
+	listID := ptr.Val(createdList.GetId())
+
+	newList := models.NewList()
+	newList.SetDisplayName(ptr.To(newListName))
+	patchedList, err := acl.PatchList(ctx, siteID, listID, newList)
+	require.NoError(t, err)
+	assert.Equal(t, newListName, ptr.Val(patchedList.GetDisplayName()))
+
+	patchedList, _, err = acl.GetListByID(ctx, siteID, listID)
+	require.NoError(t, err)
+
+	newListItems := patchedList.GetItems()
+	require.Less(t, 0, len(newListItems))
+
+	newListItemFields := newListItems[0].GetFields()
+	require.NotEmpty(t, newListItemFields)
+
+	newListItemsData := newListItemFields.GetAdditionalData()
+	require.NotEmpty(t, newListItemsData)
+	assert.Equal(t, fieldsData["itemName"], newListItemsData["itemName"])
+
+	err = acl.DeleteList(ctx, siteID, ptr.Val(patchedList.GetId()))
+	require.NoError(t, err)
 }
 
 func (suite *ListsAPIIntgSuite) TestLists_DeleteList() {

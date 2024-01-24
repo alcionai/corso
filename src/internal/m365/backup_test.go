@@ -390,6 +390,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
+	sel.Include(sel.Library("Documents"))
 
 	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
 
@@ -407,21 +408,40 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.True(t, canUsePreviousBackup, "can use previous backup")
-	require.Len(t, cols, 2) // 1 collection, 1 path prefix directory to ensure the root path exists.
+
+	var (
+		hasDocumentsColl bool
+		hasMetadataColl  bool
+	)
+
+	documentsColl, err := path.BuildPrefix(
+		suite.connector.tenant,
+		siteID,
+		path.SharePointService,
+		path.LibrariesCategory)
+	require.NoError(t, err, clues.ToCore(err))
+
+	metadataColl, err := path.BuildMetadata(
+		suite.connector.tenant,
+		siteID,
+		path.SharePointService,
+		path.LibrariesCategory,
+		false)
+	require.NoError(t, err, clues.ToCore(err))
+
+	for i, col := range cols {
+		fp := col.FullPath()
+		t.Logf("Collection %d: %s", i, fp)
+
+		hasDocumentsColl = hasDocumentsColl || fp.Equal(documentsColl)
+		hasMetadataColl = hasMetadataColl || fp.Equal(metadataColl)
+	}
+
+	require.Truef(t, hasDocumentsColl, "found documents collection %s", documentsColl)
+	require.Truef(t, hasMetadataColl, "found metadata collection %s", metadataColl)
+
 	// No excludes yet as this isn't an incremental backup.
 	assert.True(t, excludes.Empty())
-
-	t.Logf("cols[0] Path: %s\n", cols[0].FullPath().String())
-	assert.Equal(
-		t,
-		path.SharePointMetadataService.String(),
-		cols[0].FullPath().Service().String())
-
-	t.Logf("cols[1] Path: %s\n", cols[1].FullPath().String())
-	assert.Equal(
-		t,
-		path.SharePointService.String(),
-		cols[1].FullPath().Service().String())
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {

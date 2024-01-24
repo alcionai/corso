@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
+	siteMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -58,7 +59,7 @@ func generateAndRestoreItems(
 	service path.ServiceType,
 	cat path.CategoryType,
 	sel selectors.Selector,
-	tenantID, userID, destFldr string,
+	tenantID, resourceID, destFldr string,
 	howMany int,
 	dbf dataBuilderFunc,
 	opts control.Options,
@@ -73,7 +74,7 @@ func generateAndRestoreItems(
 			nowLegacy = dttm.FormatToLegacy(time.Now())
 			id        = uuid.NewString()
 			subject   = "automated " + now[:16] + " - " + id[:8]
-			body      = "automated " + cat.HumanString() + " generation for " + userID + " at " + now + " - " + id
+			body      = "automated " + cat.HumanString() + " generation for " + resourceID + " at " + now + " - " + id
 		)
 
 		items = append(items, item{
@@ -94,7 +95,7 @@ func generateAndRestoreItems(
 
 	dataColls, err := buildCollections(
 		service,
-		tenantID, userID,
+		tenantID, resourceID,
 		restoreCfg,
 		collections)
 	if err != nil {
@@ -192,35 +193,80 @@ type collection struct {
 
 func buildCollections(
 	service path.ServiceType,
-	tenant, user string,
+	tenant, resource string,
 	restoreCfg control.RestoreConfig,
 	colls []collection,
 ) ([]data.RestoreCollection, error) {
-	collections := make([]data.RestoreCollection, 0, len(colls))
+	var (
+		collections = make([]data.RestoreCollection, 0, len(colls))
+		mc          data.Collection
+	)
 
 	for _, c := range colls {
-		pth, err := path.Build(
-			tenant,
-			user,
-			service,
-			c.category,
-			false,
-			c.PathElements...)
-		if err != nil {
-			return nil, err
-		}
+		switch {
+		case service == path.ExchangeService:
+			emc, err := generateExchangeMockColls(tenant, resource, c)
+			if err != nil {
+				return nil, err
+			}
 
-		mc := exchMock.NewCollection(pth, pth, len(c.items))
+			mc = emc
+		case service == path.SharePointService:
+			smc, err := generateSharepointListsMockColls(tenant, resource, c)
+			if err != nil {
+				return nil, err
+			}
 
-		for i := 0; i < len(c.items); i++ {
-			mc.Names[i] = c.items[i].name
-			mc.Data[i] = c.items[i].data
+			mc = smc
 		}
 
 		collections = append(collections, data.NoFetchRestoreCollection{Collection: mc})
 	}
 
 	return collections, nil
+}
+
+func generateExchangeMockColls(tenant string, resource string, c collection) (*exchMock.DataCollection, error) {
+	pth, err := path.Build(
+		tenant,
+		resource,
+		path.ExchangeService,
+		c.category,
+		false,
+		c.PathElements...)
+	if err != nil {
+		return nil, err
+	}
+
+	emc := exchMock.NewCollection(pth, pth, len(c.items))
+
+	for i := 0; i < len(c.items); i++ {
+		emc.Names[i] = c.items[i].name
+		emc.Data[i] = c.items[i].data
+	}
+
+	return emc, nil
+}
+
+func generateSharepointListsMockColls(tenant string, resource string, c collection) (*siteMock.ListCollection, error) {
+	pth, err := path.BuildOrPrefix(
+		tenant,
+		resource,
+		path.SharePointService,
+		c.category,
+		false)
+	if err != nil {
+		return nil, err
+	}
+
+	smc := siteMock.NewCollection(pth, pth, len(c.items))
+
+	for i := 0; i < len(c.items); i++ {
+		smc.Names[i] = c.items[i].name
+		smc.Data[i] = c.items[i].data
+	}
+
+	return smc, nil
 }
 
 var (

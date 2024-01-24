@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/alcionai/clues"
 	ics "github.com/arran4/golang-ical"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"jaytaylor.com/html2text"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -28,8 +31,8 @@ import (
 // TODO locations: https://github.com/alcionai/corso/issues/5003
 
 const (
-	iCalDateTimeFormat = "20060102T150405Z"
-	iCalDateFormat     = "20060102"
+	ICalDateTimeFormat = "20060102T150405Z"
+	ICalDateFormat     = "20060102"
 )
 
 func keyValues(key, value string) *ics.KeyValues {
@@ -69,23 +72,32 @@ func getLocationString(location models.Locationable) string {
 	return strings.Join(nonEmpty, ", ")
 }
 
-func getUTCTime(ts, tz string) (time.Time, error) {
+func GetUTCTime(ts, tz string) (time.Time, error) {
+	var (
+		loc *time.Location
+		err error
+	)
+
 	// Timezone is always converted to UTC.  This is the easiest way to
 	// ensure we have the correct time as the .ics file expects the same
 	// timezone everywhere according to the spec.
 	it, err := dttm.ParseTime(ts)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "parsing time")
+		return time.Time{}, clues.Wrap(err, "parsing time").With("given_time_string", ts)
 	}
 
-	timezone, ok := GraphTimeZoneToTZ[tz]
-	if !ok {
-		return it, clues.New("unknown timezone")
-	}
-
-	loc, err := time.LoadLocation(timezone)
+	loc, err = time.LoadLocation(tz)
 	if err != nil {
-		return time.Now(), clues.Wrap(err, "loading timezone")
+		timezone, ok := GraphTimeZoneToTZ[tz]
+		if !ok {
+			return it, clues.New("unknown timezone").With("timezone", tz)
+		}
+
+		loc, err = time.LoadLocation(timezone)
+		if err != nil {
+			return time.Time{}, clues.Wrap(err, "loading timezone").
+				With("converted_timezone", timezone)
+		}
 	}
 
 	// embed timezone
@@ -168,7 +180,7 @@ func getRecurrencePattern(
 			if end != nil {
 				parsedTime, err := dttm.ParseTime(end.String())
 				if err != nil {
-					return "", clues.Wrap(err, "parsing recurrence end date")
+					return "", clues.Wrap(err, "parsing recurrence end date").With("recur_end_date", end.String())
 				}
 
 				// end date is always computed as end of the day and
@@ -176,14 +188,14 @@ func getRecurrencePattern(
 				// the resolution we need
 				parsedTime = parsedTime.Add(24*time.Hour - 1*time.Second)
 
-				endTime, err := getUTCTime(
+				endTime, err := GetUTCTime(
 					parsedTime.Format(string(dttm.M365DateTimeTimeZone)),
 					ptr.Val(rrange.GetRecurrenceTimeZone()))
 				if err != nil {
 					return "", clues.WrapWC(ctx, err, "parsing end time")
 				}
 
-				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(iCalDateTimeFormat))
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(ICalDateTimeFormat))
 			}
 		case models.NOEND_RECURRENCERANGETYPE:
 			// Nothing to do
@@ -201,16 +213,21 @@ func getRecurrencePattern(
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	event, err := api.BytesToEventable(body)
 	if err != nil {
-		return "", clues.WrapWC(ctx, err, "converting to eventable")
+		return "", clues.WrapWC(ctx, err, "converting to eventable").
+			With("body_len", len(body))
 	}
 
+	return FromEventable(ctx, event)
+}
+
+func FromEventable(ctx context.Context, event models.Eventable) (string, error) {
 	cal := ics.NewCalendar()
 	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
 	id := ptr.Val(event.GetId())
 	iCalEvent := cal.AddEvent(id)
 
-	err = updateEventProperties(ctx, event, iCalEvent)
+	err := updateEventProperties(ctx, event, iCalEvent)
 	if err != nil {
 		return "", clues.Wrap(err, "updating event properties")
 	}
@@ -229,7 +246,8 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 		exBody, err := json.Marshal(instance)
 		if err != nil {
-			return "", clues.WrapWC(ctx, err, "marshalling exception instance")
+			return "", clues.WrapWC(ctx, err, "marshalling exception instance").
+				With("instance_id", instance["id"])
 		}
 
 		exception, err := api.BytesToEventable(exBody)
@@ -240,7 +258,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		exICalEvent := cal.AddEvent(id)
 		start := exception.GetOriginalStart() // will always be in UTC
 
-		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(iCalDateTimeFormat))
+		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(ICalDateTimeFormat))
 
 		err = updateEventProperties(ctx, exception, exICalEvent)
 		if err != nil {
@@ -249,6 +267,16 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 	}
 
 	return cal.Serialize(), nil
+}
+
+func isASCII(s string) bool {
+	for _, c := range s {
+		if c > unicode.MaxASCII {
+			return false
+		}
+	}
+
+	return true
 }
 
 func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
@@ -270,7 +298,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	startTimezone := event.GetStart().GetTimeZone()
 
 	if startString != nil {
-		start, err := getUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
+		start, err := GetUTCTime(ptr.Val(startString), ptr.Val(startTimezone))
 		if err != nil {
 			return clues.WrapWC(ctx, err, "parsing start time")
 		}
@@ -287,7 +315,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	endTimezone := event.GetEnd().GetTimeZone()
 
 	if endString != nil {
-		end, err := getUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
+		end, err := GetUTCTime(ptr.Val(endString), ptr.Val(endTimezone))
 		if err != nil {
 			return clues.WrapWC(ctx, err, "parsing end time")
 		}
@@ -322,10 +350,6 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// DESCRIPTION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.5
-	// TODO: Emojies currently don't seem to be read properly by Outlook
-	// When outlook exports them(in .eml), it exports them in text as it strips down html
-	bodyPreview := ptr.Val(event.GetBodyPreview())
-
 	if event.GetBody() != nil {
 		description := ptr.Val(event.GetBody().GetContent())
 		contentType := event.GetBody().GetContentType().String()
@@ -333,13 +357,34 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		if len(description) > 0 && contentType == "text" {
 			iCalEvent.SetDescription(description)
 		} else if len(description) > 0 {
-			// https://stackoverflow.com/a/859475
-			iCalEvent.SetDescription(bodyPreview)
-
 			if contentType == "html" {
-				desc := strings.ReplaceAll(description, "\r\n", "")
-				desc = strings.ReplaceAll(desc, "\n", "")
-				iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+				// If we have html, we have two routes. If we don't have
+				// UTF-8, then we can do an exact reproduction of the
+				// original data in outlook by using X-ALT-DESC field and
+				// using the html there. But if we have UTF-8, then we
+				// have to use DESCRIPTION field and use the content
+				// stripped of html there. This because even though the
+				// field technically supports UTF-8, Outlook does not
+				// seem to work with it.  Exchange does similar things
+				// when it attaches the event to an email.
+
+				// nolint:lll
+				// https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxcical/d7f285da-9c7a-4597-803b-b74193c898a8
+				// X-ALT-DESC field uses "Text" as in https://www.rfc-editor.org/rfc/rfc2445#section-4.3.11
+				if isASCII(description) {
+					// https://stackoverflow.com/a/859475
+					replacer := strings.NewReplacer("\r\n", "\\n", "\n", "\\n")
+					desc := replacer.Replace(description)
+					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
+				} else {
+					stripped, err := html2text.FromString(description, html2text.Options{PrettyTables: true})
+					if err != nil {
+						return clues.Wrap(err, "converting html to text").
+							With("description_length", len(description))
+					}
+
+					iCalEvent.SetDescription(stripped)
+				}
 			}
 		}
 	}
@@ -483,7 +528,6 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// ATTACH - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.1
-	// TODO Handle different attachment types (file, item and reference)
 	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
 		props := []ics.PropertyParameter{}
@@ -504,9 +548,21 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 			return clues.WrapWC(ctx, err, "getting attachment content")
 		}
 
+		if cb == nil {
+			// TODO(meain): Handle non file attachments
+			// https://github.com/alcionai/corso/issues/4772
+			logger.Ctx(ctx).
+				With("attachment_id", ptr.Val(attachment.GetId()),
+					"attachment_type", ptr.Val(attachment.GetOdataType())).
+				Info("no contentBytes for attachment")
+
+			continue
+		}
+
 		content, ok := cb.([]uint8)
 		if !ok {
-			return clues.NewWC(ctx, "getting attachment content string")
+			return clues.NewWC(ctx, "getting attachment content string").
+				With("interface_type", fmt.Sprintf("%T", cb))
 		}
 
 		props = append(props, ics.WithEncoding("base64"), ics.WithValue("BINARY"))
@@ -525,7 +581,8 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 			cid, err := str.AnyToString(cidv)
 			if err != nil {
-				return clues.WrapWC(ctx, err, "getting attachment content id string")
+				return clues.WrapWC(ctx, err, "getting attachment content id string").
+					With("interface_type", fmt.Sprintf("%T", cidv))
 			}
 
 			props = append(props, keyValues("CID", cid))
@@ -537,12 +594,13 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	// EXDATE - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.5.1
 	cancelledDates, err := getCancelledDates(ctx, event)
 	if err != nil {
-		return clues.Wrap(err, "getting cancelled dates")
+		return clues.Wrap(err, "getting cancelled dates").
+			With("event_id", event.GetId())
 	}
 
 	dateStrings := []string{}
 	for _, date := range cancelledDates {
-		dateStrings = append(dateStrings, date.Format(iCalDateFormat))
+		dateStrings = append(dateStrings, date.Format(ICalDateFormat))
 	}
 
 	if len(dateStrings) > 0 {
@@ -563,7 +621,7 @@ func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time
 
 	for _, ds := range dateStrings {
 		// the data just contains date and no time which seems to work
-		start, err := getUTCTime(ds, tz)
+		start, err := GetUTCTime(ds, tz)
 		if err != nil {
 			return nil, clues.WrapWC(ctx, err, "parsing cancelled event date")
 		}

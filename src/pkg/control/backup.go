@@ -64,7 +64,7 @@ type BackupM365Config struct {
 	ExchangeImmutableIDs bool `json:"exchangeImmutableIDs,omitempty"`
 
 	// see: https://github.com/alcionai/corso/issues/4688
-	UseDriveDeltaTree bool `json:"useDriveDeltaTree"`
+	UseOldDriveDeltaProcess bool `json:"useOldDriveDeltaProcess"`
 }
 
 type Parallelism struct {
