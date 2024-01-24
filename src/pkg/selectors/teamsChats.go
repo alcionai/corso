@@ -506,7 +506,7 @@ func (s TeamsChatsScope) matchesInfo(dii details.ItemInfo) bool {
 	case TeamsChatsInfoChatMember:
 		i = strings.Join(info.Chat.Members, ",")
 	case TeamsChatsInfoChatName:
-		i = info.Chat.Name
+		i = info.Chat.Topic
 	}
 
 	return s.Matches(infoCat, i)

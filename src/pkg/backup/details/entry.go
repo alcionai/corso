@@ -141,26 +141,23 @@ func (de Entry) MinimumPrintable() any {
 // Headers returns the human-readable names of properties in a DetailsEntry
 // for printing out to a terminal in a columnar display.
 func (de Entry) Headers(skipID bool) []string {
-	hs := []string{}
+	var hs []string
 
-	if de.ItemInfo.Folder != nil {
+	switch {
+	case de.ItemInfo.Folder != nil:
 		hs = de.ItemInfo.Folder.Headers()
-	}
-
-	if de.ItemInfo.Exchange != nil {
+	case de.ItemInfo.Exchange != nil:
 		hs = de.ItemInfo.Exchange.Headers()
-	}
-
-	if de.ItemInfo.SharePoint != nil {
+	case de.ItemInfo.SharePoint != nil:
 		hs = de.ItemInfo.SharePoint.Headers()
-	}
-
-	if de.ItemInfo.OneDrive != nil {
+	case de.ItemInfo.OneDrive != nil:
 		hs = de.ItemInfo.OneDrive.Headers()
-	}
-
-	if de.ItemInfo.Groups != nil {
+	case de.ItemInfo.Groups != nil:
 		hs = de.ItemInfo.Groups.Headers()
+	case de.ItemInfo.TeamsChats != nil:
+		hs = de.ItemInfo.TeamsChats.Headers()
+	default:
+		hs = []string{"ERROR - Service not recognized"}
 	}
 
 	if skipID {
@@ -172,26 +169,23 @@ func (de Entry) Headers(skipID bool) []string {
 
 // Values returns the values matching the Headers list.
 func (de Entry) Values(skipID bool) []string {
-	vs := []string{}
+	var vs []string
 
-	if de.ItemInfo.Folder != nil {
+	switch {
+	case de.ItemInfo.Folder != nil:
 		vs = de.ItemInfo.Folder.Values()
-	}
-
-	if de.ItemInfo.Exchange != nil {
+	case de.ItemInfo.Exchange != nil:
 		vs = de.ItemInfo.Exchange.Values()
-	}
-
-	if de.ItemInfo.SharePoint != nil {
+	case de.ItemInfo.SharePoint != nil:
 		vs = de.ItemInfo.SharePoint.Values()
-	}
-
-	if de.ItemInfo.OneDrive != nil {
+	case de.ItemInfo.OneDrive != nil:
 		vs = de.ItemInfo.OneDrive.Values()
-	}
-
-	if de.ItemInfo.Groups != nil {
+	case de.ItemInfo.Groups != nil:
 		vs = de.ItemInfo.Groups.Values()
+	case de.ItemInfo.TeamsChats != nil:
+		vs = de.ItemInfo.TeamsChats.Values()
+	default:
+		vs = []string{"ERROR - Service not recognized"}
 	}
 
 	if skipID {

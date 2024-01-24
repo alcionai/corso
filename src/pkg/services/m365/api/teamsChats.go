@@ -103,7 +103,7 @@ func TeamsChatInfo(chat models.Chatable) *details.TeamsChatsInfo {
 			LastMessagePreview: preview,
 			Members:            memberNames,
 			MessageCount:       len(msgs),
-			Name:               ptr.Val(chat.GetTopic()),
+			Topic:              ptr.Val(chat.GetTopic()),
 		},
 	}
 }

@@ -91,19 +91,14 @@ func (i ItemInfo) infoType() ItemType {
 	switch {
 	case i.Folder != nil:
 		return i.Folder.ItemType
-
 	case i.Exchange != nil:
 		return i.Exchange.ItemType
-
 	case i.SharePoint != nil:
 		return i.SharePoint.ItemType
-
 	case i.OneDrive != nil:
 		return i.OneDrive.ItemType
-
 	case i.Groups != nil:
 		return i.Groups.ItemType
-
 	case i.TeamsChats != nil:
 		return i.TeamsChats.ItemType
 	}
@@ -115,19 +110,14 @@ func (i ItemInfo) size() int64 {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.Size
-
 	case i.OneDrive != nil:
 		return i.OneDrive.Size
-
 	case i.SharePoint != nil:
 		return i.SharePoint.Size
-
 	case i.Groups != nil:
 		return i.Groups.Size
-
 	case i.Folder != nil:
 		return i.Folder.Size
-
 	case i.TeamsChats != nil:
 		return int64(i.TeamsChats.Chat.MessageCount)
 	}
@@ -139,19 +129,14 @@ func (i ItemInfo) Modified() time.Time {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.Modified
-
 	case i.OneDrive != nil:
 		return i.OneDrive.Modified
-
 	case i.SharePoint != nil:
 		return i.SharePoint.Modified
-
 	case i.Groups != nil:
 		return i.Groups.Modified
-
 	case i.Folder != nil:
 		return i.Folder.Modified
-
 	case i.TeamsChats != nil:
 		return i.TeamsChats.Modified
 	}
@@ -163,19 +148,14 @@ func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.uniqueLocation(baseLoc)
-
 	case i.OneDrive != nil:
 		return i.OneDrive.uniqueLocation(baseLoc)
-
 	case i.SharePoint != nil:
 		return i.SharePoint.uniqueLocation(baseLoc)
-
 	case i.Groups != nil:
 		return i.Groups.uniqueLocation(baseLoc)
-
 	case i.TeamsChats != nil:
 		return i.TeamsChats.uniqueLocation(baseLoc)
-
 	default:
 		return nil, clues.New("unsupported type")
 	}
@@ -185,19 +165,14 @@ func (i ItemInfo) updateFolder(f *FolderInfo) error {
 	switch {
 	case i.Exchange != nil:
 		return i.Exchange.updateFolder(f)
-
 	case i.OneDrive != nil:
 		return i.OneDrive.updateFolder(f)
-
 	case i.SharePoint != nil:
 		return i.SharePoint.updateFolder(f)
-
 	case i.Groups != nil:
 		return i.Groups.updateFolder(f)
-
 	case i.TeamsChats != nil:
 		return i.TeamsChats.updateFolder(f)
-
 	default:
 		return clues.New("unsupported type")
 	}

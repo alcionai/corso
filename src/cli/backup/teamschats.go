@@ -213,7 +213,6 @@ func runDetailsTeamsChatsCmd(cmd *cobra.Command) error {
 	opts := utils.MakeTeamsChatsOpts(cmd)
 
 	sel := utils.IncludeTeamsChatsRestoreDataSelectors(ctx, opts)
-	sel.Configure(selectors.Config{OnlyMatchItemNames: true})
 	utils.FilterTeamsChatsRestoreInfoSelectors(sel, opts)
 
 	ds, err := genericDetailsCommand(cmd, flags.BackupIDFV, sel.Selector)

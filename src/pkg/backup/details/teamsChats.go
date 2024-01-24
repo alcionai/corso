@@ -44,7 +44,7 @@ type ChatInfo struct {
 	LastMessagePreview string    `json:"preview,omitempty"`
 	Members            []string  `json:"members,omitempty"`
 	MessageCount       int       `json:"size,omitempty"`
-	Name               string    `json:"name,omitempty"`
+	Topic              string    `json:"topic,omitempty"`
 }
 
 // Headers returns the human-readable names of properties in a ChatsInfo
@@ -52,7 +52,7 @@ type ChatInfo struct {
 func (i TeamsChatsInfo) Headers() []string {
 	switch i.ItemType {
 	case TeamsChat:
-		return []string{"Name", "Last message", "Last message at", "Message count", "Created", "Members"}
+		return []string{"Topic", "Last message", "Last message at", "Message count", "Created", "Members"}
 	}
 
 	return []string{}
@@ -75,7 +75,7 @@ func (i TeamsChatsInfo) Values() []string {
 		}
 
 		return []string{
-			i.Chat.Name,
+			i.Chat.Topic,
 			i.Chat.LastMessagePreview,
 			dttm.FormatToTabularDisplay(i.Chat.LastMessageAt),
 			strconv.Itoa(i.Chat.MessageCount),
