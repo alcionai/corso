@@ -2,7 +2,7 @@ name: Sanity Testing
 on:
   push:
     branches:
-      - lists-sanity-ci
+      - main
   workflow_dispatch:
     inputs:
       user:
@@ -528,9 +528,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      #- name: Notify failure in teams
-      #  if: failure()
-      #  uses: ./.github/actions/teams-message
-      #  with:
-      #    msg: "[FAILED] Sanity Tests"
-      #    teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
+      - name: Notify failure in teams
+        if: failure()
+        uses: ./.github/actions/teams-message
+        with:
+          msg: "[FAILED] Sanity Tests"
+          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
