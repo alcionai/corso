@@ -46,4 +46,4 @@ Below is a list of known Corso issues and limitations:
 
 * Sharepoint list item "attachments" aren't backed up, restored or exported.
   Graph API doesn't currently provide attachment data for Lists or List Items.
-  An issue has been created to track the progress, see <https://github.com/alcionai/corso/issues/5085>.
+  An [issue](https://github.com/alcionai/corso/issues/5085) has been created to track the progress..

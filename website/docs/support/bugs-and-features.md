@@ -123,7 +123,7 @@ The value they hold are therefore not reinstated to the way the originally were.
 
 ### Issue tracker for hyperlink column support
 
-To track progress, see <https://github.com/microsoftgraph/msgraph-sdk-go/issues/640>.
+To track progress, [visit](https://github.com/microsoftgraph/msgraph-sdk-go/issues/640).
 
 </TabItem>
 <TabItem value="loc" label="Location">
@@ -190,6 +190,6 @@ To track progress, see <https://github.com/microsoftgraph/msgraph-sdk-go/issues/
 
 ### Issue tracker for location column support
 
-To track progress, see <https://github.com/microsoftgraph/msgraph-sdk-go/issues/638>.
+To track progress, [visit](https://github.com/microsoftgraph/msgraph-sdk-go/issues/638).
 </TabItem>
 </Tabs>
