@@ -779,3 +779,239 @@ func (suite *ConnRetentionIntegrationSuite) TestInitWithAndWithoutRetention() {
 	// Some checks to make sure retention was fully initialized as expected.
 	checkRetentionParams(t, ctx, k2, blob.Governance, time.Hour*48, assert.True)
 }
+
+// TestVerifyDefaultConfigOptions checks that if the repo has misconfigured
+// values an error is returned. This is easiest to do in a test suite that
+// allows object locking because some of the configured values that are checked
+// relate to object locking.
+func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
+	nonzeroOpt := policy.OptionalInt(42)
+
+	table := []struct {
+		name      string
+		setupRepo func(context.Context, *testing.T, *conn)
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "ValidConfigs NoRetention",
+			setupRepo: func(context.Context, *testing.T, *conn) {},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "ValidConfigs Retention",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				err := con.setRetentionParameters(
+					ctx,
+					repository.Retention{
+						Mode:     ptr.To(repository.GovernanceRetention),
+						Duration: ptr.To(48 * time.Hour),
+						Extend:   ptr.To(true),
+					})
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "ValidRetentionButNotExtending",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				err := con.setRetentionParameters(
+					ctx,
+					repository.Retention{
+						Mode:     ptr.To(repository.GovernanceRetention),
+						Duration: ptr.To(48 * time.Hour),
+						Extend:   ptr.To(false),
+					})
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "ExtendingRetentionButNotConfigured",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				err := con.setRetentionParameters(
+					ctx,
+					repository.Retention{
+						Extend: ptr.To(true),
+					})
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroScheduleInterval",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateSchedulingOnPolicy(time.Hour, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonDefaultCompression",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				_, err = updateCompressionOnPolicy("pgzip-best-speed", pol)
+				require.NoError(t, err, clues.ToCore(err))
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionLatest",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &nonzeroOpt,
+					KeepHourly:  &zeroOpt,
+					KeepWeekly:  &zeroOpt,
+					KeepDaily:   &zeroOpt,
+					KeepMonthly: &zeroOpt,
+					KeepAnnual:  &zeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionHourly",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &zeroOpt,
+					KeepHourly:  &nonzeroOpt,
+					KeepWeekly:  &zeroOpt,
+					KeepDaily:   &zeroOpt,
+					KeepMonthly: &zeroOpt,
+					KeepAnnual:  &zeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionWeekly",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &zeroOpt,
+					KeepHourly:  &zeroOpt,
+					KeepWeekly:  &nonzeroOpt,
+					KeepDaily:   &zeroOpt,
+					KeepMonthly: &zeroOpt,
+					KeepAnnual:  &zeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionDaily",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &zeroOpt,
+					KeepHourly:  &zeroOpt,
+					KeepWeekly:  &zeroOpt,
+					KeepDaily:   &nonzeroOpt,
+					KeepMonthly: &zeroOpt,
+					KeepAnnual:  &zeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionMonthly",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &zeroOpt,
+					KeepHourly:  &zeroOpt,
+					KeepWeekly:  &zeroOpt,
+					KeepDaily:   &zeroOpt,
+					KeepMonthly: &nonzeroOpt,
+					KeepAnnual:  &zeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "NonZeroSnapshotRetentionAnnual",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				retention := policy.RetentionPolicy{
+					KeepLatest:  &zeroOpt,
+					KeepHourly:  &zeroOpt,
+					KeepWeekly:  &zeroOpt,
+					KeepDaily:   &zeroOpt,
+					KeepMonthly: &zeroOpt,
+					KeepAnnual:  &nonzeroOpt,
+				}
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateRetentionOnPolicy(retention, pol)
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectErr: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			t.Cleanup(flush)
+
+			repoNameHash := strTD.NewHashForRepoConfigName()
+			st1 := storeTD.NewPrefixedS3Storage(t)
+
+			con := NewConn(st1)
+			err := con.Initialize(ctx, repository.Options{}, repository.Retention{}, repoNameHash)
+			require.NoError(t, err, clues.ToCore(err))
+
+			t.Cleanup(func() { con.Close(ctx) })
+
+			test.setupRepo(ctx, t, con)
+
+			err = con.verifyDefaultConfigOptions(ctx)
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
