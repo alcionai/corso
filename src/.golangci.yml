@@ -4,6 +4,7 @@ run:
 linters:
   enable:
     - errcheck
+    - exhaustive
     - forbidigo
     - gci
     - gofmt
@@ -25,6 +26,11 @@ linters:
     - staticcheck
 
 linters-settings:
+  exhaustive:
+    check:
+      - switch
+    default-signifies-exhaustive: false
+    explicit-exhaustive-switch: true
   gci:
     sections:
       - standard

@@ -3,6 +3,7 @@ package kopia
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	stdpath "path"
 	"strings"
@@ -373,6 +374,146 @@ func (suite *BasicKopiaIntegrationSuite) TestUpdatePersistentConfig() {
 		t,
 		ptr.Val(config.MinEpochDuration),
 		mutableParams.EpochParameters.MinEpochDuration)
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestConsumeBackupCollections_SetsSourceInfo() {
+	table := []struct {
+		name        string
+		reasons     []identity.Reasoner
+		expectError assert.ErrorAssertionFunc
+		expectUser  string
+		expectHost  string
+	}{
+		{
+			name: "DifferentDataTypesInService",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-" + testUser,
+			expectHost: path.ExchangeService.String() +
+				path.ContactsCategory.String() + "-" + path.ExchangeService.String() +
+				path.EmailCategory.String(),
+		},
+		{
+			name: "DifferentServices",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.OneDriveService, path.FilesCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-" + testUser,
+			expectHost: path.ExchangeService.String() +
+				path.EmailCategory.String() + "-" + path.OneDriveService.String() +
+				path.FilesCategory.String(),
+		},
+		{
+			name: "EmptyTenant",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  "-" + testUser,
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyResource",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-",
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyTenantAndResource Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "EmptyAndPopulatedTenant Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "DifferentTenants Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant+"1", testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "DifferentResources Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser+"1", path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var cols []data.BackupCollection
+
+			for i, reason := range test.reasons {
+				colPath, err := path.Build(
+					testTenant,
+					testUser,
+					reason.Service(),
+					reason.Category(),
+					false,
+					fmt.Sprintf("%d", i))
+				require.NoError(t, err, clues.ToCore(err))
+
+				cols = append(cols, exchMock.NewCollection(colPath, colPath, 0))
+			}
+
+			c, err := openLocalKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			wrapper := &Wrapper{c}
+
+			defer wrapper.Close(ctx)
+
+			stats, _, _, err := wrapper.ConsumeBackupCollections(
+				ctx,
+				test.reasons,
+				nil,
+				cols,
+				nil,
+				nil,
+				true,
+				count.New(),
+				fault.New(true))
+			test.expectError(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			snap, err := snapshot.LoadSnapshot(
+				ctx,
+				wrapper.c,
+				manifest.ID(stats.SnapshotID))
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.expectHost, snap.Source.Host, "source host")
+			assert.Equal(t, test.expectUser, snap.Source.UserName, "source user")
+		})
+	}
 }
 
 // ---------------
