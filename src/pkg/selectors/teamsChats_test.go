@@ -273,7 +273,7 @@ func (suite *TeamsChatsSelectorSuite) TestTeamsChatsScope_MatchesInfo() {
 					LastMessagePreview: "preview",
 					Members:            []string{member},
 					MessageCount:       1,
-					Name:               name,
+					Topic:              name,
 				},
 			},
 		}
