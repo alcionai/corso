@@ -85,26 +85,6 @@ func (c Chats) GetChatMessages(
 	return items, graph.Stack(ctx, err).OrNil()
 }
 
-// GetChatMessageIDs fetches a delta of all messages in the chat.
-// returns two maps: addedItems, deletedItems
-func (c Chats) GetChatMessageIDs(
-	ctx context.Context,
-	chatID string,
-	cc CallConfig,
-) (pagers.AddedAndRemoved, error) {
-	aar, err := pagers.GetAddedAndRemovedItemIDs[models.ChatMessageable](
-		ctx,
-		c.NewChatMessagePager(chatID, CallConfig{}),
-		nil,
-		"",
-		false, // delta queries are not supported
-		0,
-		pagers.AddedAndRemovedByDeletedDateTime[models.ChatMessageable],
-		IsNotSystemMessage)
-
-	return aar, clues.Stack(err).OrNil()
-}
-
 // ---------------------------------------------------------------------------
 // chat pager
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -155,11 +156,9 @@ type getAndAugmentChat struct {
 func (m getAndAugmentChat) getItem(
 	_ context.Context,
 	_ string,
-	itemID string,
+	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
-	chat := models.NewChat()
-	chat.SetId(ptr.To(itemID))
-	chat.SetTopic(ptr.To(itemID))
+	chat.SetTopic(chat.GetId())
 
 	return chat, &details.TeamsChatsInfo{}, m.err
 }
@@ -277,6 +276,8 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
+			chat := testdata.StubChats(uuid.NewString())[0]
+
 			m := getAndAugmentChat{
 				err: test.getErr,
 			}
@@ -285,12 +286,12 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 				ctx,
 				&lazyItemGetter[models.Chatable]{
 					resourceID:    "resourceID",
-					itemID:        "itemID",
+					item:          chat,
 					getAndAugment: &m,
 					modTime:       now,
 					parentPath:    parentPath,
 				},
-				"itemID",
+				ptr.Val(chat.GetId()),
 				now,
 				count.New(),
 				fault.New(true))
@@ -319,6 +320,8 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	chat := testdata.StubChats(uuid.NewString())[0]
+
 	m := getAndAugmentChat{
 		err: core.ErrNotFound,
 	}
@@ -327,12 +330,12 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 		ctx,
 		&lazyItemGetter[models.Chatable]{
 			resourceID:    "resourceID",
-			itemID:        "itemID",
+			item:          chat,
 			getAndAugment: &m,
 			modTime:       now,
 			parentPath:    parentPath,
 		},
-		"itemID",
+		ptr.Val(chat.GetId()),
 		now,
 		count.New(),
 		fault.New(true))
@@ -359,18 +362,19 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
+	chat := testdata.StubChats(uuid.NewString())[0]
 	m := getAndAugmentChat{}
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
 		&lazyItemGetter[models.Chatable]{
 			resourceID:    "resourceID",
-			itemID:        "itemID",
+			item:          chat,
 			getAndAugment: &m,
 			modTime:       now,
 			parentPath:    parentPath,
 		},
-		"itemID",
+		ptr.Val(chat.GetId()),
 		now,
 		count.New(),
 		fault.New(true))

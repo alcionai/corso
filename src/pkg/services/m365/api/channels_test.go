@@ -712,7 +712,7 @@ func (suite *ChannelsAPIUnitSuite) TestStripChatMessageContent() {
 			msg.SetAttachments(test.attachments)
 
 			// not testing len; it's effectively covered by the content assertion
-			result, _, err := stripChatMessageHTML(msg)
+			result, _, err := stripChatMessageHTML(msg, msg)
 			assert.Equal(t, test.expect, result)
 			test.expectErr(t, err, clues.ToCore(err))
 		})

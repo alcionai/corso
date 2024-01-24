@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -80,10 +81,26 @@ func (bh usersChatsBackupHandler) CanonicalPath() (path.Path, error) {
 func (bh usersChatsBackupHandler) getItem(
 	ctx context.Context,
 	userID string,
-	chatID string,
+	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
-	// FIXME: should retrieve and populate all messages in the chat.
-	return nil, nil, clues.New("not implemented")
+	if chat == nil {
+		return nil, nil, clues.Stack(core.ErrNotFound)
+	}
+
+	chatID := ptr.Val(chat.GetId())
+
+	cc := api.CallConfig{
+		Expand: []string{"lastMessagePreview"},
+	}
+
+	msgs, err := bh.ac.GetChatMessages(ctx, chatID, cc)
+	if err != nil {
+		return nil, nil, clues.Stack(err)
+	}
+
+	chat.SetMessages(msgs)
+
+	return chat, api.TeamsChatInfo(chat), nil
 }
 
 //lint:ignore U1000 false linter issue due to generics
