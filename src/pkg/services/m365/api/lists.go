@@ -20,9 +20,10 @@ import (
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 type columnDetails struct {
-	isPersonColumn    bool
-	isLookupColumn    bool
-	isMultipleEnabled bool
+	isPersonColumn     bool
+	isLookupColumn     bool
+	isMultipleEnabled  bool
+	hasDefaultedToText bool
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +418,7 @@ func setColumnType(
 		colDetails.isMultipleEnabled = ptr.Val(orig.GetPersonOrGroup().GetAllowMultipleSelection())
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	default:
+		colDetails.hasDefaultedToText = true
 		newColumn.SetText(models.NewTextColumn())
 	}
 
@@ -595,6 +597,14 @@ func updateColName(colName string, colDetails *columnDetails) string {
 // Hence this adds an additional field '<columnName>@@odata.type'
 // with value depending on type of column.
 func specifyODataType(filteredData map[string]any, colDetails *columnDetails, colName string) {
+	// text column itself does not allow holding multiple values
+	// some columns like 'term'/'managed metadata' have,
+	//  but they get defaulted to text column.
+	if colDetails.hasDefaultedToText {
+		return
+	}
+
+	// only specify odata.type for columns holding multiple data
 	if !colDetails.isMultipleEnabled {
 		return
 	}
