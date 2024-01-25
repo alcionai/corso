@@ -13,24 +13,24 @@ import (
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
-type TeamsChatsBackupIntgSuite struct {
+type BackupIntgSuite struct {
 	tester.Suite
 	its IntgTesterSetup
 }
 
-func TestTeamsChatsBackupIntgSuite(t *testing.T) {
-	suite.Run(t, &TeamsChatsBackupIntgSuite{
+func TestBackupIntgSuite(t *testing.T) {
+	suite.Run(t, &BackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *TeamsChatsBackupIntgSuite) SetupSuite() {
+func (suite *BackupIntgSuite) SetupSuite() {
 	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
-func (suite *TeamsChatsBackupIntgSuite) TestBackup_Run_basicBackup() {
+func (suite *BackupIntgSuite) TestBackup_Run_basicBackup() {
 	sel := selectors.NewTeamsChatsBackup([]string{suite.its.User.ID})
 	sel.Include(selTD.TeamsChatsBackupChatScope(sel))
 
@@ -41,33 +41,33 @@ func (suite *TeamsChatsBackupIntgSuite) TestBackup_Run_basicBackup() {
 // nightly tests
 // ---------------------------------------------------------------------------
 
-type TeamsChatsBackupNightlyIntgSuite struct {
+type BackupNightlyIntgSuite struct {
 	tester.Suite
 	its IntgTesterSetup
 }
 
-func TestTeamsChatsBackupNightlyIntgSuite(t *testing.T) {
-	suite.Run(t, &TeamsChatsBackupNightlyIntgSuite{
+func TestsBackupNightlyIntgSuite(t *testing.T) {
+	suite.Run(t, &BackupNightlyIntgSuite{
 		Suite: tester.NewNightlySuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
-func (suite *TeamsChatsBackupNightlyIntgSuite) SetupSuite() {
+func (suite *BackupNightlyIntgSuite) SetupSuite() {
 	suite.its = NewIntegrationTesterSetup(suite.T())
 }
 
-func (suite *TeamsChatsBackupNightlyIntgSuite) TestBackup_Run_teamschatsVersion9MergeBase() {
+func (suite *BackupNightlyIntgSuite) TestBackup_Run_vVersion9MergeBase() {
 	sel := selectors.NewTeamsChatsBackup([]string{suite.its.User.ID})
 	sel.Include(selTD.TeamsChatsBackupChatScope(sel))
 
-	RunMergeBaseGroupsUpdate(suite, sel.Selector, false)
+	RunMergeBaseGroupsUpdate(suite, sel.Selector, true)
 }
 
-func (suite *TeamsChatsBackupNightlyIntgSuite) TestBackup_Run_teamschatsVersion9AssistBases() {
+func (suite *BackupNightlyIntgSuite) TestBackup_Run_version9AssistBases() {
 	sel := selectors.NewTeamsChatsBackup([]string{suite.its.User.ID})
 	sel.Include(selTD.TeamsChatsBackupChatScope(sel))
 
-	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
+	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, true)
 }
