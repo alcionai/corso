@@ -989,6 +989,31 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 			},
 			expectAlerts: 1,
 		},
+		{
+			name: "MultipleAlerts",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				err := con.setRetentionParameters(
+					ctx,
+					repository.Retention{
+						Mode:     ptr.To(repository.GovernanceRetention),
+						Duration: ptr.To(48 * time.Hour),
+						Extend:   ptr.To(false),
+					})
+				require.NoError(t, err, clues.ToCore(err))
+
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				updateSchedulingOnPolicy(time.Hour, pol)
+
+				_, err = updateCompressionOnPolicy("pgzip-best-speed", pol)
+				require.NoError(t, err, clues.ToCore(err))
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectAlerts: 3,
+		},
 	}
 
 	for _, test := range table {
