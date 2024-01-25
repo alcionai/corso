@@ -78,7 +78,7 @@ type ChannelMessageInfo struct {
 	Subject         string    `json:"subject,omitempty"`
 }
 
-// Headers returns the human-readable names of properties in a gropusInfo
+// Headers returns the human-readable names of properties in a groupsInfo
 // for printing out to a terminal in a columnar display.
 func (i GroupsInfo) Headers() []string {
 	switch i.ItemType {

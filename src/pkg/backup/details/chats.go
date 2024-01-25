@@ -39,11 +39,11 @@ type TeamsChatsInfo struct {
 
 type ChatInfo struct {
 	CreatedAt          time.Time `json:"createdAt,omitempty"`
-	HasExternalMembers bool      `json:"hasExternalMemebers,omitempty"`
+	HasExternalMembers bool      `json:"hasExternalMembers,omitempty"`
 	LastMessageAt      time.Time `json:"lastMessageAt,omitempty"`
 	LastMessagePreview string    `json:"preview,omitempty"`
 	Members            []string  `json:"members,omitempty"`
-	MessageCount       int       `json:"size,omitempty"`
+	MessageCount       int       `json:"messageCount,omitempty"`
 	Name               string    `json:"name,omitempty"`
 }
 
@@ -105,8 +105,6 @@ func (i *TeamsChatsInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, erro
 }
 
 func (i *TeamsChatsInfo) updateFolder(f *FolderInfo) error {
-	// Use a switch instead of a rather large if-statement. Just make sure it's an
-	// Exchange type. If it's not return an error.
 	switch i.ItemType {
 	case TeamsChat:
 	default:
