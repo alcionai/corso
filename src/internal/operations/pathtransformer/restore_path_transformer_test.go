@@ -399,6 +399,30 @@ func (suite *RestorePathTransformerUnitSuite) TestGetPaths() {
 				},
 			},
 		},
+		{
+			name:          "TeamsChats Chats",
+			backupVersion: version.Groups9Update,
+			input: []*details.Entry{
+				{
+					RepoRef:     testdata.ExchangeEmailItemPath3.RR.String(),
+					LocationRef: testdata.ExchangeEmailItemPath3.Loc.String(),
+					ItemInfo: details.ItemInfo{
+						Exchange: &details.ExchangeInfo{
+							ItemType: details.ExchangeMail,
+						},
+					},
+				},
+			},
+			expectErr: assert.NoError,
+			expected: []expectPaths{
+				{
+					storage: testdata.ExchangeEmailItemPath3.RR.String(),
+					restore: toRestore(
+						testdata.ExchangeEmailItemPath3.RR,
+						testdata.ExchangeEmailItemPath3.Loc.Elements()...),
+				},
+			},
+		},
 	}
 
 	for _, test := range table {
