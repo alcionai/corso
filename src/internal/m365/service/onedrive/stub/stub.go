@@ -37,10 +37,9 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 		id := uuid.NewString()
 		uperm := metadata.Permission{ID: id, Roles: meta.Perms.Roles}
 
+		uperm.Email = meta.Perms.User
 		if permUseID {
 			uperm.EntityID = meta.Perms.EntityID
-		} else {
-			uperm.Email = meta.Perms.User
 		}
 
 		testMeta.Permissions = []metadata.Permission{uperm}
@@ -48,11 +47,18 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 
 	if len(meta.LinkShares) != 0 {
 		for _, ls := range meta.LinkShares {
-			id := strings.Join(ls.EntityIDs, "-") + ls.Scope + ls.Type
+			eids := []string{}
+			for _, id := range ls.Entities {
+				eids = append(eids, id.ID)
+			}
 
-			entities := []metadata.Entity{}
-			for _, e := range ls.EntityIDs {
-				entities = append(entities, metadata.Entity{ID: e, EntityType: "user"})
+			id := strings.Join(eids, "-") + ls.Scope + ls.Type
+
+			roles := []string{}
+			if ls.Type == "edit" {
+				roles = []string{"write"}
+			} else if ls.Type == "view" {
+				roles = []string{"read"}
 			}
 
 			ls := metadata.LinkShare{
@@ -62,7 +68,8 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 					Type:   ls.Type,
 					WebURL: id,
 				},
-				Entities: entities,
+				Entities: ls.Entities,
+				Roles:    roles,
 			}
 
 			testMeta.LinkShares = append(testMeta.LinkShares, ls)
@@ -79,9 +86,9 @@ type PermData struct {
 }
 
 type LinkShareData struct {
-	EntityIDs []string
-	Scope     string
-	Type      string
+	Entities []metadata.Entity
+	Scope    string
+	Type     string
 }
 
 type MetaData struct {

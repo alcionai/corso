@@ -1151,6 +1151,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
 
+			assert.Contains(t, snap.Pins, defaultCorsoPin)
+
 			man = snap
 		})
 
