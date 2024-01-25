@@ -302,7 +302,7 @@ jobs:
 
 ##########################################################################################################################################
 
-# Sharepoint
+# Sharepoint Library
 
       # generate new entries for test
       - name: SharePoint - Create new data
@@ -329,11 +329,12 @@ jobs:
         with:
           service: sharepoint
           kind: first-backup
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: libraries
 
       # generate some more enteries for incremental check
       - name: SharePoint - Create new data (for incremental)
@@ -355,11 +356,103 @@ jobs:
         with:
           service: sharepoint
           kind: incremental
-          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}"'
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
           restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
+          category: libraries
+
+##########################################################################################################################################
+
+# Sharepoint Lists
+
+      # generate new entries for test
+      # The `awk | tr | sed` command chain is used to get a comma separated list of SharePoint list names.
+      - name: SharePoint Lists - Create new data
+        id: new-data-creation-sharepoint-lists
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+
+          go run . sharepoint lists  \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4 |
+            awk 'NR > 1 {print $2}' | tr '\n' ',' | sed -e 's/,$//' -e 's/^/result=/' |
+            tee $GITHUB_OUTPUT
+      # Extracts the common prefix for the Sharepoint list names.
+      - name: SharePoint Lists - Store restore container
+        id: sharepoint-lists-store-restore-container
+        run: |
+          echo ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} |
+          cut -d',' -f1 |
+          cut -d'_' -f1,2,3,4,5 |
+          sed -e 's/^/result=/' |
+          tee $GITHUB_OUTPUT
+
+      - name: SharePoint Lists - Backup
+        id: sharepoint-lists-backup
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: first-backup-lists
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
+          restore-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S') --allow-lists-restore"
+          export-args: "--list ${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
+          restore-container: "${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+          category: lists
+          on-collision: copy
+
+      # generate some more enteries for incremental check
+      - name: SharePoint Lists - Create new data (for incremental)
+        id: inc-data-creation-sharepoint-lists
+        timeout-minutes: 30
+        working-directory: ./src/cmd/factory
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+          
+          go run . sharepoint lists  \
+            --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
+            --user ${{ env.TEST_USER }} \
+            --secondaryuser  ${{ env.CORSO_SECONDARY_M365_TEST_USER_ID }} \
+            --tenant ${{ secrets.TENANT_ID }} \
+            --destination ${{ env.RESTORE_DEST_PFX }}$suffix \
+            --count 4 |
+            awk 'NR > 1 {print $2}' | tr '\n' ',' | sed -e 's/,$//' -e 's/^/result=/' |
+            tee $GITHUB_OUTPUT
+
+      - name: SharePoint Lists - Store restore container (for incremental)
+        id: sharepoint-lists-store-restore-container-inc
+        run: |
+          echo ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }} |
+          cut -d',' -f1 |
+          cut -d'_' -f1,2,3,4,5 |
+          sed -e 's/^/result=/' |
+          tee $GITHUB_OUTPUT
+
+      - name: SharePoint Lists - Incremental backup
+        id: sharepoint-lists-incremental
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: sharepoint
+          kind: incremental-lists
+          backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data lists'
+          restore-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }},${{ steps.new-data-creation-sharepoint-lists.outputs.result }} --destination Corso_Test_Sanity_Restore_$(date +'%Y%m%d_%H%M%S') --allow-lists-restore"
+          export-args: "--list ${{ steps.inc-data-creation-sharepoint-lists.outputs.result }},${{ steps.new-data-creation-sharepoint-lists.outputs.result }}"
+          restore-container: "${{ steps.sharepoint-lists-store-restore-container-inc.outputs.result }},${{ steps.sharepoint-lists-store-restore-container.outputs.result }}"
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+          category: lists
+          on-collision: copy
 
 ##########################################################################################################################################
 
