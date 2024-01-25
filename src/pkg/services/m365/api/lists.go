@@ -413,6 +413,7 @@ func setColumnType(
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	default:
 		colDetails.hasDefaultedToText = true
+
 		newColumn.SetText(models.NewTextColumn())
 	}
 
@@ -503,7 +504,7 @@ func setAdditionalDataByColumnNames(
 }
 
 func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
-	// for columns like choice, even though it has an option to hold single/multiple values,
+	// for columns like 'choice', even though it has an option to hold single/multiple values,
 	// the columnDefinition property 'allowMultipleValues' is not available.
 	// Hence we determine single/multiple from the actual field data.
 	if reflect.TypeOf(val).Kind() == reflect.Slice {
