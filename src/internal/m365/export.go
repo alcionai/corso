@@ -7,6 +7,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
+	"github.com/alcionai/corso/src/internal/m365/service/teamschats"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/path"
 )
@@ -30,6 +31,9 @@ func (ctrl *Controller) NewServiceHandler(
 
 	case path.ExchangeService:
 		return exchange.NewExchangeHandler(ctrl.AC, ctrl.resourceHandler), nil
+
+	case path.TeamsChatsService:
+		return teamschats.NewTeamsChatsHandler(ctrl.AC, ctrl.resourceHandler), nil
 	}
 
 	return nil, clues.New("unrecognized service").

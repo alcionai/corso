@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/data"
@@ -79,7 +80,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 	)
 
 	p, err := path.Build("t", "pr", path.GroupsService, path.ChannelMessagesCategory, false, containerName)
-	assert.NoError(t, err, "build path")
+	require.NoError(t, err, clues.ToCore(err))
 
 	dcs := []data.RestoreCollection{
 		data.FetchRestoreCollection{
@@ -106,7 +107,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 			dcs,
 			stats,
 			fault.New(true))
-	assert.NoError(t, err, "export collections error")
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Len(t, ecs, 1, "num of collections")
 
 	assert.Equal(t, expectedPath, ecs[0].BasePath(), "base dir")
@@ -117,7 +118,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_messages() {
 
 	for item := range ecs[0].Items(ctx) {
 		b, err := io.ReadAll(item.Body)
-		assert.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(err))
 
 		// count up size for tests
 		size += len(b)
@@ -181,7 +182,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		false,
 		odConsts.SitesPathDir,
 		siteID)
-	assert.NoError(t, err, "build path")
+	require.NoError(t, err, clues.ToCore(err))
 
 	dcs := []data.RestoreCollection{
 		data.FetchRestoreCollection{
@@ -210,7 +211,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 		dcs,
 		stats,
 		fault.New(true))
-	assert.NoError(t, err, "export collections error")
+	require.NoError(t, err, clues.ToCore(err))
 	assert.Len(t, ecs, 1, "num of collections")
 
 	assert.Equal(t, expectedPath, ecs[0].BasePath(), "base dir")
@@ -222,7 +223,7 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	for item := range ecs[0].Items(ctx) {
 		// unwrap the body from stats reader
 		b, err := io.ReadAll(item.Body)
-		assert.NoError(t, err, clues.ToCore(err))
+		require.NoError(t, err, clues.ToCore(err))
 
 		size += len(b)
 		bitem := io.NopCloser(bytes.NewBuffer(b))
