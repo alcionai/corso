@@ -224,7 +224,7 @@ func (s *teamsChats) Chats(chats []string, opts ...option) []TeamsChatsScope {
 }
 
 // Retrieves all teamsChats data.
-// Each user id generates three scopes, one for each data type: contact, event, and mail.
+// Each user id generates a scope for each data type: chats (only one data type at this time).
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
@@ -361,7 +361,7 @@ func (ec teamsChatsCategory) pathValues(
 		itemCat = TeamsChatsChat
 
 	default:
-		return nil, clues.New("bad teamsChatCategory").With("category", ec)
+		return nil, clues.New("bad Chat Category").With("category", ec)
 	}
 
 	item := ent.ItemRef
@@ -449,10 +449,11 @@ func (s TeamsChatsScope) Get(cat teamsChatsCategory) []string {
 	return getCatValue(s, cat)
 }
 
-// sets a value by category to the scope.  Only intended for internal use.
-func (s TeamsChatsScope) set(cat teamsChatsCategory, v []string, opts ...option) TeamsChatsScope {
-	return set(s, cat, v, opts...)
-}
+// commenting out for now, but leaving in place; it's likely to return when we add filters
+// // sets a value by category to the scope.  Only intended for internal use.
+// func (s TeamsChatsScope) set(cat teamsChatsCategory, v []string, opts ...option) TeamsChatsScope {
+// 	return set(s, cat, v, opts...)
+// }
 
 // setDefaults ensures that contact folder, mail folder, and user category
 // scopes all express `AnyTgt` for their child category types.
