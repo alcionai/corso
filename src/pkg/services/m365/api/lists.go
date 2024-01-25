@@ -512,7 +512,7 @@ func setAdditionalDataByColumnNames(
 		getColName := nameForGet(colDetails.isMultipleEnabled, colName, updatedColName)
 
 		if val, ok := fieldData[getColName]; ok {
-			setMultipleEnabled(val, colDetails)
+			setMultipleEnabledByFieldData(val, colDetails)
 			filteredData[updatedColName] = val
 			populateMultipleValues(val, filteredData, updatedColName, colDetails)
 		}
@@ -566,15 +566,15 @@ func populateMultipleValues(val any, filteredData map[string]any, colName string
 	filteredData[colName] = lookupIDs
 }
 
-func setMultipleEnabled(val any, colDetails *columnDetails) {
+func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
 	// already set while column definition
 	// not required to determined from field values
 	if colDetails.isMultipleEnabled {
 		return
 	}
 
-	// for columns like choice, the columnDefinition property 'allowMultipleValues'
-	// is not available, even though it has an option to hold single/multiple values.
+	// for columns like choice, even though it has an option to hold single/multiple values,
+	// the columnDefinition property 'allowMultipleValues' is not available.
 	// Hence we determine single/multiple from the actual field data.
 	if reflect.TypeOf(val).Kind() == reflect.Slice {
 		colDetails.isMultipleEnabled = true
