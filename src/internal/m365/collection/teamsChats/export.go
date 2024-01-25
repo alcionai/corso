@@ -1,4 +1,4 @@
-package groups
+package teamschats
 
 import (
 	"bytes"
@@ -52,15 +52,15 @@ func streamItems(
 
 	for _, rc := range drc {
 		for item := range rc.Items(ctx, errs) {
-			body, err := formatChannelMessage(cec, item.ToReader())
+			body, err := formatChat(cec, item.ToReader())
 			if err != nil {
 				ch <- export.Item{
 					ID:    item.ID(),
 					Error: err,
 				}
 			} else {
-				stats.UpdateResourceCount(path.ChannelMessagesCategory)
-				body = metrics.ReaderWithStats(body, path.ChannelMessagesCategory, stats)
+				stats.UpdateResourceCount(path.ChatsCategory)
+				body = metrics.ReaderWithStats(body, path.ChatsCategory, stats)
 
 				// messages are exported as json and should be named as such
 				name := item.ID() + ".json"
@@ -92,18 +92,26 @@ func streamItems(
 }
 
 type (
-	minimumChannelMessage struct {
+	minimumChat struct {
+		CreatedDateTime     time.Time            `json:"createdDateTime"`
+		LastUpdatedDateTime time.Time            `json:"lastUpdatedDateTime"`
+		Topic               string               `json:"topic"`
+		Messages            []minimumChatMessage `json:"replies,omitempty"`
+		Members             []minimumChatMember  `json:"members"`
+	}
+
+	minimumChatMember struct {
+		Name                    string    `json:"name"`
+		VisibleHistoryStartedAt time.Time `json:"visibleHistoryStartedAt"`
+	}
+
+	minimumChatMessage struct {
 		Attachments          []minimumAttachment `json:"attachments"`
 		Content              string              `json:"content"`
 		CreatedDateTime      time.Time           `json:"createdDateTime"`
 		From                 string              `json:"from"`
 		LastModifiedDateTime time.Time           `json:"lastModifiedDateTime"`
-		Subject              string              `json:"subject"`
-	}
-
-	minimumChannelMessageAndReplies struct {
-		minimumChannelMessage
-		Replies []minimumChannelMessage `json:"replies,omitempty"`
+		IsDeleted            bool                `json:"isDeleted"`
 	}
 
 	minimumAttachment struct {
@@ -112,7 +120,7 @@ type (
 	}
 )
 
-func formatChannelMessage(
+func formatChat(
 	cec control.ExportConfig,
 	rc io.ReadCloser,
 ) (io.ReadCloser, error) {
@@ -127,52 +135,46 @@ func formatChannelMessage(
 
 	defer rc.Close()
 
-	cfb, err := api.CreateFromBytes(bs, models.CreateChatMessageFromDiscriminatorValue)
+	cfb, err := api.CreateFromBytes(bs, models.CreateChatFromDiscriminatorValue)
 	if err != nil {
 		return nil, clues.Wrap(err, "deserializing bytes to message")
 	}
 
-	msg, ok := cfb.(models.ChatMessageable)
+	chat, ok := cfb.(models.Chatable)
 	if !ok {
-		return nil, clues.New("expected deserialized item to implement models.ChatMessageable")
+		return nil, clues.New("expected deserialized item to implement models.Chatable")
 	}
 
-	mItem := makeMinimumChannelMessage(msg)
-	replies := msg.GetReplies()
+	var (
+		members  = chat.GetMembers()
+		messages = chat.GetMessages()
+	)
 
-	mcmar := minimumChannelMessageAndReplies{
-		minimumChannelMessage: mItem,
-		Replies:               make([]minimumChannelMessage, 0, len(replies)),
+	result := minimumChat{
+		CreatedDateTime:     ptr.Val(chat.GetCreatedDateTime()),
+		LastUpdatedDateTime: ptr.Val(chat.GetLastUpdatedDateTime()),
+		Topic:               ptr.Val(chat.GetTopic()),
+		Members:             make([]minimumChatMember, 0, len(members)),
+		Messages:            make([]minimumChatMessage, 0, len(messages)),
 	}
 
-	for _, r := range replies {
-		mcmar.Replies = append(mcmar.Replies, makeMinimumChannelMessage(r))
+	for _, r := range messages {
+		result.Messages = append(result.Messages, makeMinimumChatMessage(r))
 	}
 
-	bs, err = marshalJSONContainingHTML(mcmar)
+	for _, r := range members {
+		result.Members = append(result.Members, makeMinimumChatMember(r))
+	}
+
+	bs, err = marshalJSONContainingHTML(result)
 	if err != nil {
-		return nil, clues.Wrap(err, "serializing minimized channel message")
+		return nil, clues.Wrap(err, "serializing minimized chat")
 	}
 
 	return io.NopCloser(bytes.NewReader(bs)), nil
 }
 
-// json.Marshal will replace many markup tags (ex: "<" and ">") with their unicode
-// equivalent.  In order to maintain parity with original content that contains html,
-// we have to use this alternative encoding behavior.
-// https://stackoverflow.com/questions/28595664/how-to-stop-json-marshal-from-escaping-and
-func marshalJSONContainingHTML(a any) ([]byte, error) {
-	buffer := &bytes.Buffer{}
-
-	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false)
-
-	err := encoder.Encode(a)
-
-	return buffer.Bytes(), clues.Stack(err).OrNil()
-}
-
-func makeMinimumChannelMessage(item models.ChatMessageable) minimumChannelMessage {
+func makeMinimumChatMessage(item models.ChatMessageable) minimumChatMessage {
 	var content string
 
 	if item.GetBody() != nil {
@@ -189,12 +191,39 @@ func makeMinimumChannelMessage(item models.ChatMessageable) minimumChannelMessag
 		})
 	}
 
-	return minimumChannelMessage{
+	var isDeleted bool
+
+	deletedAt, ok := ptr.ValOK(item.GetDeletedDateTime())
+	isDeleted = ok && deletedAt.After(time.Time{})
+
+	return minimumChatMessage{
 		Attachments:          minAttachments,
 		Content:              content,
 		CreatedDateTime:      ptr.Val(item.GetCreatedDateTime()),
 		From:                 api.GetChatMessageFrom(item),
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
-		Subject:              ptr.Val(item.GetSubject()),
+		IsDeleted:            isDeleted,
 	}
+}
+
+func makeMinimumChatMember(item models.ConversationMemberable) minimumChatMember {
+	return minimumChatMember{
+		Name:                    ptr.Val(item.GetDisplayName()),
+		VisibleHistoryStartedAt: ptr.Val(item.GetVisibleHistoryStartDateTime()),
+	}
+}
+
+// json.Marshal will replace many markup tags (ex: "<" and ">") with their unicode
+// equivalent.  In order to maintain parity with original content that contains html,
+// we have to use this alternative encoding behavior.
+// https://stackoverflow.com/questions/28595664/how-to-stop-json-marshal-from-escaping-and
+func marshalJSONContainingHTML(a any) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+
+	err := encoder.Encode(a)
+
+	return buffer.Bytes(), clues.Stack(err).OrNil()
 }
