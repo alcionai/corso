@@ -20,7 +20,8 @@ import (
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 type columnDetails struct {
-	isMultipleEnabled bool
+	isMultipleEnabled  bool
+	hasDefaultedToText bool
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +380,8 @@ func setColumnType(
 	orig models.ColumnDefinitionable,
 	columnNames map[string]*columnDetails,
 ) {
+	colDetails := &columnDetails{}
+
 	switch {
 	case orig.GetText() != nil:
 		newColumn.SetText(orig.GetText())
@@ -409,10 +412,11 @@ func setColumnType(
 	case orig.GetPersonOrGroup() != nil:
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	default:
+		colDetails.hasDefaultedToText = true
 		newColumn.SetText(models.NewTextColumn())
 	}
 
-	columnNames[ptr.Val(newColumn.GetName())] = &columnDetails{}
+	columnNames[ptr.Val(newColumn.GetName())] = colDetails
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
@@ -512,6 +516,13 @@ func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
 // Hence this adds an additional field '<columnName>@@odata.type'
 // with value depending on type of column.
 func specifyODataType(filteredData map[string]any, colDetails *columnDetails, colName string) {
+	// text column itself does not allow holding multiple values
+	// some columns like 'term'/'managed metadata' have,
+	//  but they get defaulted to text column.
+	if colDetails.hasDefaultedToText {
+		return
+	}
+
 	if colDetails.isMultipleEnabled {
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
 	}
