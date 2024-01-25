@@ -137,6 +137,11 @@ func (r *Opts) setBlobConfigMode(
 	return nil
 }
 
+// Verify checks that the config info in r passes kopia's retention validation
+// checks when it comes to locking durations and that if retention is requested
+// in the blob config blob then lock extension is also configured to run during
+// maintenance. If rentention is not enabled in the blob config blob then lock
+// extension should be disabled during maintenance.
 func (r Opts) Verify(ctx context.Context) error {
 	if !r.blobCfg.IsRetentionEnabled() {
 		if r.params.ExtendObjectLocks {
