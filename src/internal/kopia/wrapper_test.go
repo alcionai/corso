@@ -198,7 +198,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 		Type:   repository.MetadataMaintenance,
 	}
 
-	err = w.RepoMaintenance(ctx, nil, opts)
+	err = w.RepoMaintenance(ctx, nil, opts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -220,7 +220,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -236,7 +236,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 	var notOwnedErr maintenance.NotOwnedError
 
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
 }
 
@@ -258,7 +258,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -275,13 +275,13 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	mOpts.Force = true
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	mOpts.Force = false
 
 	// Running without force should succeed now.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -733,7 +733,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	// This will set common maintenance config parameters. There's some interplay
 	// between the maintenance schedule and retention period that we want to check
 	// below.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Enable retention.
@@ -838,7 +838,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 			// This will set common maintenance config parameters. There's some interplay
 			// between the maintenance schedule and retention period that we want to check
 			// below.
-			err = w.RepoMaintenance(ctx, ms, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Enable retention.
@@ -882,7 +882,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 
 			// Run full maintenance again. This should extend object locks for things if
 			// they exist.
-			err = w.RepoMaintenance(ctx, ms, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
