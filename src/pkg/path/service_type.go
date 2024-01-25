@@ -36,16 +36,16 @@ const (
 )
 
 var strToSvc = map[string]ServiceType{
-	ExchangeService.String():           ExchangeService,
-	ExchangeMetadataService.String():   ExchangeMetadataService,
-	OneDriveService.String():           OneDriveService,
-	OneDriveMetadataService.String():   OneDriveMetadataService,
-	SharePointService.String():         SharePointService,
-	SharePointMetadataService.String(): SharePointMetadataService,
-	GroupsService.String():             GroupsService,
-	GroupsMetadataService.String():     GroupsMetadataService,
-	TeamsChatsService.String():         TeamsChatsService,
-	TeamsChatsMetadataService.String(): TeamsChatsMetadataService,
+	strings.ToLower(ExchangeService.String()):           ExchangeService,
+	strings.ToLower(ExchangeMetadataService.String()):   ExchangeMetadataService,
+	strings.ToLower(OneDriveService.String()):           OneDriveService,
+	strings.ToLower(OneDriveMetadataService.String()):   OneDriveMetadataService,
+	strings.ToLower(SharePointService.String()):         SharePointService,
+	strings.ToLower(SharePointMetadataService.String()): SharePointMetadataService,
+	strings.ToLower(GroupsService.String()):             GroupsService,
+	strings.ToLower(GroupsMetadataService.String()):     GroupsMetadataService,
+	strings.ToLower(TeamsChatsService.String()):         TeamsChatsService,
+	strings.ToLower(TeamsChatsMetadataService.String()): TeamsChatsMetadataService,
 }
 
 func ToServiceType(service string) ServiceType {
