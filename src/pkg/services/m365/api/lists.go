@@ -477,6 +477,10 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]*co
 		additionalData[fieldName] = concatenatedHyperlink
 	}
 
+	if metadataField, fieldName, ok := hasMetadataFields(additionalData); ok {
+		additionalData[fieldName] = concatenateMetadataFields(metadataField)
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -638,6 +642,44 @@ func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, 
 	return nil, "", false
 }
 
+func hasMetadataFields(additionalData map[string]any) ([]map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		switch valType := reflect.TypeOf(value).Kind(); valType {
+		case reflect.Map:
+			metadataFields, areMetadataFields := getMetadataFields(value)
+			if areMetadataFields {
+				return []map[string]any{metadataFields}, fieldName, true
+			}
+
+		case reflect.Slice:
+			mmdfs := make([]map[string]any, 0)
+
+			multiMetadataFields, ok := value.([]any)
+			if !ok {
+				continue
+			}
+
+			for _, mdfs := range multiMetadataFields {
+				metadataFields, areMetadataFields := getMetadataFields(mdfs)
+				if areMetadataFields {
+					mmdfs = append(mmdfs, metadataFields)
+				}
+			}
+
+			if len(mmdfs) > 0 {
+				return mmdfs, fieldName, true
+			}
+		}
+	}
+
+	return nil, "", false
+}
+
+func getMetadataFields(metadataFieldvalue any) (map[string]any, bool) {
+	nestedFields, ok := metadataFieldvalue.(map[string]any)
+	return nestedFields, ok && keys.HasKeys(nestedFields, MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey)
+}
+
 func concatenateAddressFields(addressFields map[string]any) string {
 	parts := make([]string, 0)
 
@@ -678,6 +720,23 @@ func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
 
 	if len(parts) > 0 {
 		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func concatenateMetadataFields(metadataFieldsArr []map[string]any) string {
+	labels := make([]string, 0)
+
+	for _, md := range metadataFieldsArr {
+		mdVal, ok := md[MetadataLabelKey].(*string)
+		if ok {
+			labels = append(labels, ptr.Val(mdVal))
+		}
+	}
+
+	if len(labels) > 0 {
+		return strings.Join(labels, ",")
 	}
 
 	return ""
