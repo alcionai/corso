@@ -487,7 +487,7 @@ func setAdditionalDataByColumnNames(
 
 	for colName, colDetails := range columnNames {
 		if val, ok := fieldData[colName]; ok {
-			setMultipleEnabled(val, colDetails)
+			setMultipleEnabledByFieldData(val, colDetails)
 
 			filteredData[colName] = fieldData[colName]
 		}
@@ -498,12 +498,19 @@ func setAdditionalDataByColumnNames(
 	return filteredData
 }
 
-func setMultipleEnabled(val any, colDetails *columnDetails) {
+func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
+	// for columns like choice, even though it has an option to hold single/multiple values,
+	// the columnDefinition property 'allowMultipleValues' is not available.
+	// Hence we determine single/multiple from the actual field data.
 	if reflect.TypeOf(val).Kind() == reflect.Slice {
 		colDetails.isMultipleEnabled = true
 	}
 }
 
+// when creating list items with multiple values for a single column
+// we let the API know that we are sending a collection.
+// Hence this adds an additional field '<columnName>@@odata.type'
+// with value depending on type of column.
 func specifyODataType(filteredData map[string]any, colDetails *columnDetails, colName string) {
 	if colDetails.isMultipleEnabled {
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
