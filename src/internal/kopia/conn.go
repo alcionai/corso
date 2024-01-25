@@ -847,6 +847,8 @@ func (w *conn) verifyDefaultConfigOptions(
 	ctx context.Context,
 	errs *fault.Bus,
 ) {
+	logger.Ctx(ctx).Info("verifying config parameters")
+
 	w.verifyDefaultPolicyConfigOptions(ctx, errs)
 	w.verifyRetentionConfig(ctx, errs)
 }
