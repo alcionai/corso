@@ -195,3 +195,53 @@ func (suite *ServiceCategoryUnitSuite) TestToCategoryType() {
 		})
 	}
 }
+
+func (suite *ServiceCategoryUnitSuite) TestToMetadata() {
+	table := []struct {
+		input  ServiceType
+		expect ServiceType
+	}{
+		{
+			input:  ExchangeService,
+			expect: ExchangeMetadataService,
+		},
+		{
+			input:  OneDriveService,
+			expect: OneDriveMetadataService,
+		},
+		{
+			input:  SharePointService,
+			expect: SharePointMetadataService,
+		},
+		{
+			input:  GroupsService,
+			expect: GroupsMetadataService,
+		},
+		{
+			input:  ExchangeMetadataService,
+			expect: ExchangeMetadataService,
+		},
+		{
+			input:  OneDriveMetadataService,
+			expect: OneDriveMetadataService,
+		},
+		{
+			input:  SharePointMetadataService,
+			expect: SharePointMetadataService,
+		},
+		{
+			input:  GroupsMetadataService,
+			expect: GroupsMetadataService,
+		},
+		{
+			input:  UnknownService,
+			expect: UnknownService,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.input.String(), func() {
+			assert.Equal(suite.T(), test.expect, test.input.ToMetadata())
+		})
+	}
+}

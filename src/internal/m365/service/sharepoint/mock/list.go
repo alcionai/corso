@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
+	"github.com/google/uuid"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ var (
 
 type ListCollection struct {
 	fullPath path.Path
-	Data     []*ListData
+	Data     [][]byte
 	Names    []string
 }
 
@@ -56,12 +57,37 @@ func (mlc *ListCollection) Items(
 	go func() {
 		defer close(res)
 
-		for _, stream := range mlc.Data {
-			res <- stream
+		for i, stream := range mlc.Data {
+			res <- &ListData{
+				ItemID: mlc.Names[i],
+				Reader: io.NopCloser(bytes.NewReader(stream)),
+			}
 		}
 	}()
 
 	return res
+}
+
+func NewCollection(
+	storagePath path.Path,
+	locationPath path.Path,
+	numMessagesToReturn int,
+) *ListCollection {
+	c := &ListCollection{
+		fullPath: storagePath,
+		Data:     [][]byte{},
+		Names:    []string{},
+	}
+
+	for i := 0; i < numMessagesToReturn; i++ {
+		// We can plug in whatever data we want here (can be an io.Reader to a test data file if needed)
+		name := uuid.NewString()
+		lb, _ := ListBytes("MockListing" + name)
+		c.Data = append(c.Data, lb)
+		c.Names = append(c.Names, name)
+	}
+
+	return c
 }
 
 type ListData struct {

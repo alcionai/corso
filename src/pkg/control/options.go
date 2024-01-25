@@ -99,7 +99,8 @@ type Toggles struct {
 	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
 
 	// see: https://github.com/alcionai/corso/issues/4688
-	UseDeltaTree bool `json:"useDeltaTree"`
+	UseDeltaTree       bool `json:"useDeltaTree"`
+	UseOldDeltaProcess bool `json:"useOldDeltaProcess"`
 
 	// AddDisableLazyItemReader disables lazy item reader, such that we fall
 	// back to prefetch reader. This flag is currently only meant for groups

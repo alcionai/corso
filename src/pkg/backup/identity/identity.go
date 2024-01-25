@@ -17,6 +17,8 @@ type Reasoner interface {
 	// SubtreePath returns the path prefix for data in existing backups that have
 	// parameters (tenant, protected resourced, etc) that match this Reasoner.
 	SubtreePath() (path.Path, error)
+	// ToMetadata returns the corresponding metadata reason for this reason.
+	ToMetadata() Reasoner
 }
 
 func NewReason(
@@ -66,4 +68,12 @@ func (r reason) SubtreePath() (path.Path, error) {
 		r.Category())
 
 	return p, clues.Wrap(err, "building path").OrNil()
+}
+
+func (r reason) ToMetadata() Reasoner {
+	return NewReason(
+		r.Tenant(),
+		r.ProtectedResource(),
+		r.Service().ToMetadata(),
+		r.Category())
 }

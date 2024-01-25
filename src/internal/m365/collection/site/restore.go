@@ -10,125 +10,21 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	betaAPI "github.com/alcionai/corso/src/internal/m365/service/sharepoint/api"
 	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
-
-// ConsumeRestoreCollections will restore the specified data collections into OneDrive
-func ConsumeRestoreCollections(
-	ctx context.Context,
-	rcc inject.RestoreConsumerConfig,
-	ac api.Client,
-	backupDriveIDNames idname.Cacher,
-	dcs []data.RestoreCollection,
-	deets *details.Builder,
-	errs *fault.Bus,
-	ctr *count.Bus,
-) (*support.ControllerOperationStatus, error) {
-	var (
-		lrh            = drive.NewSiteRestoreHandler(ac, rcc.Selector.PathService())
-		listsRh        = NewListsRestoreHandler(rcc.ProtectedResource.ID(), ac.Lists())
-		restoreMetrics support.CollectionMetrics
-		caches         = drive.NewRestoreCaches(backupDriveIDNames)
-		el             = errs.Local()
-	)
-
-	err := caches.Populate(ctx, ac.Users(), ac.Groups(), lrh, rcc.ProtectedResource.ID(), errs)
-	if err != nil {
-		return nil, clues.Wrap(err, "initializing restore caches")
-	}
-
-	// Reorder collections so that the parents directories are created
-	// before the child directories; a requirement for permissions.
-	data.SortRestoreCollections(dcs)
-
-	// Iterate through the data collections and restore the contents of each
-	for _, dc := range dcs {
-		if el.Failure() != nil {
-			break
-		}
-
-		var (
-			err      error
-			category = dc.FullPath().Category()
-			metrics  support.CollectionMetrics
-			ictx     = clues.Add(ctx,
-				"category", category,
-				"restore_location", clues.Hide(rcc.RestoreConfig.Location),
-				"resource_owner", clues.Hide(dc.FullPath().ProtectedResource()),
-				"full_path", dc.FullPath())
-		)
-
-		switch dc.FullPath().Category() {
-		case path.LibrariesCategory:
-			metrics, err = drive.RestoreCollection(
-				ictx,
-				lrh,
-				rcc,
-				dc,
-				caches,
-				deets,
-				control.DefaultRestoreContainerName(dttm.HumanReadableDriveItem),
-				errs,
-				ctr)
-
-		case path.ListsCategory:
-			metrics, err = RestoreListCollection(
-				ictx,
-				listsRh,
-				dc,
-				rcc.RestoreConfig.Location,
-				deets,
-				errs)
-
-		case path.PagesCategory:
-			metrics, err = RestorePageCollection(
-				ictx,
-				ac.Stable,
-				dc,
-				rcc.RestoreConfig.Location,
-				deets,
-				errs)
-
-		default:
-			return nil, clues.Wrap(clues.New(category.String()), "category not supported").With("category", category)
-		}
-
-		restoreMetrics = support.CombineMetrics(restoreMetrics, metrics)
-
-		if err != nil {
-			el.AddRecoverable(ctx, err)
-		}
-
-		if errors.Is(err, context.Canceled) {
-			break
-		}
-	}
-
-	status := support.CreateStatus(
-		ctx,
-		support.Restore,
-		len(dcs),
-		restoreMetrics,
-		rcc.RestoreConfig.Location)
-
-	return status, el.Failure()
-}
 
 // restoreListItem utility function restores a List to the siteID.
 // The name is changed to to {DestName}_{name}
@@ -138,12 +34,17 @@ func restoreListItem(
 	ctx context.Context,
 	rh restoreHandler,
 	itemData data.Item,
-	siteID, destName string,
+	siteID string,
+	restoreCfg control.RestoreConfig,
+	collisionKeyToItemID map[string]string,
+	ctr *count.Bus,
 	errs *fault.Bus,
 ) (details.ItemInfo, error) {
 	var (
-		dii    = details.ItemInfo{}
-		itemID = itemData.ID()
+		dii             = details.ItemInfo{}
+		itemID          = itemData.ID()
+		destName        = restoreCfg.Location
+		collisionPolicy = restoreCfg.OnCollision
 	)
 
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreList", diagnostics.Label("item_uuid", itemData.ID()))
@@ -161,25 +62,101 @@ func restoreListItem(
 		return dii, clues.WrapWC(ctx, err, "generating list from stored bytes")
 	}
 
-	newName := formatListsRestoreDestination(destName, itemID, storedList)
+	var (
+		collisionKey = api.ListCollisionKey(storedList)
+		collisionID  string
+		restoredList models.Listable
+		newName      = formatListsRestoreDestination(destName, itemID, storedList)
+	)
+
+	if id, ok := collisionKeyToItemID[collisionKey]; ok {
+		log := logger.Ctx(ctx).With("collision_key", clues.Hide(collisionKey))
+		log.Debug("item collision")
+
+		if collisionPolicy == control.Skip {
+			ctr.Inc(count.CollisionSkip)
+			log.Debug("skipping item with collision")
+
+			return dii, clues.Stack(core.ErrAlreadyExists)
+		}
+
+		collisionID = id
+	}
+
+	if collisionPolicy != control.Replace {
+		restoredList, err = rh.PostList(ctx, newName, storedList, errs)
+		if err != nil {
+			return dii, clues.Wrap(err, "restoring list")
+		}
+	} else {
+		restoredList, err = handleListReplace(
+			ctx,
+			collisionID,
+			storedList,
+			newName,
+			rh,
+			ctr,
+			errs)
+		if err != nil {
+			return dii, clues.Stack(err)
+		}
+	}
 
 	// Restore to List base to M365 back store
-	restoredList, err := rh.PostList(ctx, newName, storedList, errs)
-	if err != nil {
-		return dii, graph.Wrap(ctx, err, "restoring list")
-	}
 
 	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil
 }
 
+func handleListReplace(
+	ctx context.Context,
+	listID string,
+	listFromBackup models.Listable,
+	newName string,
+	rh restoreHandler,
+	ctr *count.Bus,
+	errs *fault.Bus,
+) (models.Listable, error) {
+	restoredList, err := rh.PostList(
+		ctx,
+		newName,
+		listFromBackup,
+		errs)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "restoring list")
+	}
+
+	err = rh.DeleteList(ctx, listID)
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "deleting collided list")
+	}
+
+	patchList := models.NewList()
+	patchList.SetDisplayName(listFromBackup.GetDisplayName())
+	_, err = rh.PatchList(
+		ctx,
+		ptr.Val(restoredList.GetId()),
+		patchList)
+
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "patching list")
+	}
+
+	restoredList.SetDisplayName(listFromBackup.GetDisplayName())
+	ctr.Inc(count.CollisionReplace)
+
+	return restoredList, nil
+}
+
 func RestoreListCollection(
 	ctx context.Context,
 	rh restoreHandler,
 	dc data.RestoreCollection,
-	restoreContainerName string,
+	restoreCfg control.RestoreConfig,
 	deets *details.Builder,
+	collisionKeyToItemID map[string]string,
+	ctr *count.Bus,
 	errs *fault.Bus,
 ) (support.CollectionMetrics, error) {
 	ctx, end := diagnostics.Span(ctx, "m365:sharepoint:restoreListCollection", diagnostics.Label("path", dc.FullPath()))
@@ -215,7 +192,9 @@ func RestoreListCollection(
 				rh,
 				itemData,
 				siteID,
-				restoreContainerName,
+				restoreCfg,
+				collisionKeyToItemID,
+				ctr,
 				errs)
 			if errors.Is(err, api.ErrSkippableListTemplate) {
 				// should never be encountered as lists with skippable template are not backed up
