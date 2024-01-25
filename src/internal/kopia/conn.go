@@ -25,11 +25,14 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/kopia/retention"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
+	corsoWrapperAlertNamespace = "corso-kopia-wrapper"
+
 	defaultKopiaConfigDir   = "/tmp/"
 	kopiaConfigFileTemplate = "repository-%s.config"
 	defaultCompressor       = "zstd-better-compression"
@@ -738,59 +741,97 @@ func (w *conn) updatePersistentConfig(
 		OrNil()
 }
 
-func (w *conn) verifyDefaultPolicyConfigOptions(ctx context.Context) error {
-	var errs *clues.Err
+func (w *conn) verifyDefaultPolicyConfigOptions(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	const alertName = "kopia-global-policy"
 
 	globalPol, err := w.getGlobalPolicyOrEmpty(ctx)
 	if err != nil {
-		return clues.Stack(err)
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"fetch-policy",
+			alertName,
+			nil))
+
+		return
 	}
 
 	ctx = clues.Add(ctx, "current_global_policy", globalPol.String())
 
 	if globalPol.CompressionPolicy.CompressorName != defaultCompressor {
-		errs = clues.Stack(errs, clues.NewWC(
-			ctx,
-			"current compressor doesn't match default").
-			With("expected_compression_policy", defaultCompressor))
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected compressor",
+			corsoWrapperAlertNamespace,
+			"compressor",
+			alertName,
+			nil))
 	}
 
 	// Need to use deep equals because the values are pointers to optional types.
 	// That makes regular equality checks fail even if the data contained in each
 	// policy is the same.
 	if !reflect.DeepEqual(globalPol.RetentionPolicy, defaultRetention) {
-		// Unfortunately the policy has pointers to things and doesn't serialize
-		// well. This makes it difficult to add the expected retention policy.
-		errs = clues.Stack(errs, clues.NewWC(
-			ctx,
-			"current snapshot retention policy doesn't match default"))
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected retention policy",
+			corsoWrapperAlertNamespace,
+			"retention-policy",
+			alertName,
+			nil))
 	}
 
 	if globalPol.SchedulingPolicy.Interval() != defaultSchedulingInterval {
-		errs = clues.Stack(errs, clues.NewWC(
-			ctx,
-			"current scheduling policy doesn't match default").
-			With(
-				"expected_scheduling_policy", defaultSchedulingInterval))
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected scheduling interval",
+			corsoWrapperAlertNamespace,
+			"scheduling-interval",
+			alertName,
+			nil))
 	}
-
-	return errs.OrNil()
 }
 
-func (w *conn) verifyRetentionConfig(ctx context.Context) error {
+func (w *conn) verifyRetentionConfig(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	const alertName = "kopia-object-locking"
+
 	directRepo, ok := w.Repository.(repo.DirectRepository)
 	if !ok {
-		return clues.NewWC(ctx, "getting repo handle")
+		errs.AddAlert(ctx, fault.NewAlert(
+			"",
+			corsoWrapperAlertNamespace,
+			"fetch-direct-repo",
+			alertName,
+			nil))
+
+		return
 	}
 
 	blobConfig, maintenanceParams, err := getRetentionConfigs(ctx, directRepo)
 	if err != nil {
-		return clues.Stack(err)
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"fetch-config",
+			alertName,
+			nil))
+
+		return
 	}
 
-	return clues.Stack(retention.OptsFromConfigs(
-		*blobConfig,
-		*maintenanceParams).Verify(ctx)).OrNil()
+	err = retention.OptsFromConfigs(*blobConfig, *maintenanceParams).
+		Verify(ctx)
+	if err != nil {
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"config-values",
+			alertName,
+			nil))
+	}
 }
 
 // verifyDefaultConfigOptions checks the following configurations:
@@ -802,9 +843,10 @@ func (w *conn) verifyRetentionConfig(ctx context.Context) error {
 // object locking:
 //   - maintenance and blob config blob parameters are consistent (i.e. all
 //     enabled or all disabled)
-func (w *conn) verifyDefaultConfigOptions(ctx context.Context) error {
-	errs := clues.Stack(w.verifyDefaultPolicyConfigOptions(ctx))
-	errs = clues.Stack(errs, w.verifyRetentionConfig(ctx))
-
-	return errs.OrNil()
+func (w *conn) verifyDefaultConfigOptions(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	w.verifyDefaultPolicyConfigOptions(ctx, errs)
+	w.verifyRetentionConfig(ctx, errs)
 }

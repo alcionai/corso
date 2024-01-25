@@ -20,6 +20,7 @@ import (
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/storage"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
@@ -788,14 +789,13 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 	nonzeroOpt := policy.OptionalInt(42)
 
 	table := []struct {
-		name      string
-		setupRepo func(context.Context, *testing.T, *conn)
-		expectErr assert.ErrorAssertionFunc
+		name         string
+		setupRepo    func(context.Context, *testing.T, *conn)
+		expectAlerts int
 	}{
 		{
 			name:      "ValidConfigs NoRetention",
 			setupRepo: func(context.Context, *testing.T, *conn) {},
-			expectErr: assert.NoError,
 		},
 		{
 			name: "ValidConfigs Retention",
@@ -809,7 +809,6 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 					})
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.NoError,
 		},
 		{
 			name: "ValidRetentionButNotExtending",
@@ -823,7 +822,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 					})
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "ExtendingRetentionButNotConfigured",
@@ -835,7 +834,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 					})
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroScheduleInterval",
@@ -848,7 +847,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonDefaultCompression",
@@ -862,7 +861,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionLatest",
@@ -883,7 +882,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionHourly",
@@ -904,7 +903,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionWeekly",
@@ -925,7 +924,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionDaily",
@@ -946,7 +945,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionMonthly",
@@ -967,7 +966,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 		{
 			name: "NonZeroSnapshotRetentionAnnual",
@@ -988,7 +987,7 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 				err = con.writeGlobalPolicy(ctx, "test", pol)
 				require.NoError(t, err, clues.ToCore(err))
 			},
-			expectErr: assert.Error,
+			expectAlerts: 1,
 		},
 	}
 
@@ -1010,8 +1009,13 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 
 			test.setupRepo(ctx, t, con)
 
-			err = con.verifyDefaultConfigOptions(ctx)
-			test.expectErr(t, err, clues.ToCore(err))
+			errs := fault.New(true)
+			con.verifyDefaultConfigOptions(ctx, errs)
+
+			// There shouldn't be any reported failures because this is just to check
+			// if things are alright.
+			assert.NoError(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			assert.Len(t, errs.Alerts(), test.expectAlerts)
 		})
 	}
 }
