@@ -1,7 +1,10 @@
 package groups
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -11,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	metadata "github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata/groups"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -130,6 +134,24 @@ func (bh conversationsBackupHandler) getItem(
 		containerIDs[0],
 		containerIDs[1],
 		postID)
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (bh conversationsBackupHandler) getItemMetadata(
+	ctx context.Context,
+	c models.Conversationable,
+) (io.ReadCloser, int, error) {
+	meta := metadata.ConversationPostMetadata{
+		Recipients: []string{bh.resourceEmail},
+		Topic:      ptr.Val(c.GetTopic()),
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, clues.WrapWC(ctx, err, "serializing post metadata")
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
 }
 
 //lint:ignore U1000 false linter issue due to generics

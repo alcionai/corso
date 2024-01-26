@@ -25,6 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 type CollectionUnitSuite struct {
@@ -163,6 +164,22 @@ func (m getAndAugmentChannelMessage) getItem(
 	msg.SetId(ptr.To(itemID))
 
 	return msg, &details.GroupsInfo{}, m.Err
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (getAndAugmentChannelMessage) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+) (io.ReadCloser, int, error) {
+	return nil, 0, metadata.ErrMetadataFilesNotSupported
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (m *getAndAugmentConversation) getItemMetadata(
+	_ context.Context,
+	_ models.Conversationable,
+) (io.ReadCloser, int, error) {
+	return nil, 0, nil
 }
 
 //lint:ignore U1000 false linter issue due to generics

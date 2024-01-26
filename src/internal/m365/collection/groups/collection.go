@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 var (
@@ -369,6 +370,39 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				ctx,
 				"item_id", id,
 				"parent_path", path.LoggableDir(col.LocationPath().String()))
+
+			// Handle metadata before data so that if metadata file fails,
+			// we are not left with an orphaned data file.
+			itemMeta, _, err := col.getAndAugment.getItemMetadata(
+				ictx,
+				col.contains.container)
+			if err != nil && !errors.Is(err, metadata.ErrMetadataFilesNotSupported) {
+				errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
+
+				return
+			}
+
+			if err == nil {
+				// Skip adding progress reader for metadata files. It doesn't add
+				// much value.
+				storeItem, err := data.NewPrefetchedItem(
+					itemMeta,
+					id+metadata.MetaFileSuffix,
+					// Use the same last modified time as post's.
+					modTime)
+				if err != nil {
+					errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
+
+					return
+				}
+
+				col.stream <- storeItem
+			}
+
+			// TODO(pandeyabs): Persist as .data file for conversations only, not for channels
+			// i.e. only add the .data suffix for conv backups.
+			// This is safe for now since channels don't utilize lazy reader yet.
+			id += metadata.DataFileSuffix
 
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,

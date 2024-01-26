@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	groupmeta "github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -134,6 +136,13 @@ func (bh mockBackupHandler) getItem(
 	itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.messages[itemID], bh.info[itemID], bh.getMessageErr[itemID]
+}
+
+func (bh mockBackupHandler) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+) (io.ReadCloser, int, error) {
+	return nil, 0, groupmeta.ErrMetadataFilesNotSupported
 }
 
 // ---------------------------------------------------------------------------
