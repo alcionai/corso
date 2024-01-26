@@ -30,7 +30,7 @@ type IDs struct {
 // m365UnitTestSetup provides all the common references used in an m365 unit
 // test suite.  Call `uts.GetM365()` to get the values for your test suite.
 // If you're looking for integration testing settup, use `its.GetM365()` instead.
-type m365UnitTestSetup struct {
+type M365UnitTestSetup struct {
 	Acct     account.Account
 	Creds    account.M365Config
 	TenantID string
@@ -44,8 +44,8 @@ type m365UnitTestSetup struct {
 }
 
 // GetM365 returns the populated its.m365 singleton.
-func GetM365(t *testing.T) m365UnitTestSetup {
-	setup := m365UnitTestSetup{}
+func GetM365(t *testing.T) M365UnitTestSetup {
+	setup := M365UnitTestSetup{}
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/config"
@@ -89,7 +90,7 @@ func (suite *NoBackupSharePointE2ESuite) TestSharePointBackupListCmd_empty() {
 type BackupSharepointE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupSharepointE2ESuite(t *testing.T) {
@@ -104,7 +105,7 @@ func (suite *BackupSharepointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.SharePointService)
 }
 
@@ -128,7 +129,7 @@ func runSharepointBackupCategoryTest(suite *BackupSharepointE2ESuite, category s
 	cmd, ctx := buildSharepointBackupCmd(
 		ctx,
 		suite.dpnd.configFilePath,
-		suite.its.site.ID,
+		suite.m365.Site.ID,
 		category,
 		&recorder)
 
@@ -187,7 +188,7 @@ type PreparedBackupSharepointE2ESuite struct {
 	tester.Suite
 	dpnd      dependencies
 	backupOps map[path.CategoryType]string
-	its       intgTesterSetup
+	m365      its.M365IntgTestSetup
 }
 
 func TestPreparedBackupSharepointE2ESuite(t *testing.T) {
@@ -204,13 +205,13 @@ func (suite *PreparedBackupSharepointE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.SharePointService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		sites = []string{suite.its.site.ID}
-		ins   = idname.NewCache(map[string]string{suite.its.site.ID: suite.its.site.ID})
+		sites = []string{suite.m365.Site.ID}
+		ins   = idname.NewCache(map[string]string{suite.m365.Site.ID: suite.m365.Site.ID})
 		cats  = []path.CategoryType{
 			path.ListsCategory,
 		}
