@@ -391,16 +391,20 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			//
 			// If the data download fails for some reason other than deleted in
 			// flight, we will still end up persisting a .meta file. This is
-			// fine however, since the next backup will overwrite it.
+			// fine since the next backup will overwrite it.
 			//
 			// If item is deleted in flight, we will end up with an orphaned
 			// .meta file. The only impact here is storage bloat, which
 			// is minimal.
-			itemMeta, _, err := col.getAndAugment.getItemMetadata(
-				ictx,
-				col.contains.container)
-			if err != nil && !errors.Is(err, errMetadataFilesNotSupported) {
-				errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
+			if col.getAndAugment.supportsItemMetadata() {
+				dataFile += metadata.DataFileSuffix
+				metaFile := id + metadata.MetaFileSuffix
+
+				itemMeta, _, err := col.getAndAugment.getItemMetadata(
+					ictx,
+					col.contains.container)
+				if err != nil {
+					errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
 
 					return
 				}
