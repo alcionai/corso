@@ -32,7 +32,6 @@ import (
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	groupmeta "github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -142,7 +141,7 @@ func (bh mockBackupHandler) getItemMetadata(
 	_ context.Context,
 	_ models.Channelable,
 ) (io.ReadCloser, int, error) {
-	return nil, 0, groupmeta.ErrMetadataFilesNotSupported
+	return nil, 0, errMetadataFilesNotSupported
 }
 
 // ---------------------------------------------------------------------------

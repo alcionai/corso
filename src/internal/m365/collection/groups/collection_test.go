@@ -27,7 +27,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 type CollectionUnitSuite struct {
@@ -173,7 +172,7 @@ func (getAndAugmentChannelMessage) getItemMetadata(
 	_ context.Context,
 	_ models.Channelable,
 ) (io.ReadCloser, int, error) {
-	return nil, 0, metadata.ErrMetadataFilesNotSupported
+	return nil, 0, errMetadataFilesNotSupported
 }
 
 //lint:ignore U1000 false linter issue due to generics
@@ -290,6 +289,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
 
 type getAndAugmentConversation struct {
 	GetItemErr error
+	GetMetaErr error
 	CallIDs    []string
 }
 
@@ -313,8 +313,7 @@ func (m *getAndAugmentConversation) getItemMetadata(
 	_ context.Context,
 	_ models.Conversationable,
 ) (io.ReadCloser, int, error) {
-	// Return some dummy data
-	return io.NopCloser(strings.NewReader("test")), 4, nil
+	return io.NopCloser(strings.NewReader("test")), 4, m.GetMetaErr
 }
 
 //

@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
-	metadata "github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata/groups"
 )
 
 type ConversationHandlerUnitSuite struct {

@@ -1,12 +1,8 @@
 package metadata
 
 import (
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/pkg/path"
 )
-
-var ErrMetadataFilesNotSupported = clues.New("metadata files not supported")
 
 func IsMetadataFile(p path.Path) bool {
 	switch p.Service() {

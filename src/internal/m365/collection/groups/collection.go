@@ -31,6 +31,8 @@ var (
 	_ data.BackupCollection = &lazyFetchCollection[graph.GetIDer, groupsItemer]{}
 )
 
+var errMetadataFilesNotSupported = clues.New("metadata files not supported")
+
 const (
 	collectionChannelBufferSize = 1000
 	numberOfRetries             = 4
@@ -378,10 +380,20 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 
 			// Handle metadata before data so that if metadata file fails,
 			// we are not left with an orphaned data file.
+			//
+			// If the data download fails for some reason other than deleted in
+			// flight, we will still end up persisting a .meta file. This is
+			// fine however, since the next backup will overwrite it.
+			//
+			// If item is deleted in flight, we will end up with an orphaned
+			// .meta file. The only impact here is storage bloat, which
+			// is minimal. Other impact could be if we do an in-order restore
+			// using a tree built from .meta files. We may have some .meta
+			// files without corresponding .data files.
 			itemMeta, _, err := col.getAndAugment.getItemMetadata(
 				ictx,
 				col.contains.container)
-			if err != nil && !errors.Is(err, metadata.ErrMetadataFilesNotSupported) {
+			if err != nil && !errors.Is(err, errMetadataFilesNotSupported) {
 				errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
 
 				return

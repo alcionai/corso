@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
@@ -115,7 +114,7 @@ func (bh channelsBackupHandler) getItemMetadata(
 	_ context.Context,
 	_ models.Channelable,
 ) (io.ReadCloser, int, error) {
-	return nil, 0, metadata.ErrMetadataFilesNotSupported
+	return nil, 0, errMetadataFilesNotSupported
 }
 
 //lint:ignore U1000 false linter issue due to generics
