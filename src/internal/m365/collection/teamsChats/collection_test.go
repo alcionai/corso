@@ -155,7 +155,6 @@ type getAndAugmentChat struct {
 //lint:ignore U1000 false linter issue due to generics
 func (m getAndAugmentChat) getItem(
 	_ context.Context,
-	_ string,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
 	chat.SetTopic(chat.GetId())

@@ -208,10 +208,7 @@ func (lig *lazyItemGetter[I]) GetData(
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	item, info, err := lig.getter.getItem(
-		ctx,
-		lig.resourceID,
-		lig.item)
+	item, info, err := lig.getter.getItem(ctx, lig.item)
 	if err != nil {
 		// For items that were deleted in flight, add the skip label so that
 		// they don't lead to recoverable failures during backup.

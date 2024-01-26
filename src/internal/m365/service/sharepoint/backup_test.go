@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -54,9 +55,14 @@ func (suite *LibrariesBackupUnitSuite) TestUpdateCollections() {
 		siteID   = "site"
 	)
 
+	qp := graph.QueryParams{
+		ProtectedResource: idname.NewProvider(siteID, siteID),
+		TenantID:          tenantID,
+	}
+
 	pb := path.Builder{}.Append(testBaseDrivePath.Elements()...)
-	ep, err := drive.NewSiteBackupHandler(api.Drives{}, siteID, nil, path.SharePointService).
-		CanonicalPath(pb, tenantID)
+	ep, err := drive.NewSiteBackupHandler(qp, api.Drives{}, nil, path.SharePointService).
+		CanonicalPath(pb)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	tests := []struct {

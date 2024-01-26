@@ -2639,7 +2639,7 @@ func (suite *CollectionsUnitSuite) TestGet() {
 
 			prevDelta := "prev-delta"
 
-			pathPrefix, err := mbh.MetadataPathPrefix(tenant)
+			pathPrefix, err := mbh.MetadataPathPrefix()
 			require.NoError(t, err, clues.ToCore(err))
 
 			mc, err := graph.MakeMetadataCollection(

@@ -62,8 +62,13 @@ func (oneDriveBackup) ProduceBackupCollections(
 
 		logger.Ctx(ctx).Debug("creating OneDrive collections")
 
+		qp := graph.QueryParams{
+			ProtectedResource: bpc.ProtectedResource,
+			TenantID:          tenantID,
+		}
+
 		nc := drive.NewCollections(
-			drive.NewUserDriveBackupHandler(ac.Drives(), bpc.ProtectedResource.ID(), scope),
+			drive.NewUserDriveBackupHandler(qp, ac.Drives(), scope),
 			tenantID,
 			bpc.ProtectedResource,
 			su,

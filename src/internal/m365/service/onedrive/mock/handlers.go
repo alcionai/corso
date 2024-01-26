@@ -71,6 +71,8 @@ type BackupHandler[T any] struct {
 	GetErrs  []error
 
 	RootFolder models.DriveItemable
+
+	TenantID string
 }
 
 func stubRootFolder() models.DriveItemable {
@@ -106,6 +108,7 @@ func DefaultOneDriveBH(resourceOwner string) *BackupHandler[models.DriveItemable
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
 		RootFolder:           stubRootFolder(),
+		TenantID:             "tenantID",
 	}
 }
 
@@ -131,6 +134,7 @@ func DefaultSharePointBH(resourceOwner string) *BackupHandler[models.DriveItemab
 		GetResps:             []*http.Response{nil},
 		GetErrs:              []error{clues.New("not defined")},
 		RootFolder:           stubRootFolder(),
+		TenantID:             "tenantID",
 	}
 }
 
@@ -144,8 +148,8 @@ func DefaultDriveBHWith(
 	return mbh
 }
 
-func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
-	pp, err := h.PathPrefixFn(tID, h.ProtectedResource.ID(), driveID)
+func (h BackupHandler[T]) PathPrefix(driveID string) (path.Path, error) {
+	pp, err := h.PathPrefixFn(h.TenantID, h.ProtectedResource.ID(), driveID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +157,8 @@ func (h BackupHandler[T]) PathPrefix(tID, driveID string) (path.Path, error) {
 	return pp, h.PathPrefixErr
 }
 
-func (h BackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
-	pp, err := h.MetadataPathPrefixFn(tID, h.ProtectedResource.ID())
+func (h BackupHandler[T]) MetadataPathPrefix() (path.Path, error) {
+	pp, err := h.MetadataPathPrefixFn(h.TenantID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +166,8 @@ func (h BackupHandler[T]) MetadataPathPrefix(tID string) (path.Path, error) {
 	return pp, h.MetadataPathPrefixErr
 }
 
-func (h BackupHandler[T]) CanonicalPath(pb *path.Builder, tID string) (path.Path, error) {
-	cp, err := h.CanonPathFn(pb, tID, h.ProtectedResource.ID())
+func (h BackupHandler[T]) CanonicalPath(pb *path.Builder) (path.Path, error) {
+	cp, err := h.CanonPathFn(pb, h.TenantID, h.ProtectedResource.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +179,7 @@ func (h BackupHandler[T]) ServiceCat() (path.ServiceType, path.CategoryType) {
 	return h.Service, h.Category
 }
 
-func (h BackupHandler[T]) NewDrivePager(string, []string) pagers.NonDeltaHandler[models.Driveable] {
+func (h BackupHandler[T]) NewDrivePager([]string) pagers.NonDeltaHandler[models.Driveable] {
 	return h.DriveItemEnumeration.DrivePager()
 }
 

@@ -40,19 +40,23 @@ type BackupHandler interface {
 	GetItemPermissioner
 	GetItemer
 	GetRootFolderer
-	NewDrivePagerer
 	EnumerateDriveItemsDeltaer
+
+	// NewDrivePager produces a pager that fetches all drives for the
+	// protected resource in the handler.  Differs from the restore
+	// drive pager in that it does not acccept a resource parameter.
+	NewDrivePager(fields []string) pagers.NonDeltaHandler[models.Driveable]
 
 	// PathPrefix constructs the service and category specific path prefix for
 	// the given values.
-	PathPrefix(tenantID, driveID string) (path.Path, error)
+	PathPrefix(driveID string) (path.Path, error)
 
 	// MetadataPathPrefix returns the prefix path for metadata
-	MetadataPathPrefix(tenantID string) (path.Path, error)
+	MetadataPathPrefix() (path.Path, error)
 
 	// CanonicalPath constructs the service and category specific path for
 	// the given values.
-	CanonicalPath(folders *path.Builder, tenantID string) (path.Path, error)
+	CanonicalPath(folders *path.Builder) (path.Path, error)
 
 	// ServiceCat returns the service and category used by this implementation.
 	ServiceCat() (path.ServiceType, path.CategoryType)
@@ -65,10 +69,6 @@ type BackupHandler interface {
 	// scope wrapper funcs
 	IsAllPass() bool
 	IncludesDir(dir string) bool
-}
-
-type NewDrivePagerer interface {
-	NewDrivePager(resourceOwner string, fields []string) pagers.NonDeltaHandler[models.Driveable]
 }
 
 type GetItemPermissioner interface {
@@ -104,13 +104,14 @@ type RestoreHandler interface {
 	GetItemsByCollisionKeyser
 	GetRootFolderer
 	ItemInfoAugmenter
-	NewDrivePagerer
 	NewItemContentUploader
 	PostDriver
 	PostItemInContainerer
 	DeleteItemPermissioner
 	UpdateItemPermissioner
 	UpdateItemLinkSharer
+
+	NewDrivePagerer
 }
 
 type DeleteItemer interface {
@@ -194,4 +195,14 @@ type GetRootFolderer interface {
 		ctx context.Context,
 		driveID string,
 	) (models.DriveItemable, error)
+}
+
+// NewDrivePagerer produces a pager that fetches all drives for the
+// protected resource in the handler.  Differs from the backup
+// drive pager in that it accepts a resource parameter.
+type NewDrivePagerer interface {
+	NewDrivePager(
+		protectedResourceID string,
+		fields []string,
+	) pagers.NonDeltaHandler[models.Driveable]
 }

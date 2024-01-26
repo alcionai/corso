@@ -11,23 +11,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 var _ backupHandler[models.Conversationable, models.Postable] = &conversationsBackupHandler{}
 
 type conversationsBackupHandler struct {
-	ac                api.Conversations
-	protectedResource string
+	ac api.Conversations
+	qp graph.QueryParams
 }
 
 func NewConversationBackupHandler(
-	protectedResource string,
+	qp graph.QueryParams,
 	ac api.Conversations,
 ) conversationsBackupHandler {
 	return conversationsBackupHandler{
-		ac:                ac,
-		protectedResource: protectedResource,
+		ac: ac,
+		qp: qp,
 	}
 }
 
@@ -41,7 +42,7 @@ func (bh conversationsBackupHandler) getContainers(
 	ctx context.Context,
 	cc api.CallConfig,
 ) ([]container[models.Conversationable], error) {
-	convs, err := bh.ac.GetConversations(ctx, bh.protectedResource, cc)
+	convs, err := bh.ac.GetConversations(ctx, bh.qp.ProtectedResource.ID(), cc)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting conversations")
 	}
@@ -53,7 +54,7 @@ func (bh conversationsBackupHandler) getContainers(
 
 		threads, err := bh.ac.GetConversationThreads(
 			ictx,
-			bh.protectedResource,
+			bh.qp.ProtectedResource.ID(),
 			ptr.Val(conv.GetId()),
 			cc)
 		if err != nil {
@@ -76,7 +77,7 @@ func (bh conversationsBackupHandler) getContainerItemIDs(
 ) (pagers.AddedAndRemoved, error) {
 	return bh.ac.GetConversationThreadPostIDs(
 		ctx,
-		bh.protectedResource,
+		bh.qp.ProtectedResource.ID(),
 		containerPath[0],
 		containerPath[1],
 		cc)
@@ -92,22 +93,21 @@ func (bh conversationsBackupHandler) includeContainer(
 
 func (bh conversationsBackupHandler) canonicalPath(
 	storageDirFolders path.Elements,
-	tenantID string,
 ) (path.Path, error) {
 	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
-			tenantID,
-			bh.protectedResource,
+			bh.qp.TenantID,
+			bh.qp.ProtectedResource.ID(),
 			path.GroupsService,
 			path.ConversationPostsCategory,
 			false)
 }
 
-func (bh conversationsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
+func (bh conversationsBackupHandler) PathPrefix() (path.Path, error) {
 	return path.Build(
-		tenantID,
-		bh.protectedResource,
+		bh.qp.TenantID,
+		bh.qp.ProtectedResource.ID(),
 		path.GroupsService,
 		path.ConversationPostsCategory,
 		false)

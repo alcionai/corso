@@ -312,10 +312,11 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 		errs          = fault.New(true)
 		start         = time.Now().Add(-time.Second)
 		statusUpdater = func(*support.ControllerOperationStatus) {}
+		tenant        = "t"
 	)
 
 	fullPath, err := path.Build(
-		"t",
+		tenant,
 		"pr",
 		path.SharePointService,
 		path.ListsCategory,
@@ -326,7 +327,7 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 	locPath := path.Elements{"full"}.Builder()
 
 	prevPath, err := path.Build(
-		"t",
+		tenant,
 		"pr",
 		path.SharePointService,
 		path.ListsCategory,
@@ -367,7 +368,7 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			getter := mock.NewListHandler(nil, "", nil)
+			getter := mock.NewListHandler(nil, tenant, "", nil)
 			defer getter.Check(t, test.expectReads)
 
 			col := NewLazyFetchCollection(
@@ -425,7 +426,7 @@ func (suite *SharePointCollectionSuite) TestLazyItem() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	lh := mock.NewListHandler(nil, "", nil)
+	lh := mock.NewListHandler(nil, "tenant", "", nil)
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
@@ -469,7 +470,7 @@ func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeleted
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	lh := mock.NewListHandler(nil, "", core.ErrNotFound)
+	lh := mock.NewListHandler(nil, "tenant", "", core.ErrNotFound)
 
 	li := data.NewLazyItemWithInfo(
 		ctx,

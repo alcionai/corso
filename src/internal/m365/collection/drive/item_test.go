@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -117,10 +118,13 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 
 	bh := &userDriveBackupHandler{
 		baseUserDriveHandler: baseUserDriveHandler{
+			qp: graph.QueryParams{
+				ProtectedResource: idname.NewProvider(suite.user, suite.user),
+				TenantID:          suite.service.credentials.AzureTenantID,
+			},
 			ac: suite.service.ac.Drives(),
 		},
-		userID: suite.user,
-		scope:  sc,
+		scope: sc,
 	}
 
 	// Read data for the file

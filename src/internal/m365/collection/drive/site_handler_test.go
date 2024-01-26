@@ -7,8 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type LibraryBackupHandlerUnitSuite struct {
@@ -36,9 +38,17 @@ func (suite *LibraryBackupHandlerUnitSuite) TestPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := siteBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := siteBackupHandler{
+				baseSiteHandler: baseSiteHandler{
+					qp: graph.QueryParams{
+						ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+						TenantID:          tenantID,
+					},
+				},
+				service: path.SharePointService,
+			}
 
-			result, err := h.PathPrefix(tenantID, "driveID")
+			result, err := h.PathPrefix("driveID")
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -65,9 +75,17 @@ func (suite *LibraryBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := siteBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := siteBackupHandler{
+				baseSiteHandler: baseSiteHandler{
+					qp: graph.QueryParams{
+						ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+						TenantID:          tenantID,
+					},
+				},
+				service: path.SharePointService,
+			}
 
-			result, err := h.MetadataPathPrefix(tenantID)
+			result, err := h.MetadataPathPrefix()
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -94,10 +112,18 @@ func (suite *LibraryBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := siteBackupHandler{service: path.SharePointService, siteID: resourceOwner}
+			h := siteBackupHandler{
+				baseSiteHandler: baseSiteHandler{
+					qp: graph.QueryParams{
+						ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+						TenantID:          tenantID,
+					},
+				},
+				service: path.SharePointService,
+			}
 			p := path.Builder{}.Append("prefix")
 
-			result, err := h.CanonicalPath(p, tenantID)
+			result, err := h.CanonicalPath(p)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {

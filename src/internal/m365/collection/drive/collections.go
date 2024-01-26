@@ -311,7 +311,7 @@ func (c *Collections) Get(
 	}
 
 	// Enumerate drives for the specified resourceOwner
-	pager := c.handler.NewDrivePager(c.protectedResource.ID(), nil)
+	pager := c.handler.NewDrivePager(nil)
 
 	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
@@ -439,7 +439,7 @@ func (c *Collections) Get(
 				continue
 			}
 
-			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
+			p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID))
 			if err != nil {
 				return nil, false, clues.WrapWC(ictx, err, "making exclude prefix")
 			}
@@ -504,7 +504,7 @@ func (c *Collections) Get(
 
 	// generate tombstones for drives that were removed.
 	for driveID := range driveTombstones {
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(driveID)
 		if err != nil {
 			return nil, false, clues.WrapWC(ctx, err, "making drive tombstone for previous path").Label(count.BadPathPrefix)
 		}
@@ -532,7 +532,7 @@ func (c *Collections) Get(
 	alertIfPrevPathsHaveCollisions(ctx, driveIDToPrevPaths, c.counter, errs)
 
 	// add metadata collections
-	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
+	pathPrefix, err := c.handler.MetadataPathPrefix()
 	if err != nil {
 		// It's safe to return here because the logic for starting an
 		// incremental backup should eventually find that the metadata files are
@@ -729,7 +729,7 @@ func (c *Collections) getCollectionPath(
 		pb = path.Builder{}.Append(path.Split(ptr.Val(item.GetParentReference().GetPath()))...)
 	}
 
-	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
+	collectionPath, err := c.handler.CanonicalPath(pb)
 	if err != nil {
 		return nil, clues.Wrap(err, "making item path")
 	}

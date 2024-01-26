@@ -11,23 +11,24 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 )
 
 var _ backupHandler[models.Channelable, models.ChatMessageable] = &channelsBackupHandler{}
 
 type channelsBackupHandler struct {
-	ac                api.Channels
-	protectedResource string
+	ac api.Channels
+	qp graph.QueryParams
 }
 
 func NewChannelBackupHandler(
-	protectedResource string,
+	qp graph.QueryParams,
 	ac api.Channels,
 ) channelsBackupHandler {
 	return channelsBackupHandler{
-		ac:                ac,
-		protectedResource: protectedResource,
+		ac: ac,
+		qp: qp,
 	}
 }
 
@@ -40,7 +41,7 @@ func (bh channelsBackupHandler) getContainers(
 	ctx context.Context,
 	_ api.CallConfig,
 ) ([]container[models.Channelable], error) {
-	chans, err := bh.ac.GetChannels(ctx, bh.protectedResource)
+	chans, err := bh.ac.GetChannels(ctx, bh.qp.ProtectedResource.ID())
 	results := make([]container[models.Channelable], 0, len(chans))
 
 	for _, ch := range chans {
@@ -58,7 +59,7 @@ func (bh channelsBackupHandler) getContainerItemIDs(
 ) (pagers.AddedAndRemoved, error) {
 	return bh.ac.GetChannelMessageIDs(
 		ctx,
-		bh.protectedResource,
+		bh.qp.ProtectedResource.ID(),
 		containerPath[0],
 		prevDelta,
 		cc)
@@ -74,22 +75,21 @@ func (bh channelsBackupHandler) includeContainer(
 
 func (bh channelsBackupHandler) canonicalPath(
 	storageDirFolders path.Elements,
-	tenantID string,
 ) (path.Path, error) {
 	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
-			tenantID,
-			bh.protectedResource,
+			bh.qp.TenantID,
+			bh.qp.ProtectedResource.ID(),
 			path.GroupsService,
 			path.ChannelMessagesCategory,
 			false)
 }
 
-func (bh channelsBackupHandler) PathPrefix(tenantID string) (path.Path, error) {
+func (bh channelsBackupHandler) PathPrefix() (path.Path, error) {
 	return path.Build(
-		tenantID,
-		bh.protectedResource,
+		bh.qp.TenantID,
+		bh.qp.ProtectedResource.ID(),
 		path.GroupsService,
 		path.ChannelMessagesCategory,
 		false)

@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type GroupBackupHandlerUnitSuite struct {
@@ -37,9 +39,17 @@ func (suite *GroupBackupHandlerUnitSuite) TestPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+			groupQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+			}
+			siteQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider("site-id", "site-id"),
+			}
+			h := NewGroupBackupHandler(groupQP, siteQP, api.Drives{}, nil)
 
-			result, err := h.PathPrefix(tenantID, "drive-id")
+			result, err := h.PathPrefix("drive-id")
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -66,9 +76,17 @@ func (suite *GroupBackupHandlerUnitSuite) TestSitePathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+			groupQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+			}
+			siteQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider("site-id", "site-id"),
+			}
+			h := NewGroupBackupHandler(groupQP, siteQP, api.Drives{}, nil)
 
-			result, err := h.SitePathPrefix(tenantID)
+			result, err := h.SitePathPrefix()
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -95,9 +113,17 @@ func (suite *GroupBackupHandlerUnitSuite) TestMetadataPathPrefix() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+			groupQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+			}
+			siteQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider("site-id", "site-id"),
+			}
+			h := NewGroupBackupHandler(groupQP, siteQP, api.Drives{}, nil)
 
-			result, err := h.MetadataPathPrefix(tenantID)
+			result, err := h.MetadataPathPrefix()
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {
@@ -124,10 +150,18 @@ func (suite *GroupBackupHandlerUnitSuite) TestCanonicalPath() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			h := NewGroupBackupHandler(resourceOwner, "site-id", api.Drives{}, nil)
+			groupQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider(resourceOwner, resourceOwner),
+			}
+			siteQP := graph.QueryParams{
+				TenantID:          tenantID,
+				ProtectedResource: idname.NewProvider("site-id", "site-id"),
+			}
+			h := NewGroupBackupHandler(groupQP, siteQP, api.Drives{}, nil)
 			p := path.Builder{}.Append("prefix")
 
-			result, err := h.CanonicalPath(p, tenantID)
+			result, err := h.CanonicalPath(p)
 			test.expectErr(t, err, clues.ToCore(err))
 
 			if result != nil {

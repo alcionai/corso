@@ -68,7 +68,7 @@ func (c *Collections) getTree(
 		driveTombstones[driveID] = struct{}{}
 	}
 
-	pager := c.handler.NewDrivePager(c.protectedResource.ID(), nil)
+	pager := c.handler.NewDrivePager(nil)
 
 	drives, err := api.GetAllDrives(ctx, pager)
 	if err != nil {
@@ -176,7 +176,7 @@ func (c *Collections) makeDriveCollections(
 ) ([]data.BackupCollection, map[string]string, pagers.DeltaUpdate, error) {
 	driveID := ptr.Val(drv.GetId())
 
-	ppfx, err := c.handler.PathPrefix(c.tenantID, driveID)
+	ppfx, err := c.handler.PathPrefix(driveID)
 	if err != nil {
 		return nil, nil, pagers.DeltaUpdate{}, clues.Wrap(err, "generating backup tree prefix")
 	}
@@ -228,7 +228,7 @@ func (c *Collections) makeDriveCollections(
 	// if a reset did occur, the collections should already be marked as
 	// "do not merge", therefore everything will get processed as a new addition.
 	if !tree.hadReset && len(prevDeltaLink) > 0 {
-		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID), c.tenantID)
+		p, err := c.handler.CanonicalPath(odConsts.DriveFolderPrefixBuilder(driveID))
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "making canonical path for item exclusions")
 			return nil, nil, pagers.DeltaUpdate{}, err
@@ -552,7 +552,7 @@ func (c *Collections) makeFolderCollectionPath(
 ) (path.Path, error) {
 	if folder.GetRoot() != nil {
 		pb := odConsts.DriveFolderPrefixBuilder(driveID)
-		collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
+		collectionPath, err := c.handler.CanonicalPath(pb)
 
 		return collectionPath, clues.WrapWC(ctx, err, "making canonical root path").OrNil()
 	}
@@ -571,7 +571,7 @@ func (c *Collections) makeFolderCollectionPath(
 	folderPath := path.Split(ptr.Val(folder.GetParentReference().GetPath()))
 	folderPath = append(folderPath, name)
 	pb := path.Builder{}.Append(folderPath...)
-	collectionPath, err := c.handler.CanonicalPath(pb, c.tenantID)
+	collectionPath, err := c.handler.CanonicalPath(pb)
 
 	return collectionPath, clues.WrapWC(ctx, err, "making folder collection path").OrNil()
 }
@@ -684,7 +684,7 @@ func (c *Collections) makeDriveTombstones(
 			break
 		}
 
-		prevDrivePath, err := c.handler.PathPrefix(c.tenantID, driveID)
+		prevDrivePath, err := c.handler.PathPrefix(driveID)
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "making drive tombstone for previous path").Label(count.BadPathPrefix)
 			el.AddRecoverable(ctx, err)
@@ -712,7 +712,7 @@ func (c *Collections) makeMetadataCollections(
 ) []data.BackupCollection {
 	colls := []data.BackupCollection{}
 
-	pathPrefix, err := c.handler.MetadataPathPrefix(c.tenantID)
+	pathPrefix, err := c.handler.MetadataPathPrefix()
 	if err != nil {
 		logger.CtxErr(ctx, err).Info("making metadata collection path prefixes")
 

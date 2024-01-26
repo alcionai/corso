@@ -10,6 +10,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
@@ -17,51 +18,51 @@ var _ BackupHandler = &groupBackupHandler{}
 
 type groupBackupHandler struct {
 	siteBackupHandler
-	groupID string
+	groupQP graph.QueryParams
 	scope   selectors.GroupsScope
 }
 
 func NewGroupBackupHandler(
-	groupID, siteID string,
+	groupQP, siteQP graph.QueryParams,
 	ac api.Drives,
 	scope selectors.GroupsScope,
 ) groupBackupHandler {
 	return groupBackupHandler{
-		siteBackupHandler{
+		siteBackupHandler: siteBackupHandler{
 			baseSiteHandler: baseSiteHandler{
+				qp: siteQP,
 				ac: ac,
 			},
-			siteID: siteID,
 			// Not adding scope here. Anything that needs scope has to
 			// be from group handler
 			service: path.GroupsService,
 		},
-		groupID,
-		scope,
+		groupQP: groupQP,
+		scope:   scope,
 	}
 }
 
 func (h groupBackupHandler) PathPrefix(
-	tenantID, driveID string,
+	driveID string,
 ) (path.Path, error) {
 	// TODO: move tenantID to struct
 	return path.Build(
-		tenantID,
-		h.groupID,
+		h.groupQP.TenantID,
+		h.groupQP.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false,
 		odConsts.SitesPathDir,
-		h.siteID,
+		h.siteBackupHandler.qp.ProtectedResource.ID(),
 		odConsts.DrivesPathDir,
 		driveID,
 		odConsts.RootPathDir)
 }
 
-func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, error) {
+func (h groupBackupHandler) MetadataPathPrefix() (path.Path, error) {
 	p, err := path.BuildMetadata(
-		tenantID,
-		h.groupID,
+		h.groupQP.TenantID,
+		h.groupQP.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false)
@@ -69,7 +70,7 @@ func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, erro
 		return nil, clues.Wrap(err, "making metadata path")
 	}
 
-	p, err = p.Append(false, odConsts.SitesPathDir, h.siteID)
+	p, err = p.Append(false, odConsts.SitesPathDir, h.siteBackupHandler.qp.ProtectedResource.ID())
 	if err != nil {
 		return nil, clues.Wrap(err, "appending site id to metadata path")
 	}
@@ -79,27 +80,26 @@ func (h groupBackupHandler) MetadataPathPrefix(tenantID string) (path.Path, erro
 
 func (h groupBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID string,
 ) (path.Path, error) {
 	return folders.ToDataLayerPath(
-		tenantID,
-		h.groupID,
+		h.groupQP.TenantID,
+		h.groupQP.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false,
 		odConsts.SitesPathDir,
-		h.siteID)
+		h.siteBackupHandler.qp.ProtectedResource.ID())
 }
 
-func (h groupBackupHandler) SitePathPrefix(tenantID string) (path.Path, error) {
+func (h groupBackupHandler) SitePathPrefix() (path.Path, error) {
 	return path.Build(
-		tenantID,
-		h.groupID,
+		h.groupQP.TenantID,
+		h.groupQP.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false,
 		odConsts.SitesPathDir,
-		h.siteID)
+		h.siteBackupHandler.qp.ProtectedResource.ID())
 }
 
 func (h groupBackupHandler) AugmentItemInfo(

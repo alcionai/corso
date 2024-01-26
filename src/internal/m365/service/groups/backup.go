@@ -217,9 +217,17 @@ func backupLibraries(
 				Selector:            bc.producerConfig.Selector,
 				MetadataCollections: siteMetadataCollection[ptr.Val(s.GetId())],
 			}
+			groupQP = graph.QueryParams{
+				ProtectedResource: bc.producerConfig.ProtectedResource,
+				TenantID:          bc.creds.AzureTenantID,
+			}
+			siteQP = graph.QueryParams{
+				ProtectedResource: idname.NewProvider(ptr.Val(s.GetId()), ptr.Val(s.GetWebUrl())),
+				TenantID:          bc.creds.AzureTenantID,
+			}
 			bh = drive.NewGroupBackupHandler(
-				bc.producerConfig.ProtectedResource.ID(),
-				ptr.Val(s.GetId()),
+				groupQP,
+				siteQP,
 				bc.apiCli.Drives(),
 				scope)
 		)
@@ -229,7 +237,7 @@ func backupLibraries(
 			"site_id", ptr.Val(s.GetId()),
 			"site_weburl", graph.LoggableURL(ptr.Val(s.GetWebUrl())))
 
-		sp, err := bh.SitePathPrefix(bc.creds.AzureTenantID)
+		sp, err := bh.SitePathPrefix()
 		if err != nil {
 			return nil, clues.WrapWC(ictx, err, "getting site path").Label(count.BadPathPrefix)
 		}
@@ -270,6 +278,10 @@ func backupChannels(
 	var (
 		colls                []data.BackupCollection
 		canUsePreviousBackup bool
+		qp                   = graph.QueryParams{
+			ProtectedResource: bc.producerConfig.ProtectedResource,
+			TenantID:          bc.creds.AzureTenantID,
+		}
 	)
 
 	progressMessage := observe.MessageWithCompletion(
@@ -286,9 +298,7 @@ func backupChannels(
 		return colls, nil
 	}
 
-	bh := groups.NewChannelBackupHandler(
-		bc.producerConfig.ProtectedResource.ID(),
-		bc.apiCli.Channels())
+	bh := groups.NewChannelBackupHandler(qp, bc.apiCli.Channels())
 
 	// Always disable lazy reader for channels until #4321 support is added
 	useLazyReader := false
@@ -308,7 +318,7 @@ func backupChannels(
 	}
 
 	if !canUsePreviousBackup {
-		tp, err := bh.PathPrefix(bc.creds.AzureTenantID)
+		tp, err := bh.PathPrefix()
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "getting message path").Label(count.BadPathPrefix)
 			return nil, err
@@ -328,9 +338,11 @@ func backupConversations(
 	errs *fault.Bus,
 ) ([]data.BackupCollection, error) {
 	var (
-		bh = groups.NewConversationBackupHandler(
-			bc.producerConfig.ProtectedResource.ID(),
-			bc.apiCli.Conversations())
+		qp = graph.QueryParams{
+			ProtectedResource: bc.producerConfig.ProtectedResource,
+			TenantID:          bc.creds.AzureTenantID,
+		}
+		bh    = groups.NewConversationBackupHandler(qp, bc.apiCli.Conversations())
 		colls []data.BackupCollection
 	)
 
@@ -360,7 +372,7 @@ func backupConversations(
 	}
 
 	if !canUsePreviousBackup {
-		tp, err := bh.PathPrefix(bc.creds.AzureTenantID)
+		tp, err := bh.PathPrefix()
 		if err != nil {
 			err = clues.WrapWC(ctx, err, "getting conversation path").Label(count.BadPathPrefix)
 			return nil, err

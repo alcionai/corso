@@ -253,7 +253,7 @@ func populateListsCollections(
 			}
 		}
 
-		currPath, err := bh.CanonicalPath(storageDir, tenantID)
+		currPath, err := bh.CanonicalPath(storageDir)
 		if err != nil {
 			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "creating list collection path"))
 			return nil, err

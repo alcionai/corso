@@ -12,24 +12,23 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var _ backupHandler[models.Chatable] = &usersChatsBackupHandler{}
 
 type usersChatsBackupHandler struct {
-	ac                  api.Chats
-	protectedResourceID string
-	tenantID            string
+	ac api.Chats
+	qp graph.QueryParams
 }
 
 func NewUsersChatsBackupHandler(
-	tenantID, protectedResourceID string,
+	qp graph.QueryParams,
 	ac api.Chats,
 ) usersChatsBackupHandler {
 	return usersChatsBackupHandler{
-		ac:                  ac,
-		protectedResourceID: protectedResourceID,
-		tenantID:            tenantID,
+		ac: ac,
+		qp: qp,
 	}
 }
 
@@ -53,7 +52,7 @@ func (bh usersChatsBackupHandler) getItemIDs(
 
 	return bh.ac.GetChats(
 		ctx,
-		bh.protectedResourceID,
+		bh.qp.ProtectedResource.ID(),
 		cc)
 }
 
@@ -74,8 +73,8 @@ func (bh usersChatsBackupHandler) includeItem(
 
 func (bh usersChatsBackupHandler) CanonicalPath() (path.Path, error) {
 	return path.BuildPrefix(
-		bh.tenantID,
-		bh.protectedResourceID,
+		bh.qp.TenantID,
+		bh.qp.ProtectedResource.ID(),
 		path.TeamsChatsService,
 		path.ChatsCategory)
 }
@@ -83,7 +82,6 @@ func (bh usersChatsBackupHandler) CanonicalPath() (path.Path, error) {
 //lint:ignore U1000 false linter issue due to generics
 func (bh usersChatsBackupHandler) getItem(
 	ctx context.Context,
-	userID string,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
 	if chat == nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
@@ -26,13 +27,13 @@ import (
 
 type baseUserDriveHandler struct {
 	ac api.Drives
+	qp graph.QueryParams
 }
 
 func (h baseUserDriveHandler) NewDrivePager(
-	resourceOwner string,
 	fields []string,
 ) pagers.NonDeltaHandler[models.Driveable] {
-	return h.ac.NewUserDrivePager(resourceOwner, fields)
+	return h.ac.NewUserDrivePager(h.qp.ProtectedResource.ID(), fields)
 }
 
 // AugmentItemInfo will populate a details.OneDriveInfo struct
@@ -75,17 +76,20 @@ var _ BackupHandler = &userDriveBackupHandler{}
 
 type userDriveBackupHandler struct {
 	baseUserDriveHandler
-	userID string
-	scope  selectors.OneDriveScope
+	scope selectors.OneDriveScope
 }
 
-func NewUserDriveBackupHandler(ac api.Drives, userID string, scope selectors.OneDriveScope) *userDriveBackupHandler {
+func NewUserDriveBackupHandler(
+	qp graph.QueryParams,
+	ac api.Drives,
+	scope selectors.OneDriveScope,
+) *userDriveBackupHandler {
 	return &userDriveBackupHandler{
 		baseUserDriveHandler: baseUserDriveHandler{
 			ac: ac,
+			qp: qp,
 		},
-		userID: userID,
-		scope:  scope,
+		scope: scope,
 	}
 }
 
@@ -98,11 +102,11 @@ func (h userDriveBackupHandler) Get(
 }
 
 func (h userDriveBackupHandler) PathPrefix(
-	tenantID, driveID string,
+	driveID string,
 ) (path.Path, error) {
 	return path.Build(
-		tenantID,
-		h.userID,
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
 		path.OneDriveService,
 		path.FilesCategory,
 		false,
@@ -111,12 +115,10 @@ func (h userDriveBackupHandler) PathPrefix(
 		odConsts.RootPathDir)
 }
 
-func (h userDriveBackupHandler) MetadataPathPrefix(
-	tenantID string,
-) (path.Path, error) {
+func (h userDriveBackupHandler) MetadataPathPrefix() (path.Path, error) {
 	p, err := path.BuildMetadata(
-		tenantID,
-		h.userID,
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
 		path.OneDriveService,
 		path.FilesCategory,
 		false)
@@ -129,11 +131,10 @@ func (h userDriveBackupHandler) MetadataPathPrefix(
 
 func (h userDriveBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID string,
 ) (path.Path, error) {
 	return path.Build(
-		tenantID,
-		h.userID,
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
 		path.OneDriveService,
 		path.FilesCategory,
 		false,
@@ -205,12 +206,21 @@ type userDriveRestoreHandler struct {
 	baseUserDriveHandler
 }
 
-func NewUserDriveRestoreHandler(ac api.Client) *userDriveRestoreHandler {
+func NewUserDriveRestoreHandler(
+	ac api.Client,
+) *userDriveRestoreHandler {
 	return &userDriveRestoreHandler{
 		baseUserDriveHandler: baseUserDriveHandler{
 			ac: ac.Drives(),
 		},
 	}
+}
+
+func (h userDriveRestoreHandler) NewDrivePager(
+	protectedResourceID string,
+	fields []string,
+) pagers.NonDeltaHandler[models.Driveable] {
+	return h.ac.NewUserDrivePager(protectedResourceID, fields)
 }
 
 func (h userDriveRestoreHandler) PostDrive(

@@ -16,19 +16,20 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
 type baseSiteHandler struct {
 	ac api.Drives
+	qp graph.QueryParams
 }
 
 func (h baseSiteHandler) NewDrivePager(
-	resourceOwner string,
 	fields []string,
 ) pagers.NonDeltaHandler[models.Driveable] {
-	return h.ac.NewSiteDrivePager(resourceOwner, fields)
+	return h.ac.NewSiteDrivePager(h.qp.ProtectedResource.ID(), fields)
 }
 
 func (h baseSiteHandler) AugmentItemInfo(
@@ -68,22 +69,21 @@ var _ BackupHandler = &siteBackupHandler{}
 
 type siteBackupHandler struct {
 	baseSiteHandler
-	siteID  string
 	scope   selectors.SharePointScope
 	service path.ServiceType
 }
 
 func NewSiteBackupHandler(
+	qp graph.QueryParams,
 	ac api.Drives,
-	siteID string,
 	scope selectors.SharePointScope,
 	service path.ServiceType,
 ) siteBackupHandler {
 	return siteBackupHandler{
 		baseSiteHandler: baseSiteHandler{
 			ac: ac,
+			qp: qp,
 		},
-		siteID:  siteID,
 		scope:   scope,
 		service: service,
 	}
@@ -98,11 +98,11 @@ func (h siteBackupHandler) Get(
 }
 
 func (h siteBackupHandler) PathPrefix(
-	tenantID, driveID string,
+	driveID string,
 ) (path.Path, error) {
 	return path.Build(
-		tenantID,
-		h.siteID,
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false,
@@ -111,12 +111,10 @@ func (h siteBackupHandler) PathPrefix(
 		odConsts.RootPathDir)
 }
 
-func (h siteBackupHandler) MetadataPathPrefix(
-	tenantID string,
-) (path.Path, error) {
+func (h siteBackupHandler) MetadataPathPrefix() (path.Path, error) {
 	p, err := path.BuildMetadata(
-		tenantID,
-		h.siteID,
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
 		h.service,
 		path.LibrariesCategory,
 		false)
@@ -129,9 +127,13 @@ func (h siteBackupHandler) MetadataPathPrefix(
 
 func (h siteBackupHandler) CanonicalPath(
 	folders *path.Builder,
-	tenantID string,
 ) (path.Path, error) {
-	return folders.ToDataLayerPath(tenantID, h.siteID, h.service, path.LibrariesCategory, false)
+	return folders.ToDataLayerPath(
+		h.qp.TenantID,
+		h.qp.ProtectedResource.ID(),
+		h.service,
+		path.LibrariesCategory,
+		false)
 }
 
 func (h siteBackupHandler) ServiceCat() (path.ServiceType, path.CategoryType) {
@@ -210,6 +212,13 @@ func NewSiteRestoreHandler(ac api.Client, service path.ServiceType) siteRestoreH
 		ac:      ac,
 		service: service,
 	}
+}
+
+func (h siteRestoreHandler) NewDrivePager(
+	protectedResourceID string,
+	fields []string,
+) pagers.NonDeltaHandler[models.Driveable] {
+	return h.ac.Drives().NewSiteDrivePager(protectedResourceID, fields)
 }
 
 func (h siteRestoreHandler) PostDrive(

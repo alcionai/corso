@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
@@ -50,6 +51,7 @@ type mockBackupHandler struct {
 	info          map[string]*details.GroupsInfo
 	getMessageErr map[string]error
 	doNotInclude  bool
+	tenantID      string
 }
 
 //lint:ignore U1000 false linter issue due to generics
@@ -114,12 +116,11 @@ func (bh mockBackupHandler) includeContainer(
 
 func (bh mockBackupHandler) canonicalPath(
 	storageDirFolders path.Elements,
-	tenantID string,
 ) (path.Path, error) {
 	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
-			tenantID,
+			bh.tenantID,
 			"protectedResource",
 			path.GroupsService,
 			path.ChannelMessagesCategory,
@@ -519,7 +520,11 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 	var (
 		protectedResource = tconfig.M365TeamID(suite.T())
 		resources         = []string{protectedResource}
-		handler           = NewChannelBackupHandler(protectedResource, suite.ac.Channels())
+		qp                = graph.QueryParams{
+			ProtectedResource: idname.NewProvider(protectedResource, protectedResource),
+			TenantID:          "tenant",
+		}
+		handler = NewChannelBackupHandler(qp, suite.ac.Channels())
 	)
 
 	tests := []struct {

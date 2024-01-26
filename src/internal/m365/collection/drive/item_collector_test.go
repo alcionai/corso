@@ -265,10 +265,13 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			colls := NewCollections(
 				&userDriveBackupHandler{
 					baseUserDriveHandler: baseUserDriveHandler{
+						qp: graph.QueryParams{
+							ProtectedResource: idname.NewProvider(suite.userID, suite.userID),
+							TenantID:          suite.creds.AzureClientID,
+						},
 						ac: suite.ac.Drives(),
 					},
-					userID: test.user,
-					scope:  scope,
+					scope: scope,
 				},
 				creds.AzureTenantID,
 				idname.NewProvider(test.user, test.user),

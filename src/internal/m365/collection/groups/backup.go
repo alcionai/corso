@@ -181,7 +181,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 			logger.Ctx(ictx).Info("missing delta url")
 		}
 
-		currPath, err := bh.canonicalPath(c.storageDirFolders, qp.TenantID)
+		currPath, err := bh.canonicalPath(c.storageDirFolders)
 		if err != nil {
 			err = clues.StackWC(ctx, err).Label(count.BadCollPath)
 			el.AddRecoverable(ctx, err)

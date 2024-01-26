@@ -62,9 +62,14 @@ func (sharePointBackup) ProduceBackupCollections(
 
 		var spcs []data.BackupCollection
 
+		qp := graph.QueryParams{
+			ProtectedResource: bpc.ProtectedResource,
+			TenantID:          creds.AzureClientID,
+		}
+
 		switch scope.Category().PathType() {
 		case path.ListsCategory:
-			bh := site.NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
+			bh := site.NewListsBackupHandler(qp, ac.Lists())
 
 			spcs, canUsePreviousBackup, err = site.CollectLists(
 				ctx,
@@ -86,8 +91,8 @@ func (sharePointBackup) ProduceBackupCollections(
 				ctx,
 				bpc,
 				drive.NewSiteBackupHandler(
+					qp,
 					ac.Drives(),
-					bpc.ProtectedResource.ID(),
 					scope,
 					bpc.Selector.PathService()),
 				creds.AzureTenantID,

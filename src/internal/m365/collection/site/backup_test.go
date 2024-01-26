@@ -67,7 +67,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 	}{
 		{
 			name:                 "one list",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), siteID, nil),
+			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, nil),
 			expectErr:            require.NoError,
 			expectColls:          2,
 			expectNewColls:       1,
@@ -76,7 +76,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 		},
 		{
 			name:                 "many lists",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one", "two"), siteID, nil),
+			mock:                 siteMock.NewListHandler(siteMock.StubLists("one", "two"), suite.creds.AzureTenantID, siteID, nil),
 			expectErr:            require.NoError,
 			expectColls:          3,
 			expectNewColls:       2,
@@ -85,7 +85,7 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 		},
 		{
 			name:                 "with error",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), siteID, errors.New("some error")),
+			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, errors.New("some error")),
 			expectErr:            require.Error,
 			expectColls:          0,
 			expectNewColls:       0,
@@ -286,7 +286,7 @@ func (suite *SharePointBackupUnitSuite) TestPopulateListsCollections_incremental
 
 			cs, err := populateListsCollections(
 				ctx,
-				siteMock.NewListHandler(test.lists, siteID, nil),
+				siteMock.NewListHandler(test.lists, suite.creds.AzureTenantID, siteID, nil),
 				bpc,
 				ac,
 				suite.creds.AzureTenantID,
@@ -417,8 +417,12 @@ func (suite *SharePointSuite) TestCollectLists() {
 	}
 
 	sel := selectors.NewSharePointBackup([]string{siteID})
+	qp := graph.QueryParams{
+		ProtectedResource: bpc.ProtectedResource,
+		TenantID:          creds.AzureTenantID,
+	}
 
-	bh := NewListsBackupHandler(bpc.ProtectedResource.ID(), ac.Lists())
+	bh := NewListsBackupHandler(qp, ac.Lists())
 
 	col, _, err := CollectLists(
 		ctx,

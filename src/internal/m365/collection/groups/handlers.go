@@ -81,10 +81,7 @@ type includeContainerer[C graph.GetIDer] interface {
 // canonicalPath constructs the service and category specific path for
 // the given builder.
 type canonicalPather interface {
-	canonicalPath(
-		storageDir path.Elements,
-		tenantID string,
-	) (path.Path, error)
+	canonicalPath(storageDir path.Elements) (path.Path, error)
 }
 
 // canMakeDeltaQueries evaluates whether the handler can support a

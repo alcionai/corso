@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -86,7 +87,6 @@ func (bh mockBackupHandler) CanonicalPath() (path.Path, error) {
 //lint:ignore U1000 false linter issue due to generics
 func (bh mockBackupHandler) getItem(
 	_ context.Context,
-	_ string,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
 	chatID := ptr.Val(chat.GetId())
@@ -285,7 +285,11 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 		tenant            = tconfig.M365TenantID(suite.T())
 		protectedResource = tconfig.M365TeamID(suite.T())
 		resources         = []string{protectedResource}
-		handler           = NewUsersChatsBackupHandler(tenant, protectedResource, suite.ac.Chats())
+		qp                = graph.QueryParams{
+			ProtectedResource: idname.NewProvider(protectedResource, protectedResource),
+			TenantID:          tenant,
+		}
+		handler = NewUsersChatsBackupHandler(qp, suite.ac.Chats())
 	)
 
 	tests := []struct {

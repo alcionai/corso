@@ -49,7 +49,6 @@ type getItemIDser[I chatsItemer] interface {
 type getItemer[I chatsItemer] interface {
 	getItem(
 		ctx context.Context,
-		protectedResource string,
 		i I,
 	) (I, *details.TeamsChatsInfo, error)
 }

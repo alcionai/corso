@@ -9,30 +9,39 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/maps"
 
+	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type ListHandler struct {
-	protectedResource string
-	lists             []models.Listable
-	listsMap          map[string]models.Listable
-	err               error
+	qp       graph.QueryParams
+	lists    []models.Listable
+	listsMap map[string]models.Listable
+	err      error
 }
 
-func NewListHandler(lists []models.Listable, protectedResource string, err error) ListHandler {
+func NewListHandler(
+	lists []models.Listable,
+	tenantID, protectedResource string,
+	err error,
+) ListHandler {
 	lstMap := make(map[string]models.Listable)
 	for _, lst := range lists {
 		lstMap[ptr.Val(lst.GetId())] = lst
 	}
 
 	return ListHandler{
-		protectedResource: protectedResource,
-		lists:             lists,
-		listsMap:          lstMap,
-		err:               err,
+		qp: graph.QueryParams{
+			ProtectedResource: idname.NewProvider(protectedResource, protectedResource),
+			TenantID:          tenantID,
+		},
+		lists:    lists,
+		listsMap: lstMap,
+		err:      err,
 	}
 }
 
@@ -72,13 +81,12 @@ func (lh ListHandler) GetItems(
 
 func (lh ListHandler) CanonicalPath(
 	storageDirFolders path.Elements,
-	tenantID string,
 ) (path.Path, error) {
 	return storageDirFolders.
 		Builder().
 		ToDataLayerPath(
-			tenantID,
-			lh.protectedResource,
+			lh.qp.TenantID,
+			lh.qp.ProtectedResource.ID(),
 			path.SharePointService,
 			path.ListsCategory,
 			false)
