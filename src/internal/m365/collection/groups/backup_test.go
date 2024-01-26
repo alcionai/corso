@@ -61,6 +61,11 @@ func (bh mockBackupHandler) augmentItemInfo(
 	// no-op
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (bh mockBackupHandler) supportsItemMetadata() bool {
+	return false
+}
+
 func (bh mockBackupHandler) canMakeDeltaQueries() bool {
 	return true
 }

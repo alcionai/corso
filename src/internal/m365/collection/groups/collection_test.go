@@ -180,6 +180,11 @@ func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.C
 	// no-op
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (getAndAugmentChannelMessage) supportsItemMetadata() bool {
+	return false
+}
+
 func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
 	var (
 		t             = suite.T()
@@ -320,6 +325,11 @@ func (m *getAndAugmentConversation) getItemMetadata(
 //lint:ignore U1000 false linter issue due to generics
 func (m *getAndAugmentConversation) augmentItemInfo(*details.GroupsInfo, models.Conversationable) {
 	// no-op
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (m *getAndAugmentConversation) supportsItemMetadata() bool {
+	return true
 }
 
 func (m *getAndAugmentConversation) check(t *testing.T, expected []string) {

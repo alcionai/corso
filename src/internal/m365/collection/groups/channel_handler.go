@@ -125,6 +125,12 @@ func (bh channelsBackupHandler) augmentItemInfo(
 	// no-op
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (bh channelsBackupHandler) supportsItemMetadata() bool {
+	// No .data and .meta files for channel messages
+	return false
+}
+
 func channelContainer(ch models.Channelable) container[models.Channelable] {
 	return container[models.Channelable]{
 		storageDirFolders:   path.Elements{ptr.Val(ch.GetId())},

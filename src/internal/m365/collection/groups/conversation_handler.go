@@ -170,6 +170,11 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 	dgi.Post.Topic = ptr.Val(c.GetTopic())
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (bh conversationsBackupHandler) supportsItemMetadata() bool {
+	return true
+}
+
 func conversationThreadContainer(
 	c models.Conversationable,
 	t models.ConversationThreadable,
