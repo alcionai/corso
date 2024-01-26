@@ -67,6 +67,7 @@ func main() {
 	expCMD.AddCommand(exportSharePointCMD())
 	expCMD.AddCommand(exportExchangeCMD())
 	expCMD.AddCommand(exportGroupsCMD())
+	expCMD.AddCommand(exportTeamsChatsCMD())
 	root.AddCommand(expCMD)
 
 	if err := root.Execute(); err != nil {
@@ -196,6 +197,29 @@ func sanityTestExportExchange(cmd *cobra.Command, args []string) error {
 	}
 
 	export.CheckEmailExport(ctx, ac, envs)
+
+	return nil
+}
+
+func exportTeamsChatsCMD() *cobra.Command {
+	return &cobra.Command{
+		Use:               "teamschats",
+		Short:             "run the teamschats export sanity tests",
+		DisableAutoGenTag: true,
+		RunE:              sanityTestExportTeamsChats,
+	}
+}
+
+func sanityTestExportTeamsChats(cmd *cobra.Command, args []string) error {
+	ctx := common.SetDebug(cmd.Context())
+	envs := common.EnvVars(ctx)
+
+	ac, err := common.GetAC()
+	if err != nil {
+		return print.Only(ctx, err)
+	}
+
+	export.CheckTeamsChatsExport(ctx, ac, envs)
 
 	return nil
 }

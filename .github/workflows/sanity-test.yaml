@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - 5063-chats-backup-v0-integration-tests
   workflow_dispatch:
     inputs:
       user:
@@ -418,6 +419,41 @@ jobs:
           backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
           restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+##########################################################################################################################################
+
+# Teams Chats
+
+      # generate a folder name
+      - name: TeamsChats - Create export foldername
+        id: export-folder-teamschats
+        run: |
+          suffix=$(date +"%Y-%m-%d_%H-%M-%S")
+          echo name="${{ env.RESTORE_DEST_PFX }}$suffix" >> $GITHUB_OUTPUT
+
+      - name: TeamsChats - Backup
+        id: teamschats-backup
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: teamschats
+          kind: first-backup
+          backup-args: '--user "${{ vars.CORSO_M365_TEST_USER_ID }}"'
+          restore-container: '${{ jobs.export-folder-teamschats.outputs.name }}'
+          log-dir: ${{ env.CORSO_LOG_DIR }}
+          with-export: true
+
+      - name: TeamsChats - Incremental backup
+        id: teamschats-incremental
+        timeout-minutes: 30
+        uses: ./.github/actions/backup-restore-test
+        with:
+          service: teamschats
+          kind: incremental
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_USER_ID }}"'
+          restore-container: '${{ jobs.export-folder-teamschats.outputs.name }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
