@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - 5063-chats-backup-v0-integration-tests
+      - 5063-chats-backup-v0-sanity-tests
   workflow_dispatch:
     inputs:
       user:
