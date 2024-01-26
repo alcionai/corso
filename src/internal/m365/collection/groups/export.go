@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -224,7 +226,12 @@ func streamConversationPosts(
 		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
 
 		for item := range rc.Items(ctx, errs) {
-			name := item.ID() + ".eml"
+			// Trim .data suffix from itemID
+			trimmedName := strings.TrimSuffix(item.ID(), dataFileSuffix)
+			name := trimmedName + ".eml"
+			meta, _ := getMetadataContents(ictx, item.ID(), rc)
+
+			fmt.Println(meta)
 
 			itemCtx := clues.Add(ictx, "stream_item_id", item.ID())
 
@@ -285,47 +292,46 @@ func streamConversationPosts(
 	}
 }
 
-// func formatConversationPost(
-// 	cec control.ExportConfig,
-// 	rc io.ReadCloser,
-// ) (io.ReadCloser, error) {
-// 	if cec.Format == control.JSONFormat {
-// 		return rc, nil
-// 	}
+func getMetadataContents(
+	ctx context.Context,
+	itemID string,
+	fin data.FetchItemByNamer,
+) (ConversationPostMetadata, error) {
+	// Trim .data suffix from itemID
+	trimmedName := strings.TrimSuffix(itemID, dataFileSuffix)
+	metaName := trimmedName + metaFileSuffix
 
-// 	bs, err := io.ReadAll(rc)
-// 	if err != nil {
-// 		return nil, clues.Wrap(err, "reading item bytes")
-// 	}
+	meta, err := fin.FetchItemByName(ctx, metaName)
+	if err != nil {
+		return ConversationPostMetadata{}, clues.Wrap(err, "fetching metadata")
+	}
 
-// 	defer rc.Close()
+	metaReader := meta.ToReader()
+	defer metaReader.Close()
 
-// 	cfb, err := api.CreateFromBytes(bs, models.CreateChatMessageFromDiscriminatorValue)
-// 	if err != nil {
-// 		return nil, clues.Wrap(err, "deserializing bytes to message")
-// 	}
+	metaFormatted, err := getMetadata(metaReader)
+	if err != nil {
+		return ConversationPostMetadata{}, clues.Wrap(err, "deserializing metadata")
+	}
 
-// 	msg, ok := cfb.(models.ChatMessageable)
-// 	if !ok {
-// 		return nil, clues.New("expected deserialized item to implement models.ChatMessageable")
-// 	}
+	return metaFormatted, nil
+}
 
-// 	mItem := makeMinimumChannelMesasge(msg)
-// 	replies := msg.GetReplies()
+// getMetadata read and parses the metadata info for an item
+func getMetadata(metar io.ReadCloser) (ConversationPostMetadata, error) {
+	var meta ConversationPostMetadata
+	// `metar` will be nil for the top level container folder
+	if metar != nil {
+		metaraw, err := io.ReadAll(metar)
+		if err != nil {
+			return ConversationPostMetadata{}, err
+		}
 
-// 	mcmar := minimumChannelMessageAndReplies{
-// 		minimumChannelMessage: mItem,
-// 		Replies:               make([]minimumChannelMessage, 0, len(replies)),
-// 	}
+		err = json.Unmarshal(metaraw, &meta)
+		if err != nil {
+			return ConversationPostMetadata{}, err
+		}
+	}
 
-// 	for _, r := range replies {
-// 		mcmar.Replies = append(mcmar.Replies, makeMinimumChannelMesasge(r))
-// 	}
-
-// 	bs, err = marshalJSONContainingHTML(mcmar)
-// 	if err != nil {
-// 		return nil, clues.Wrap(err, "serializing minimized channel message")
-// 	}
-
-// 	return io.NopCloser(bytes.NewReader(bs)), nil
-// }
+	return meta, nil
+}
