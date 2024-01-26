@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/exp/maps"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
@@ -175,14 +177,6 @@ func (getAndAugmentChannelMessage) getItemMetadata(
 }
 
 //lint:ignore U1000 false linter issue due to generics
-func (m *getAndAugmentConversation) getItemMetadata(
-	_ context.Context,
-	_ models.Conversationable,
-) (io.ReadCloser, int, error) {
-	return nil, 0, nil
-}
-
-//lint:ignore U1000 false linter issue due to generics
 func (getAndAugmentChannelMessage) augmentItemInfo(*details.GroupsInfo, models.Channelable) {
 	// no-op
 }
@@ -314,6 +308,15 @@ func (m *getAndAugmentConversation) getItem(
 	return p, &details.GroupsInfo{}, m.GetItemErr
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (m *getAndAugmentConversation) getItemMetadata(
+	_ context.Context,
+	_ models.Conversationable,
+) (io.ReadCloser, int, error) {
+	// Return some dummy data
+	return io.NopCloser(strings.NewReader("test")), 4, nil
+}
+
 //
 //lint:ignore U1000 false linter issue due to generics
 func (m *getAndAugmentConversation) augmentItemInfo(*details.GroupsInfo, models.Conversationable) {
@@ -329,7 +332,7 @@ func (m *getAndAugmentConversation) check(t *testing.T, expected []string) {
 	assert.Equal(t, expected, m.CallIDs, "expected calls")
 }
 
-func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
+func (suite *CollectionUnitSuite) TestLazyFetchCollection_Conversations() {
 	var (
 		t             = suite.T()
 		start         = time.Now().Add(-time.Second)
@@ -360,13 +363,11 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			added: map[string]time.Time{
 				"fisher":    start.Add(time.Minute),
 				"flannigan": start.Add(2 * time.Minute),
-				"fitzbog":   start.Add(3 * time.Minute),
 			},
-			expectItemCount: 3,
+			expectItemCount: 4,
 			expectReads: []string{
-				"fisher",
-				"flannigan",
-				"fitzbog",
+				"fisher.data",
+				"flannigan.data",
 			},
 		},
 		{
@@ -376,7 +377,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				"poppy":    {},
 				"petunia":  {},
 			},
-			expectItemCount: 3,
+			expectItemCount: 6,
 		},
 		{
 			// TODO(pandeyabs): Overlaps between added and removed are deleted
@@ -388,23 +389,23 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			// prefetch collections.
 			name: "added and removed items",
 			added: map[string]time.Time{
-				"goblin": {},
+				"goblin": start.Add(time.Minute),
 			},
 			removed: map[string]struct{}{
 				"general":  {},
 				"goose":    {},
 				"grumbles": {},
 			},
-			expectItemCount: 4,
+			expectItemCount: 8,
 		},
 	}
 
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			var (
-				t         = suite.T()
-				errs      = fault.New(true)
-				itemCount int
+				t       = suite.T()
+				errs    = fault.New(true)
+				itemMap = map[string]data.Item{}
 			)
 
 			ctx, flush := tester.NewContext(t)
@@ -430,9 +431,20 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			}
 
 			for item := range col.Items(ctx, errs) {
-				itemCount++
+				var trimmedID string
 
-				_, rok := test.removed[item.ID()]
+				switch {
+				case strings.HasSuffix(item.ID(), ".data"):
+					trimmedID = strings.TrimSuffix(item.ID(), ".data")
+				case strings.HasSuffix(item.ID(), ".meta"):
+					trimmedID = strings.TrimSuffix(item.ID(), ".meta")
+				default:
+					assert.Fail(t, "unexpected item suffix: %s", item.ID())
+				}
+
+				itemMap[item.ID()] = item
+
+				_, rok := test.removed[trimmedID]
 				if rok {
 					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 					dimt, ok := item.(data.ItemModTime)
@@ -440,7 +452,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
 				}
 
-				modTime, aok := test.added[item.ID()]
+				modTime, aok := test.added[trimmedID]
 				if !rok && aok {
 					// Item's mod time should be what's passed into the collection
 					// initializer.
@@ -475,9 +487,40 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			assert.NoError(t, errs.Failure())
 			assert.Equal(
 				t,
-				test.expectItemCount,
-				itemCount,
+				test.expectItemCount, // 2*(len(test.added)+len(test.removed)),
+				len(itemMap),
 				"should see all expected items")
+
+			addedAndRemoved := append(maps.Keys(test.added), maps.Keys(test.removed)...)
+			for _, id := range addedAndRemoved {
+				// Should have a .data and a .meta file
+				d, ok := itemMap[id+".data"]
+				assert.True(t, ok, "should have data file for %q", id)
+
+				m, ok := itemMap[id+".meta"]
+				assert.True(t, ok, "should have meta file for %q", id)
+
+				// Meta files should not have item info.
+				assert.Implements(t, (*data.Item)(nil), m)
+
+				if slices.Contains(maps.Keys(test.removed), id) {
+					continue
+				}
+
+				// Mod times should match. Not doing this check for removed items
+				// since mod time is set to now() for them.
+				assert.Equal(t, d.(data.ItemModTime).ModTime(), m.(data.ItemModTime).ModTime(), "item mod time")
+
+				// Read meta file data. The data is of no significance, we just want
+				// to make sure the file is readable.
+				r := m.ToReader()
+
+				_, err := io.ReadAll(r)
+				assert.NoError(t, err, clues.ToCore(err))
+
+				r.Close()
+
+			}
 		})
 	}
 }

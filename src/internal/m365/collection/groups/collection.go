@@ -342,7 +342,12 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.stream <- data.NewDeletedItem(id)
+			// This is a no-op for conversations, as there is no way to detect
+			// deleted items in a conversation. It might be added in the future
+			// if graph supports it, so make sure we put up both .data and .meta
+			// files for deletions.
+			col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
+			col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
 
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)

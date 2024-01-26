@@ -23,7 +23,3 @@ func IsMetadataFile(p path.Path) bool {
 		return false
 	}
 }
-
-// func WithDataSuffix(p path.Path) path.Path {
-// 	return p.WithItem(p.Item() + ".data")
-// }
