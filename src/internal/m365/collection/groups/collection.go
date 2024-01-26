@@ -348,8 +348,12 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			// deleted items in a conversation. It might be added in the future
 			// if graph supports it, so make sure we put up both .data and .meta
 			// files for deletions.
-			col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
-			col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
+			if col.getAndAugment.supportsItemMetadata() {
+				col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
+				col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
+			} else {
+				col.stream <- data.NewDeletedItem(id)
+			}
 
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)
@@ -378,6 +382,10 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				"item_id", id,
 				"parent_path", path.LoggableDir(col.LocationPath().String()))
 
+			// Conversation posts carry a .data suffix, while channel messages
+			// don't have any suffix. Metadata files are only supported for conversations.
+			dataFile := id
+
 			// Handle metadata before data so that if metadata file fails,
 			// we are not left with an orphaned data file.
 			//
@@ -396,15 +404,14 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			if err != nil && !errors.Is(err, errMetadataFilesNotSupported) {
 				errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
 
-				return
-			}
+					return
+				}
 
-			if err == nil {
 				// Skip adding progress reader for metadata files. It doesn't add
 				// much value.
 				storeItem, err := data.NewPrefetchedItem(
 					itemMeta,
-					id+metadata.MetaFileSuffix,
+					metaFile,
 					// Use the same last modified time as post's.
 					modTime)
 				if err != nil {
@@ -422,12 +429,12 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 					modTime:       modTime,
 					getAndAugment: col.getAndAugment,
 					resourceID:    col.protectedResource,
-					itemID:        id,
+					itemID:        dataFile,
 					containerIDs:  col.FullPath().Folders(),
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
 				},
-				id+metadata.DataFileSuffix,
+				dataFile,
 				modTime,
 				col.Counter,
 				el)
