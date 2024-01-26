@@ -21,7 +21,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	metaTD "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata/testdata"
 	odTD "github.com/alcionai/corso/src/internal/m365/service/onedrive/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
@@ -34,6 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
@@ -73,13 +74,13 @@ func (suite *CollectionUnitSuite) TestCollection() {
 		stubMetaID       = "testMetaID"
 		stubMetaEntityID = "email@provider.com"
 		stubMetaRoles    = []string{"read", "write"}
-		stubMeta         = metadata.Metadata{
+		stubMeta         = odmetadata.Metadata{
 			FileName: stubItemName,
-			Permissions: []metadata.Permission{
+			Permissions: []odmetadata.Permission{
 				{
 					ID:         stubMetaID,
 					EntityID:   stubMetaEntityID,
-					EntityType: metadata.GV2User,
+					EntityType: odmetadata.GV2User,
 					Roles:      stubMetaRoles,
 					Expiration: &now,
 				},
@@ -208,7 +209,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			mbh.GetErrs = []error{test.getErr}
 			mbh.GI = getsItem{Err: assert.AnError}
 
-			pcr := metaTD.NewStubPermissionResponse(metadata.GV2User, stubMetaID, stubMetaEntityID, stubMetaRoles)
+			pcr := metaTD.NewStubPermissionResponse(odmetadata.GV2User, stubMetaID, stubMetaEntityID, stubMetaRoles)
 			mbh.GIP = getsItemPermission{Perm: pcr}
 
 			coll, err := NewCollection(
@@ -294,7 +295,7 @@ func (suite *CollectionUnitSuite) TestCollection() {
 			assert.Equal(t, readers.DefaultSerializationVersion, rr.Format().Version)
 			assert.False(t, rr.Format().DelInFlight)
 
-			readMeta := metadata.Metadata{}
+			readMeta := odmetadata.Metadata{}
 			err = json.NewDecoder(rr).Decode(&readMeta)
 			require.NoError(t, err, clues.ToCore(err))
 

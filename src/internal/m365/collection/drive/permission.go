@@ -10,12 +10,13 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/syncd"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 // empty string is used to indicate that a permission cannot be restored
@@ -23,20 +24,20 @@ const nonRestorablePermission = ""
 
 func getParentMetadata(
 	parentPath path.Path,
-	parentDirToMeta syncd.MapTo[metadata.Metadata],
-) (metadata.Metadata, error) {
+	parentDirToMeta syncd.MapTo[odmetadata.Metadata],
+) (odmetadata.Metadata, error) {
 	parentMeta, ok := parentDirToMeta.Load(parentPath.String())
 	if !ok {
 		drivePath, err := path.ToDrivePath(parentPath)
 		if err != nil {
-			return metadata.Metadata{}, clues.Wrap(err, "invalid restore path")
+			return odmetadata.Metadata{}, clues.Wrap(err, "invalid restore path")
 		}
 
 		if len(drivePath.Folders) != 0 {
-			return metadata.Metadata{}, clues.Wrap(err, "computing item permissions")
+			return odmetadata.Metadata{}, clues.Wrap(err, "computing item permissions")
 		}
 
-		parentMeta = metadata.Metadata{}
+		parentMeta = odmetadata.Metadata{}
 	}
 
 	return parentMeta, nil
@@ -49,9 +50,9 @@ func getCollectionMetadata(
 	caches *restoreCaches,
 	backupVersion int,
 	restorePerms bool,
-) (metadata.Metadata, error) {
+) (odmetadata.Metadata, error) {
 	if !restorePerms || backupVersion < version.OneDrive1DataAndMetaFiles {
-		return metadata.Metadata{}, nil
+		return odmetadata.Metadata{}, nil
 	}
 
 	var (
@@ -61,13 +62,13 @@ func getCollectionMetadata(
 
 	if len(drivePath.Folders) == 0 {
 		// No permissions for root folder
-		return metadata.Metadata{}, nil
+		return odmetadata.Metadata{}, nil
 	}
 
 	if backupVersion < version.OneDrive4DirIncludesPermissions {
 		colMeta, err := getParentMetadata(fullPath, caches.ParentDirToMeta)
 		if err != nil {
-			return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
+			return odmetadata.Metadata{}, clues.Wrap(err, "collection metadata")
 		}
 
 		return colMeta, nil
@@ -82,7 +83,7 @@ func getCollectionMetadata(
 
 	meta, err := FetchAndReadMetadata(ctx, dc, metaName)
 	if err != nil {
-		return metadata.Metadata{}, clues.Wrap(err, "collection metadata")
+		return odmetadata.Metadata{}, clues.Wrap(err, "collection metadata")
 	}
 
 	return meta, nil
@@ -93,9 +94,9 @@ func getCollectionMetadata(
 func computePreviousLinkShares(
 	ctx context.Context,
 	originDir path.Path,
-	parentMetas syncd.MapTo[metadata.Metadata],
-) ([]metadata.LinkShare, error) {
-	linkShares := []metadata.LinkShare{}
+	parentMetas syncd.MapTo[odmetadata.Metadata],
+) ([]odmetadata.LinkShare, error) {
+	linkShares := []odmetadata.LinkShare{}
 	ctx = clues.Add(ctx, "origin_dir", originDir)
 
 	parent, err := originDir.Dir()
@@ -122,7 +123,7 @@ func computePreviousLinkShares(
 
 		// Any change in permissions would change it to custom
 		// permission set and so we can filter on that.
-		if meta.SharingMode == metadata.SharingModeCustom {
+		if meta.SharingMode == odmetadata.SharingModeCustom {
 			linkShares = append(linkShares, meta.LinkShares...)
 		}
 
@@ -143,11 +144,11 @@ func computePreviousMetadata(
 	ctx context.Context,
 	originDir path.Path,
 	// map parent dir -> parent's metadata
-	parentMetas syncd.MapTo[metadata.Metadata],
-) (metadata.Metadata, error) {
+	parentMetas syncd.MapTo[odmetadata.Metadata],
+) (odmetadata.Metadata, error) {
 	var (
 		parent path.Path
-		meta   metadata.Metadata
+		meta   odmetadata.Metadata
 
 		err error
 		ok  bool
@@ -158,26 +159,26 @@ func computePreviousMetadata(
 	for {
 		parent, err = parent.Dir()
 		if err != nil {
-			return metadata.Metadata{}, clues.WrapWC(ctx, err, "getting parent")
+			return odmetadata.Metadata{}, clues.WrapWC(ctx, err, "getting parent")
 		}
 
 		ictx := clues.Add(ctx, "parent_dir", parent)
 
 		drivePath, err := path.ToDrivePath(parent)
 		if err != nil {
-			return metadata.Metadata{}, clues.WrapWC(ictx, err, "transforming dir to drivePath")
+			return odmetadata.Metadata{}, clues.WrapWC(ictx, err, "transforming dir to drivePath")
 		}
 
 		if len(drivePath.Folders) == 0 {
-			return metadata.Metadata{}, nil
+			return odmetadata.Metadata{}, nil
 		}
 
 		meta, ok = parentMetas.Load(parent.String())
 		if !ok {
-			return metadata.Metadata{}, clues.NewWC(ictx, "no metadata found for parent folder: "+parent.String())
+			return odmetadata.Metadata{}, clues.NewWC(ictx, "no metadata found for parent folder: "+parent.String())
 		}
 
-		if meta.SharingMode == metadata.SharingModeCustom {
+		if meta.SharingMode == odmetadata.SharingModeCustom {
 			return meta, nil
 		}
 	}
@@ -195,7 +196,7 @@ func UpdatePermissions(
 	udip updateDeleteItemPermissioner,
 	driveID string,
 	itemID string,
-	permAdded, permRemoved []metadata.Permission,
+	permAdded, permRemoved []odmetadata.Permission,
 	oldPermIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) error {
@@ -260,7 +261,7 @@ func UpdatePermissions(
 
 		// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
 		// likely due to the site group entityID consisting of a single integer (ex: 4)
-		if len(roles) == 0 || p.EntityType == metadata.GV2SiteGroup {
+		if len(roles) == 0 || p.EntityType == odmetadata.GV2SiteGroup {
 			continue
 		}
 
@@ -315,7 +316,7 @@ func UpdateLinkShares(
 	upils updateDeleteItemLinkSharer,
 	driveID string,
 	itemID string,
-	lsAdded, lsRemoved []metadata.LinkShare,
+	lsAdded, lsRemoved []odmetadata.LinkShare,
 	oldLinkShareIDToNewID syncd.MapTo[string],
 	errs *fault.Bus,
 ) (bool, error) {
@@ -347,7 +348,7 @@ func UpdateLinkShares(
 		for _, iden := range ls.Entities {
 			// TODO: sitegroup support.  Currently errors with "One or more users could not be resolved",
 			// likely due to the site group entityID consisting of a single integer (ex: 4)
-			if iden.EntityType == metadata.GV2SiteGroup {
+			if iden.EntityType == odmetadata.GV2SiteGroup {
 				continue
 			}
 
@@ -457,11 +458,11 @@ func UpdateLinkShares(
 
 func filterUnavailableEntitiesInLinkShare(
 	ctx context.Context,
-	linkShares []metadata.LinkShare,
+	linkShares []odmetadata.LinkShare,
 	availableEntities ResourceIDNames,
 	oldLinkShareIDToNewID syncd.MapTo[string],
-) []metadata.LinkShare {
-	filtered := []metadata.LinkShare{}
+) []odmetadata.LinkShare {
+	filtered := []odmetadata.LinkShare{}
 
 	if availableEntities.Users == nil || availableEntities.Groups == nil {
 		// This should not be happening unless we missed to fill in the caches
@@ -470,20 +471,20 @@ func filterUnavailableEntitiesInLinkShare(
 	}
 
 	for _, p := range linkShares {
-		entities := []metadata.Entity{}
+		entities := []odmetadata.Entity{}
 
 		for _, e := range p.Entities {
 			available := false
 
 			switch e.EntityType {
-			case metadata.GV2User:
+			case odmetadata.GV2User:
 				// Link shares with external users won't have IDs
 				if len(e.ID) == 0 && len(e.Email) > 0 {
 					available = true
 				} else {
 					_, available = availableEntities.Users.NameOf(e.ID)
 				}
-			case metadata.GV2Group:
+			case odmetadata.GV2Group:
 				_, available = availableEntities.Groups.NameOf(e.ID)
 			default:
 				// We only know about users and groups
@@ -513,26 +514,26 @@ func filterUnavailableEntitiesInLinkShare(
 
 func filterUnavailableEntitiesInPermissions(
 	ctx context.Context,
-	perms []metadata.Permission,
+	perms []odmetadata.Permission,
 	availableEntities ResourceIDNames,
 	oldPermIDToNewID syncd.MapTo[string],
-) []metadata.Permission {
+) []odmetadata.Permission {
 	if availableEntities.Users == nil || availableEntities.Groups == nil {
 		// This should not be happening unless we missed to fill in the caches
 		logger.Ctx(ctx).Info("no available entities, not filtering link shares")
 		return perms
 	}
 
-	filtered := []metadata.Permission{}
+	filtered := []odmetadata.Permission{}
 
 	for _, p := range perms {
 		available := false
 
 		switch p.EntityType {
-		case metadata.GV2User:
+		case odmetadata.GV2User:
 			_, ok := availableEntities.Users.NameOf(p.EntityID)
 			available = available || ok
-		case metadata.GV2Group:
+		case odmetadata.GV2Group:
 			_, ok := availableEntities.Groups.NameOf(p.EntityID)
 			available = available || ok
 		default:
@@ -564,11 +565,11 @@ func RestorePermissions(
 	driveID string,
 	itemID string,
 	itemPath path.Path,
-	current metadata.Metadata,
+	current odmetadata.Metadata,
 	caches *restoreCaches,
 	errs *fault.Bus,
 ) {
-	if current.SharingMode == metadata.SharingModeInherited {
+	if current.SharingMode == odmetadata.SharingModeInherited {
 		return
 	}
 
@@ -582,7 +583,7 @@ func RestorePermissions(
 	}
 
 	if previousLinkShares != nil {
-		lsAdded, lsRemoved := metadata.DiffLinkShares(previousLinkShares, current.LinkShares)
+		lsAdded, lsRemoved := odmetadata.DiffLinkShares(previousLinkShares, current.LinkShares)
 		lsAdded = filterUnavailableEntitiesInLinkShare(ctx, lsAdded, caches.AvailableEntities, caches.OldLinkShareIDToNewID)
 
 		// Link shares have to be updated before permissions as we have to
@@ -608,7 +609,7 @@ func RestorePermissions(
 		return
 	}
 
-	permAdded, permRemoved := metadata.DiffPermissions(previous.Permissions, current.Permissions)
+	permAdded, permRemoved := odmetadata.DiffPermissions(previous.Permissions, current.Permissions)
 	permAdded = filterUnavailableEntitiesInPermissions(ctx, permAdded, caches.AvailableEntities, caches.OldPermIDToNewID)
 
 	if didReset {
@@ -617,7 +618,7 @@ func RestorePermissions(
 		// that an item has as they too will be removed.
 		logger.Ctx(ctx).Debug("link share creation reset all inherited permissions")
 
-		permRemoved = []metadata.Permission{}
+		permRemoved = []odmetadata.Permission{}
 		permAdded = current.Permissions
 	}
 
