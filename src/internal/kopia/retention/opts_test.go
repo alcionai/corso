@@ -202,3 +202,97 @@ func (suite *OptsUnitSuite) TestSet() {
 		})
 	}
 }
+
+func (suite *OptsUnitSuite) TestVerify() {
+	mode := blob.Governance
+	fullCycleInterval := time.Hour * 24
+	duration := 2 * fullCycleInterval
+
+	table := []struct {
+		name      string
+		input     *retention.Opts
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "ValidDisabled",
+			input: retention.OptsFromConfigs(
+				format.BlobStorageConfiguration{},
+				maintenance.Params{
+					FullCycle: maintenance.CycleParams{
+						Interval: fullCycleInterval,
+					},
+					ExtendObjectLocks: false,
+				}),
+			expectErr: assert.NoError,
+		},
+		{
+			name: "ValidEnabled",
+			input: retention.OptsFromConfigs(
+				format.BlobStorageConfiguration{
+					RetentionMode:   mode,
+					RetentionPeriod: duration,
+				},
+				maintenance.Params{
+					FullCycle: maintenance.CycleParams{
+						Interval: fullCycleInterval,
+					},
+					ExtendObjectLocks: true,
+				}),
+			expectErr: assert.NoError,
+		},
+		{
+			name: "InvalidDuration",
+			input: retention.OptsFromConfigs(
+				format.BlobStorageConfiguration{
+					RetentionMode:   mode,
+					RetentionPeriod: fullCycleInterval,
+				},
+				maintenance.Params{
+					FullCycle: maintenance.CycleParams{
+						Interval: fullCycleInterval,
+					},
+					ExtendObjectLocks: true,
+				}),
+			expectErr: assert.Error,
+		},
+		{
+			name: "InvalidNotExtending",
+			input: retention.OptsFromConfigs(
+				format.BlobStorageConfiguration{
+					RetentionMode:   mode,
+					RetentionPeriod: duration,
+				},
+				maintenance.Params{
+					FullCycle: maintenance.CycleParams{
+						Interval: fullCycleInterval,
+					},
+					ExtendObjectLocks: false,
+				}),
+			expectErr: assert.Error,
+		},
+		{
+			name: "InvalidNotConfigured",
+			input: retention.OptsFromConfigs(
+				format.BlobStorageConfiguration{},
+				maintenance.Params{
+					FullCycle: maintenance.CycleParams{
+						Interval: fullCycleInterval,
+					},
+					ExtendObjectLocks: true,
+				}),
+			expectErr: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			t.Cleanup(flush)
+
+			err := test.input.Verify(ctx)
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
