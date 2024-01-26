@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,7 +36,7 @@ import (
 type NoBackupGroupsE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestNoBackupGroupsE2ESuite(t *testing.T) {
@@ -50,7 +51,7 @@ func (suite *NoBackupGroupsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 }
 
@@ -89,7 +90,7 @@ func (suite *NoBackupGroupsE2ESuite) TestGroupsBackupListCmd_noBackups() {
 type BackupGroupsE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupGroupsE2ESuite(t *testing.T) {
@@ -104,7 +105,7 @@ func (suite *BackupGroupsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 }
 
@@ -134,7 +135,7 @@ func runGroupsBackupCategoryTest(suite *BackupGroupsE2ESuite, category string) {
 	cmd, ctx := buildGroupsBackupCmd(
 		ctx,
 		suite.dpnd.configFilePath,
-		suite.its.group.ID,
+		suite.m365.Group.ID,
 		category,
 		&recorder)
 
@@ -202,7 +203,7 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_badAzureClientIDFlag()
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "groups",
-		"--group", suite.its.group.ID,
+		"--group", suite.m365.Group.ID,
 		"--azure-client-id", "invalid-value")
 	cli.BuildCommandTree(cmd)
 
@@ -226,7 +227,7 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_fromConfigFile() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "groups",
-		"--group", suite.its.group.ID,
+		"--group", suite.m365.Group.ID,
 		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
@@ -250,7 +251,7 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_badAWSFlags() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "groups",
-		"--group", suite.its.group.ID,
+		"--group", suite.m365.Group.ID,
 		"--aws-access-key", "invalid-value",
 		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
@@ -273,7 +274,7 @@ type PreparedBackupGroupsE2ESuite struct {
 	tester.Suite
 	dpnd      dependencies
 	backupOps map[path.CategoryType]string
-	its       intgTesterSetup
+	m365      its.M365IntgTestSetup
 }
 
 func TestPreparedBackupGroupsE2ESuite(t *testing.T) {
@@ -290,13 +291,13 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.GroupsService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		groups = []string{suite.its.group.ID}
-		ins    = idname.NewCache(map[string]string{suite.its.group.ID: suite.its.group.ID})
+		groups = []string{suite.m365.Group.ID}
+		ins    = idname.NewCache(map[string]string{suite.m365.Group.ID: suite.m365.Group.ID})
 		cats   = []path.CategoryType{
 			path.ChannelMessagesCategory,
 			path.ConversationPostsCategory,
