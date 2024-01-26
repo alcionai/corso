@@ -14,7 +14,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -38,14 +37,7 @@ func CreateCollections[I chatsItemer](
 		}
 	)
 
-	cc := api.CallConfig{
-		CanMakeDeltaQueries: false,
-	}
-
-	container, err := bh.getContainer(ctx, cc)
-	if err != nil {
-		return nil, false, clues.Stack(err)
-	}
+	container := bh.getContainer()
 
 	counter.Add(count.Containers, 1)
 
@@ -149,7 +141,7 @@ func populateCollection[I chatsItemer](
 		data.NewBaseCollection(
 			p,
 			p,
-			container.humanLocation.Builder(),
+			&path.Builder{},
 			ctrlOpts,
 			false,
 			cl),

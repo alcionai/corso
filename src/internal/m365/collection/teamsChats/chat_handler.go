@@ -35,11 +35,8 @@ func NewUsersChatsBackupHandler(
 // chats have no containers.  Everything is stored at the root.
 //
 //lint:ignore U1000 required for interface compliance
-func (bh usersChatsBackupHandler) getContainer(
-	ctx context.Context,
-	_ api.CallConfig,
-) (container[models.Chatable], error) {
-	return chatContainer(), nil
+func (bh usersChatsBackupHandler) getContainer() container[models.Chatable] {
+	return container[models.Chatable]{}
 }
 
 //lint:ignore U1000 required for interface compliance
@@ -80,7 +77,7 @@ func (bh usersChatsBackupHandler) CanonicalPath() (path.Path, error) {
 }
 
 //lint:ignore U1000 false linter issue due to generics
-func (bh usersChatsBackupHandler) getItem(
+func (bh usersChatsBackupHandler) fillItem(
 	ctx context.Context,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
@@ -105,11 +102,4 @@ func (bh usersChatsBackupHandler) getItem(
 	chat.SetMembers(members)
 
 	return chat, api.TeamsChatInfo(chat), nil
-}
-
-func chatContainer() container[models.Chatable] {
-	return container[models.Chatable]{
-		storageDirFolders: path.Elements{},
-		humanLocation:     path.Elements{},
-	}
 }

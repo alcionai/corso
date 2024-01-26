@@ -148,12 +148,12 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 	}
 }
 
-type getAndAugmentChat struct {
+type fillChat struct {
 	err error
 }
 
 //lint:ignore U1000 false linter issue due to generics
-func (m getAndAugmentChat) getItem(
+func (m fillChat) fillItem(
 	_ context.Context,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {
@@ -207,7 +207,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			getterAugmenter := &getAndAugmentChat{}
+			filler := &fillChat{}
 
 			col := &lazyFetchCollection[models.Chatable]{
 				BaseCollection: data.NewBaseCollection(
@@ -219,7 +219,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					count.New()),
 				items:         test.items,
 				contains:      container[models.Chatable]{},
-				getter:        getterAugmenter,
+				filler:        filler,
 				stream:        make(chan data.Item),
 				statusUpdater: statusUpdater,
 			}
@@ -272,16 +272,16 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 
 			chat := testdata.StubChats(uuid.NewString())[0]
 
-			m := getAndAugmentChat{
+			m := fillChat{
 				err: test.getErr,
 			}
 
 			li := data.NewLazyItemWithInfo(
 				ctx,
-				&lazyItemGetter[models.Chatable]{
+				&lazyItemFiller[models.Chatable]{
 					resourceID: "resourceID",
 					item:       chat,
-					getter:     &m,
+					filler:     &m,
 					modTime:    now,
 					parentPath: parentPath,
 				},
@@ -316,16 +316,16 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 
 	chat := testdata.StubChats(uuid.NewString())[0]
 
-	m := getAndAugmentChat{
+	m := fillChat{
 		err: core.ErrNotFound,
 	}
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
-		&lazyItemGetter[models.Chatable]{
+		&lazyItemFiller[models.Chatable]{
 			resourceID: "resourceID",
 			item:       chat,
-			getter:     &m,
+			filler:     &m,
 			modTime:    now,
 			parentPath: parentPath,
 		},
@@ -357,14 +357,14 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 	defer flush()
 
 	chat := testdata.StubChats(uuid.NewString())[0]
-	m := getAndAugmentChat{}
+	m := fillChat{}
 
 	li := data.NewLazyItemWithInfo(
 		ctx,
-		&lazyItemGetter[models.Chatable]{
+		&lazyItemFiller[models.Chatable]{
 			resourceID: "resourceID",
 			item:       chat,
-			getter:     &m,
+			filler:     &m,
 			modTime:    now,
 			parentPath: parentPath,
 		},

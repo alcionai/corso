@@ -8,7 +8,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -22,8 +21,7 @@ type chatsItemer interface {
 
 type backupHandler[I chatsItemer] interface {
 	getContainerer[I]
-	getItemer[I]
-	getItemer[I]
+	fillItemer[I]
 	getItemIDser[I]
 	includeItemer[I]
 	canonicalPather
@@ -33,10 +31,7 @@ type backupHandler[I chatsItemer] interface {
 // within this handler set, only one container (the root)
 // is expected
 type getContainerer[I chatsItemer] interface {
-	getContainer(
-		ctx context.Context,
-		cc api.CallConfig,
-	) (container[I], error)
+	getContainer() container[I]
 }
 
 // gets all item IDs in the container
@@ -46,8 +41,10 @@ type getItemIDser[I chatsItemer] interface {
 	) ([]I, error)
 }
 
-type getItemer[I chatsItemer] interface {
-	getItem(
+// fillItemer takes a complete item and extends it with data that
+// gets lazily populated during item streaming.
+type fillItemer[I chatsItemer] interface {
+	fillItem(
 		ctx context.Context,
 		i I,
 	) (I, *details.TeamsChatsInfo, error)
@@ -73,8 +70,4 @@ type canonicalPather interface {
 // Container management
 // ---------------------------------------------------------------------------
 
-type container[I chatsItemer] struct {
-	storageDirFolders path.Elements
-	humanLocation     path.Elements
-	container         I
-}
+type container[I chatsItemer] struct{}
