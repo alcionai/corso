@@ -310,6 +310,7 @@ jobs:
           # something elsewhere.
           CORSO_M365_TEST_USER_ID: "foo"
           CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+          GOCACHE: ${{ github.workspace }}/go-cache
         run: |
           set -euo pipefail
           go test       \
