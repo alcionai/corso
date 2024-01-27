@@ -34,11 +34,41 @@ func (suite *M365IntgSuite) TestGetM365() {
 	assert.NotEmpty(t, result.GockAC)
 	assert.NotEmpty(t, result.TenantID)
 
-	assertIDs(t, result.Site, []string{id, weburl, provider, driveid, driverootfolderid})
-	assertIDs(t, result.Group, []string{id, email, provider, testcontainerid})
-	assertIDs(t, result.User, []string{id, email, provider, driveid, driverootfolderid})
-	assertIDs(t, result.SecondaryUser, []string{id, email, provider, driveid, driverootfolderid})
-	assertIDs(t, result.TertiaryUser, []string{id, email, provider, driveid, driverootfolderid})
+	assertIDs(
+		t,
+		result.Site,
+		[]string{id, weburl, provider, driveid, driverootfolderid},
+		[]string{})
+	assertIDs(
+		t,
+		result.SecondarySite,
+		[]string{id, weburl, provider, driveid, driverootfolderid},
+		[]string{})
+	assertIDs(
+		t,
+		result.Group,
+		[]string{id, email, provider, testcontainerid},
+		[]string{id, weburl, provider, driveid, driverootfolderid})
+	assertIDs(
+		t,
+		result.SecondaryGroup,
+		[]string{id, email, provider, testcontainerid},
+		[]string{id, weburl, provider, driveid, driverootfolderid})
+	assertIDs(
+		t,
+		result.User,
+		[]string{id, email, provider, driveid, driverootfolderid},
+		[]string{})
+	assertIDs(
+		t,
+		result.SecondaryUser,
+		[]string{id, email, provider, driveid, driverootfolderid},
+		[]string{})
+	assertIDs(
+		t,
+		result.TertiaryUser,
+		[]string{id, email, provider, driveid, driverootfolderid},
+		[]string{})
 }
 
 const (
@@ -55,6 +85,7 @@ func assertIDs(
 	t *testing.T,
 	ids IDs,
 	expect []string,
+	expectRootSite []string,
 ) {
 	assert.NotEmpty(t, ids)
 
@@ -100,5 +131,37 @@ func assertIDs(
 		assert.NotEmpty(t, ids.WebURL)
 	} else {
 		assert.Empty(t, ids.WebURL)
+	}
+
+	if slices.Contains(expectRootSite, provider) {
+		assert.NotNil(t, ids.RootSite.Provider)
+		assert.NotEmpty(t, ids.RootSite.Provider.ID())
+		assert.NotEmpty(t, ids.RootSite.Provider.Name())
+	} else {
+		assert.Nil(t, ids.RootSite.Provider)
+	}
+
+	if slices.Contains(expectRootSite, id) {
+		assert.NotEmpty(t, ids.RootSite.ID)
+	} else {
+		assert.Empty(t, ids.RootSite.ID)
+	}
+
+	if slices.Contains(expectRootSite, driveid) {
+		assert.NotEmpty(t, ids.RootSite.DriveID)
+	} else {
+		assert.Empty(t, ids.RootSite.DriveID)
+	}
+
+	if slices.Contains(expectRootSite, driverootfolderid) {
+		assert.NotEmpty(t, ids.RootSite.DriveRootFolderID)
+	} else {
+		assert.Empty(t, ids.RootSite.DriveRootFolderID)
+	}
+
+	if slices.Contains(expectRootSite, weburl) {
+		assert.NotEmpty(t, ids.RootSite.WebURL)
+	} else {
+		assert.Empty(t, ids.RootSite.WebURL)
 	}
 }

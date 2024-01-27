@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/m365"
@@ -19,8 +18,6 @@ import (
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -356,125 +353,6 @@ func ControllerWithSelector(
 // ---------------------------------------------------------------------------
 // Suite Setup
 // ---------------------------------------------------------------------------
-
-type IDs struct {
-	ID                string
-	DriveID           string
-	DriveRootFolderID string
-}
-
-type GIDs struct {
-	ID       string
-	RootSite IDs
-}
-
-type IntgTesterSetup struct {
-	AC             api.Client
-	GockAC         api.Client
-	User           IDs
-	SecondaryUser  IDs
-	Site           IDs
-	SecondarySite  IDs
-	Group          GIDs
-	SecondaryGroup GIDs
-}
-
-func NewIntegrationTesterSetup(t *testing.T) IntgTesterSetup {
-	its := IntgTesterSetup{}
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	a := tconfig.NewM365Account(t)
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	counter := count.New()
-
-	its.AC, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		counter)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.GockAC, err = GockClient(creds, counter)
-	require.NoError(t, err, clues.ToCore(err))
-
-	its.User = userIDs(t, tconfig.M365UserID(t), its.AC)
-	its.SecondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.AC)
-	its.Site = siteIDs(t, tconfig.M365SiteID(t), its.AC)
-	its.SecondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.AC)
-	// teamID is used here intentionally.  We want the group
-	// to have access to teams data
-	its.Group = groupIDs(t, tconfig.M365TeamID(t), its.AC)
-	its.SecondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.AC)
-
-	return its
-}
-
-func userIDs(t *testing.T, id string, ac api.Client) IDs {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	r := IDs{ID: id}
-
-	drive, err := ac.Users().GetDefaultDrive(ctx, id)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.DriveID = ptr.Val(drive.GetId())
-
-	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
-
-	return r
-}
-
-func siteIDs(t *testing.T, id string, ac api.Client) IDs {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	r := IDs{ID: id}
-
-	drive, err := ac.Sites().GetDefaultDrive(ctx, id)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.DriveID = ptr.Val(drive.GetId())
-
-	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.DriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
-
-	return r
-}
-
-func groupIDs(t *testing.T, id string, ac api.Client) GIDs {
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	r := GIDs{ID: id}
-
-	site, err := ac.Groups().GetRootSite(ctx, id)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.RootSite.ID = ptr.Val(site.GetId())
-
-	drive, err := ac.Sites().GetDefaultDrive(ctx, r.RootSite.ID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.RootSite.DriveID = ptr.Val(drive.GetId())
-
-	driveRootFolder, err := ac.Drives().GetRootFolder(ctx, r.RootSite.DriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	r.RootSite.DriveRootFolderID = ptr.Val(driveRootFolder.GetId())
-
-	return r
-}
 
 func GetTestExtensionFactories() []extensions.CreateItemExtensioner {
 	return []extensions.CreateItemExtensioner{
