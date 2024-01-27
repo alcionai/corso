@@ -365,8 +365,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Conversations() {
 			},
 			expectItemCount: 4,
 			expectReads: []string{
-				"fisher.data",
-				"flannigan.data",
+				"fisher",
+				"flannigan",
 			},
 		},
 		{
@@ -462,7 +462,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Conversations() {
 
 					// Check if the test wants us to read the item's data so the lazy
 					// data fetch is executed.
-					if slices.Contains(test.expectReads, item.ID()) {
+					//
+					// Inspect with trimmedID since getItem() operates on ID, not the file
+					if strings.HasSuffix(item.ID(), ".data") &&
+						slices.Contains(test.expectReads, trimmedID) {
 						r := item.ToReader()
 
 						_, err := io.ReadAll(r)
