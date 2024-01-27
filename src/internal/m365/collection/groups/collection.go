@@ -382,8 +382,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				"item_id", id,
 				"parent_path", path.LoggableDir(col.LocationPath().String()))
 
-			// Conversation posts carry a .data suffix, while channel messages
-			// don't have any suffix. Metadata files are only supported for conversations.
+			// Channel message files don't carry .data suffix, post files do.
 			dataFile := id
 
 			// Handle metadata before data so that if metadata file fails,
@@ -433,7 +432,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 					modTime:       modTime,
 					getAndAugment: col.getAndAugment,
 					resourceID:    col.protectedResource,
-					itemID:        dataFile,
+					itemID:        id,
 					containerIDs:  col.FullPath().Folders(),
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
