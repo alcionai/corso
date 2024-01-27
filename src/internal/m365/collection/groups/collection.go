@@ -416,11 +416,6 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				col.stream <- storeItem
 			}
 
-			// TODO(pandeyabs): Persist as .data file for conversations only, not for channels
-			// i.e. only add the .data suffix for conv backups.
-			// This is safe for now since channels don't utilize lazy reader yet.
-			id += metadata.DataFileSuffix
-
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
 				&lazyItemGetter[C, I]{
@@ -432,7 +427,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
 				},
-				id,
+				id+metadata.DataFileSuffix,
 				modTime,
 				col.Counter,
 				el)
