@@ -301,12 +301,14 @@ jobs:
 
       - name: one test
         run: |
-          go test -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
+          go test \
+          -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
           2>&1 | tee ./testlog/gotest-unit.log
 
       - name: one more test
         run: |
-          go test -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
+          go test \
+          -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
           2>&1 | tee ./testlog/gotest-unit-2.log
 
       # run the tests
