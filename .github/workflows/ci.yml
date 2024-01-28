@@ -299,17 +299,19 @@ jobs:
 
       - run: mkdir testlog
 
-      - name: one test
+      - name: two tests
         run: |
-          go test \
-          -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
-          2>&1 | tee ./testlog/gotest-unit.log
+          set -euo pipefail
 
-      - name: one more test
-        run: |
+          # Run the first test
           go test \
-          -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
-          2>&1 | tee ./testlog/gotest-unit.log
+            -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
+            2>&1 | tee -a ./testlog/gotest-unit.log
+
+          # Run the second test
+          go test \
+            -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
+            2>&1 | tee -a ./testlog/gotest-unit.log
 
       # run the tests
       # - name: Unit Tests
