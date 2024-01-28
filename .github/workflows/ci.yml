@@ -300,6 +300,11 @@ jobs:
       - run: mkdir testlog
 
       - name: two tests
+        env:
+          # Set these to a bad value so we don't accidentally fall back to
+          # something elsewhere.
+          CORSO_M365_TEST_USER_ID: "foo"
+          CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
         run: |
           set -euo pipefail
 
