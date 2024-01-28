@@ -742,7 +742,7 @@ func (suite *PathUnitSuite) Test_Stuff() {
 	}
 }
 
-func (suite *PathUnitSuite) Test_Stuff2() {
+func (suite *PathUnitSuite) Test_More() {
 	t := suite.T()
 
 	tests := []struct {
