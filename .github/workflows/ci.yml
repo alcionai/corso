@@ -276,7 +276,7 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
+      CORSO_LOG_FILE: /tmp/corso-testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
@@ -297,11 +297,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-golang-
 
-      - run: mkdir testlog
+      - run: mkdir -p /tmp/corso-testlog
 
       - name: one test
         run: |
           set -euo pipefail
+
+          export GODEBUG=gocachetest=1
 
           # Run the first test
           go test \
@@ -372,7 +374,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-log
-          path: src/testlog/*
+          path: /tmp/corso-testlog/*
           if-no-files-found: error
           retention-days: 14
 
