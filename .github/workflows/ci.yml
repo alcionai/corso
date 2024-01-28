@@ -299,7 +299,7 @@ jobs:
 
       - run: mkdir testlog
 
-      - name: one tests
+      - name: all tests
         env:
           # Set these to a bad value so we don't accidentally fall back to
           # something elsewhere.
@@ -314,7 +314,7 @@ jobs:
             -failfast \
             -p 1 \
             -timeout 20m \
-            -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
+            ./... \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
       # run the tests
