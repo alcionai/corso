@@ -309,7 +309,7 @@ jobs:
         run: |
           go test \
           -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
-          2>&1 | tee ./testlog/gotest-unit-2.log
+          2>&1 | tee ./testlog/gotest-unit.log
 
       # run the tests
       # - name: Unit Tests
