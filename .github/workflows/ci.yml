@@ -304,7 +304,10 @@ jobs:
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       - name: one test
-        run: go test -v -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path
+        run: |
+          go test -v -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
+          2>&1 | tee ./testlog/gotest-unit.log
+
       # run the tests
       # - name: Unit Tests
       #   env:
