@@ -1638,3 +1638,23 @@ func (suite *ExchangeSelectorSuite) TestCategory_PathType() {
 		})
 	}
 }
+
+func (suite *ExchangeSelectorSuite) Test_MoreTest() {
+	t := suite.T()
+
+	tests := []struct {
+		name  string
+		path1 string
+		path2 string
+	}{
+		{
+			name:  "same linux normal path",
+			path1: "/path/to/dir",
+			path2: "/path/to/dir",
+		},
+	}
+
+	for _, test := range tests {
+		assert.Equal(t, test.path1, test.path2)
+	}
+}
