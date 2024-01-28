@@ -310,11 +310,13 @@ jobs:
 
           # Run the first test
           go test \
+            -tags testing\
             -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
           # Run the second test
           go test \
+            -tags testing \
             -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
