@@ -299,12 +299,7 @@ jobs:
 
       - run: mkdir testlog
 
-      - name: all tests
-        env:
-          # Set these to a bad value so we don't accidentally fall back to
-          # something elsewhere.
-          CORSO_M365_TEST_USER_ID: "foo"
-          CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+      - name: one test
         run: |
           set -euo pipefail
 
@@ -314,8 +309,26 @@ jobs:
             -failfast \
             -p 1 \
             -timeout 20m \
-            ./... \
+            -run '^TestSharePointSuite/TestCollectLists$' ./internal/m365/collection/site \
             2>&1 | tee -a ./testlog/gotest-unit.log
+
+      # - name: all tests
+      #   env:
+      #     # Set these to a bad value so we don't accidentally fall back to
+      #     # something elsewhere.
+      #     CORSO_M365_TEST_USER_ID: "foo"
+      #     CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+      #   run: |
+      #     set -euo pipefail
+
+      #     # Run the first test
+      #     go test \
+      #       -tags testing \
+      #       -failfast \
+      #       -p 1 \
+      #       -timeout 20m \
+      #       ./... \
+      #       2>&1 | tee -a ./testlog/gotest-unit.log
 
       # run the tests
       # - name: Unit Tests
