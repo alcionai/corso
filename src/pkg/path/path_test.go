@@ -746,28 +746,3 @@ func (suite *PathUnitSuite) Test_Stuff() {
 		assert.Equal(t, test.path1, test.path2)
 	}
 }
-
-func (suite *PathUnitSuite) Test_Stuff2() {
-	t := suite.T()
-
-	tests := []struct {
-		name  string
-		path1 string
-		path2 string
-	}{
-		{
-			name:  "same linux normal path",
-			path1: "/path/to/dir",
-			path2: "/path/to/dir",
-		},
-		{
-			name:  "test 2",
-			path1: "/path/to/dir",
-			path2: "/path/to/dir",
-		},
-	}
-
-	for _, test := range tests {
-		assert.Equal(t, test.path1, test.path2)
-	}
-}
