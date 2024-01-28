@@ -309,7 +309,43 @@ jobs:
             -failfast \
             -p 1 \
             -timeout 20m \
-            ./internal/m365/collection/site \
+            -run '^SharePointCollectionUnitSuite/' ./internal/m365/collection/site \
+            2>&1 | tee -a ./testlog/gotest-unit.log
+
+          # Run the second test
+          go test \
+            -tags testing \
+            -failfast \
+            -p 1 \
+            -timeout 20m \
+            -run '^TestExportUnitSuite/' ./internal/m365/collection/site \
+            2>&1 | tee -a ./testlog/gotest-unit.log
+
+          # Run the third test
+          go test \
+            -tags testing \
+            -failfast \
+            -p 1 \
+            -timeout 20m \
+            -run '^TestPagesUnitSuite/' ./internal/m365/collection/site \
+            2>&1 | tee -a ./testlog/gotest-unit.log
+
+          # Run the fourth test
+          go test \
+            -tags testing \
+            -failfast \
+            -p 1 \
+            -timeout 20m \
+            -run '^TestSharePointRestoreUnitSuite/' ./internal/m365/collection/site \
+            2>&1 | tee -a ./testlog/gotest-unit.log
+
+          # Run the fifth test
+          go test \
+            -tags testing \
+            -failfast \
+            -p 1 \
+            -timeout 20m \
+            -run '^TestSharePointBackupUnitSuite/' ./internal/m365/collection/site \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
       # - name: all tests
