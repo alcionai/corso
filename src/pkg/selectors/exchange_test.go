@@ -1652,6 +1652,11 @@ func (suite *ExchangeSelectorSuite) Test_MoreTest() {
 			path1: "/path/to/dir",
 			path2: "/path/to/dir",
 		},
+		{
+			name:  "same linux normal path",
+			path1: "/path/to/dir",
+			path2: "/path/to/dir",
+		},
 	}
 
 	for _, test := range tests {
