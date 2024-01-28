@@ -312,6 +312,7 @@ jobs:
           go test \
             -tags testing \
             -failfast \
+            -p 1 \
             -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
@@ -319,6 +320,7 @@ jobs:
           go test \
             -tags testing \
             -failfast \
+            -p 1 \
             -run '^TestRepositoryModelIntgSuite/Test_SomeMore$' ./pkg/repository \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
