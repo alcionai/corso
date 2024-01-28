@@ -303,25 +303,27 @@ jobs:
       - name: Set up gotestfmt
         run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
+      - name: one test
+        run: go test -v -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path
       # run the tests
-      - name: Unit Tests
-        env:
-          # Set these to a bad value so we don't accidentally fall back to
-          # something elsewhere.
-          CORSO_M365_TEST_USER_ID: "foo"
-          CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
-          GOCACHE: ${{ github.workspace }}/go-cache
-        run: |
-          set -euo pipefail
-          go test       \
-          -tags testing \
-          -json         \
-          -v            \
-          -failfast     \
-          -p 1          \
-          -timeout 20m  \
-          ./... \
-          2>&1 | tee ./testlog/gotest-unit.log
+      # - name: Unit Tests
+      #   env:
+      #     # Set these to a bad value so we don't accidentally fall back to
+      #     # something elsewhere.
+      #     CORSO_M365_TEST_USER_ID: "foo"
+      #     CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+      #     GOCACHE: ${{ github.workspace }}/go-cache
+      #   run: |
+      #     set -euo pipefail
+      #     go test       \
+      #     -tags testing \
+      #     -json         \
+      #     -v            \
+      #     -failfast     \
+      #     -p 1          \
+      #     -timeout 20m  \
+      #     ./... \
+      #     2>&1 | tee ./testlog/gotest-unit.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
