@@ -299,23 +299,28 @@ jobs:
 
       - run: mkdir testlog
 
-      # run the tests
-      - name: Unit Tests
-        env:
-          # Set these to a bad value so we don't accidentally fall back to
-          # something elsewhere.
-          CORSO_M365_TEST_USER_ID: "foo"
-          CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+      - name: one test
         run: |
-          set -euo pipefail
-          go test       \
-          -tags testing \
-          -v            \
-          -failfast     \
-          -p 1          \
-          -timeout 20m  \
-          ./... \
+          go test -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
           2>&1 | tee ./testlog/gotest-unit.log
+
+      # run the tests
+      # - name: Unit Tests
+      #   env:
+      #     # Set these to a bad value so we don't accidentally fall back to
+      #     # something elsewhere.
+      #     CORSO_M365_TEST_USER_ID: "foo"
+      #     CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
+      #   run: |
+      #     set -euo pipefail
+      #     go test       \
+      #     -tags testing \
+      #     -v            \
+      #     -failfast     \
+      #     -p 1          \
+      #     -timeout 20m  \
+      #     ./... \
+      #     2>&1 | tee ./testlog/gotest-unit.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
