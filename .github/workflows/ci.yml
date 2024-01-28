@@ -310,7 +310,7 @@ jobs:
 
           # Run the first test
           go test \
-            -tags testing\
+            -tags testing \
             -run '^TestPathUnitSuite/Test_Stuff$' ./pkg/path \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
