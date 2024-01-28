@@ -310,7 +310,6 @@ jobs:
           set -euo pipefail
           go test       \
           -tags testing \
-          -json         \
           -v            \
           -failfast     \
           -p 1          \
