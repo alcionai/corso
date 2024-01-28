@@ -735,11 +735,6 @@ func (suite *PathUnitSuite) Test_Stuff() {
 			path1: "/path/to/dir",
 			path2: "/path/to/dir",
 		},
-		{
-			name:  "test 2",
-			path1: "/path/to/dir",
-			path2: "/path/to/dir",
-		},
 	}
 
 	for _, test := range tests {
