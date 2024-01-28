@@ -309,7 +309,7 @@ jobs:
             -failfast \
             -p 1 \
             -timeout 20m \
-            -run '^TestSharePointSuite/' ./internal/m365/collection/site \
+            ./internal/m365/collection/site \
             2>&1 | tee -a ./testlog/gotest-unit.log
 
       # - name: all tests
