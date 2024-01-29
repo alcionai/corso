@@ -518,6 +518,20 @@ jobs:
             echo "Make sure to propagate errors with clues"
             exit 1
           fi
+      - name: Check if clues without context are used when context is passed in
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '((function_declaration (parameter_list . (parameter_declaration (identifier) @_octx)) body: (block (short_var_declaration left: (expression_list (identifier) @_err . ) right: (expression_list (call_expression (argument_list . (identifier) @_ctx)))) . (if_statement (binary_expression) @_exp consequence: (block (return_statement (expression_list (call_expression (selector_expression (call_expression (selector_expression) @clue)))  . )))))) (#eq? @_err "err") (#eq? @_octx "ctx") (#eq? @_ctx "ctx") (#eq? @_exp "err != nil") (#match? @clue "^clues\.") (#match? @clue "WC$"))' | grep .; then
+            echo "Do not use clues.*WC when context is passed in"
+            exit 1
+          fi
+      - name: Check clues with context is used when context is not passed in
+        run: |
+          # Using `grep .` as the exit codes are always true for correct grammar
+          if tree-grepper -q go '((function_declaration (parameter_list . (parameter_declaration (identifier) @_octx)) body: (block (short_var_declaration left: (expression_list (identifier) @_err . ) right: (expression_list (call_expression (argument_list . (identifier) @_ctx)))) . (if_statement (binary_expression) @_exp consequence: (block (return_statement (expression_list (call_expression (selector_expression (call_expression (selector_expression) @clue)))  . )))))) (#eq? @_err "err") (#eq? @_octx "ctx") (#not-eq? @_ctx "ctx") (#eq? @_exp "err != nil") (#match? @clue "^clues\.") (#not-match? @clue "WC$"))' | grep .; then
+            echo "Use clues.*WC when context is not passed in"
+            exit 1
+          fi
 
   # ----------------------------------------------------------------------------------------------------
   # --- GitHub Actions Linting -------------------------------------------------------------------------

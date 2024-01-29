@@ -15,6 +15,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/kopia/inject"
 	"github.com/alcionai/corso/src/internal/stats"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -62,10 +63,14 @@ func (ss *storeStreamer) Collect(ctx context.Context, col Collectable) error {
 }
 
 // Write persists the collected objects in the stream store
-func (ss *storeStreamer) Write(ctx context.Context, errs *fault.Bus) (string, error) {
+func (ss *storeStreamer) Write(
+	ctx context.Context,
+	reasons []identity.Reasoner,
+	errs *fault.Bus,
+) (string, error) {
 	ctx = clues.Add(ctx, "snapshot_type", "stream store")
 
-	id, err := write(ctx, ss.kw, ss.dbcs, errs)
+	id, err := write(ctx, ss.kw, reasons, ss.dbcs, errs)
 	if err != nil {
 		return "", clues.Wrap(err, "writing to stream store")
 	}
@@ -109,7 +114,7 @@ type Reader interface {
 }
 
 type Writer interface {
-	Write(context.Context, *fault.Bus) (string, error)
+	Write(context.Context, []identity.Reasoner, *fault.Bus) (string, error)
 }
 
 // Marshallers are used to convert structs into bytes to be persisted in the store.
@@ -203,6 +208,7 @@ func collect(
 func write(
 	ctx context.Context,
 	bup inject.BackupConsumer,
+	reasons []identity.Reasoner,
 	dbcs []data.BackupCollection,
 	errs *fault.Bus,
 ) (string, error) {
@@ -210,7 +216,7 @@ func write(
 
 	backupStats, _, _, err := bup.ConsumeBackupCollections(
 		ctx,
-		nil,
+		reasons,
 		nil,
 		dbcs,
 		prefixmatcher.NopReader[map[string]struct{}](),

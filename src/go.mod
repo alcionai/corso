@@ -2,11 +2,8 @@ module github.com/alcionai/corso/src
 
 go 1.21
 
-replace github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20231205231702-863c24d6f8b1
-
 replace (
-	// No tags in the alcion fork of the repo so use v7 as that's in the import path.
-	github.com/minio/minio-go/v7 => github.com/alcionai/minio-go/v7 v7.0.0-20231130221740-c745a3d084aa
+	github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20240116215733-ec3d100029fe
 
 	// Alcion fork removes the validation of email addresses as we might get incomplete email addresses
 	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a
@@ -14,13 +11,13 @@ replace (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
-	github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2
+	github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/fatih/color v1.16.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/h2non/gock v1.2.0
 	github.com/jaytaylor/html2text v0.0.0-20230321000545-74c2419ad056
 	github.com/jhillyerd/enmime v1.1.0
@@ -54,12 +51,13 @@ require (
 )
 
 require (
-	github.com/arran4/golang-ical v0.2.3
+	github.com/arran4/golang-ical v0.2.4
 	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
 	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
 )
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
@@ -90,7 +88,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231127180814-3a041ad873d4 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0 // indirect
 )
 
 require (
@@ -112,10 +110,10 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.3 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/klauspost/reedsolomon v1.11.8 // indirect
+	github.com/klauspost/reedsolomon v1.12.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -123,7 +121,7 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.0.64
+	github.com/minio/minio-go/v7 v7.0.66
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -131,7 +129,7 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.17.0 // indirect
+	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
@@ -139,7 +137,7 @@ require (
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/segmentio/backo-go v1.0.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
@@ -152,8 +150,8 @@ require (
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/grpc v1.59.0 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/grpc v1.60.1 // indirect
+	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

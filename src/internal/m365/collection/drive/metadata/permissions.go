@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -42,20 +43,32 @@ type Permission struct {
 
 // Equal checks equality of two UserPermission objects
 func (p Permission) Equals(other Permission) bool {
-	// EntityID can be empty for older backups and Email can be empty
-	// for newer ones. It is not possible for both to be empty.  Also,
-	// if EntityID/Email for one is not empty then the other will also
-	// have EntityID/Email as we backup permissions for all the
-	// parents and children when we have a change in permissions.
-	// We cannot just compare id because of the problem described in #3117
-	if len(p.EntityID) > 0 && p.EntityID != other.EntityID {
+	if p.EntityType != other.EntityType {
 		return false
 	}
 
-	if len(p.Email) > 0 && p.Email != other.Email {
+	// NOTE: v1 of permissions only contain emails, v2 only contains IDs.
+	// The current one will contain both ID and email.
+	if len(p.EntityID) > 0 && len(other.EntityID) > 0 &&
+		p.EntityID != other.EntityID {
 		return false
 	}
 
+	// In cases where we have shared an item with an external user,
+	// the user will not have an id
+	if len(p.EntityID) == 0 && len(other.EntityID) == 0 {
+		if len(p.Email) > 0 && len(other.Email) > 0 &&
+			p.Email != other.Email {
+			return false
+		}
+	}
+
+	// Possible that one is empty and the other is not
+	if p.EntityID != other.EntityID {
+		return false
+	}
+
+	// We cannot just compare id/email because of #3117
 	p1r := p.Roles
 	p2r := other.Roles
 
@@ -166,20 +179,20 @@ func FilterPermissions(ctx context.Context, perms []models.Permissionable) []Per
 		// https://devblogs.microsoft.com/microsoft365dev/controlling-app-access-on-specific-sharepoint-site-collections/
 		roles := p.GetRoles()
 
-		gv2t, entityID := getIdentityDetails(ctx, p.GetGrantedToV2())
-
-		// Technically GrantedToV2 can also contain devices, but the
-		// documentation does not mention about devices in permissions
-		if len(entityID) == 0 {
-			// This should ideally not be hit
+		ent, ok := getIdentityDetails(ctx, p.GetGrantedToV2())
+		if !ok {
+			// We log the inability to handle certain type of
+			// permissions within the getIdentityDetails function and so
+			// we just skip here
 			continue
 		}
 
 		up = append(up, Permission{
 			ID:         ptr.Val(p.GetId()),
 			Roles:      roles,
-			EntityID:   entityID,
-			EntityType: gv2t,
+			EntityID:   ent.ID,
+			Email:      ent.Email, // not necessary if we have ID, but useful for debugging
+			EntityType: ent.EntityType,
 			Expiration: p.GetExpirationDateTime(),
 		})
 	}
@@ -205,16 +218,12 @@ func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []Link
 		idens := []Entity{}
 
 		for _, g := range gv2 {
-			gv2t, entityID := getIdentityDetails(ctx, g)
-
-			// Technically GrantedToV2 can also contain devices, but the
-			// documentation does not mention about devices in permissions
-			if len(entityID) == 0 {
-				// This should ideally not be hit
+			ent, ok := getIdentityDetails(ctx, g)
+			if !ok {
 				continue
 			}
 
-			idens = append(idens, Entity{ID: entityID, EntityType: gv2t})
+			idens = append(idens, ent)
 		}
 
 		up = append(up, LinkShare{
@@ -235,34 +244,44 @@ func FilterLinkShares(ctx context.Context, perms []models.Permissionable) []Link
 	return up
 }
 
-func getIdentityDetails(ctx context.Context, gv2 models.SharePointIdentitySetable) (GV2Type, string) {
-	var (
-		gv2t     GV2Type
-		entityID string
-	)
-
-	switch true {
+func getIdentityDetails(ctx context.Context, gv2 models.SharePointIdentitySetable) (Entity, bool) {
+	switch {
 	case gv2.GetUser() != nil:
-		gv2t = GV2User
-		entityID = ptr.Val(gv2.GetUser().GetId())
+		add := gv2.GetUser().GetAdditionalData()
+		email, _ := str.AnyToString(add["email"]) // empty will be dropped automatically when writing
+
+		return Entity{
+			ID:         ptr.Val(gv2.GetUser().GetId()),
+			Email:      email,
+			EntityType: GV2User,
+		}, true
 	case gv2.GetSiteUser() != nil:
-		gv2t = GV2SiteUser
-		entityID = ptr.Val(gv2.GetSiteUser().GetId())
+		return Entity{
+			ID:         ptr.Val(gv2.GetSiteUser().GetId()),
+			EntityType: GV2SiteUser,
+		}, true
 	case gv2.GetGroup() != nil:
-		gv2t = GV2Group
-		entityID = ptr.Val(gv2.GetGroup().GetId())
+		return Entity{
+			ID:         ptr.Val(gv2.GetGroup().GetId()),
+			EntityType: GV2Group,
+		}, true
 	case gv2.GetSiteGroup() != nil:
-		gv2t = GV2SiteGroup
-		entityID = ptr.Val(gv2.GetSiteGroup().GetId())
+		return Entity{
+			ID:         ptr.Val(gv2.GetSiteGroup().GetId()),
+			EntityType: GV2SiteGroup,
+		}, true
 	case gv2.GetApplication() != nil:
-		gv2t = GV2App
-		entityID = ptr.Val(gv2.GetApplication().GetId())
+		return Entity{
+			ID:         ptr.Val(gv2.GetApplication().GetId()),
+			EntityType: GV2App,
+		}, true
 	case gv2.GetDevice() != nil:
-		gv2t = GV2Device
-		entityID = ptr.Val(gv2.GetDevice().GetId())
+		return Entity{
+			ID:         ptr.Val(gv2.GetDevice().GetId()),
+			EntityType: GV2Device,
+		}, true
 	default:
 		logger.Ctx(ctx).Info("untracked permission")
+		return Entity{}, false
 	}
-
-	return gv2t, entityID
 }

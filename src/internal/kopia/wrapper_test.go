@@ -3,6 +3,7 @@ package kopia
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	stdpath "path"
 	"strings"
@@ -26,7 +27,6 @@ import (
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -37,6 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -197,7 +198,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_FirstRun_NoChanges() {
 		Type:   repository.MetadataMaintenance,
 	}
 
-	err = w.RepoMaintenance(ctx, nil, opts)
+	err = w.RepoMaintenance(ctx, nil, opts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -219,7 +220,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -235,7 +236,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_NoForce_Fails
 
 	var notOwnedErr maintenance.NotOwnedError
 
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	assert.ErrorAs(t, err, &notOwnedErr, clues.ToCore(err))
 }
 
@@ -257,7 +258,7 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	}
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	err = k.Close(ctx)
@@ -274,13 +275,13 @@ func (suite *BasicKopiaIntegrationSuite) TestMaintenance_WrongUser_Force_Succeed
 	mOpts.Force = true
 
 	// This will set the user.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	mOpts.Force = false
 
 	// Running without force should succeed now.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -373,6 +374,146 @@ func (suite *BasicKopiaIntegrationSuite) TestUpdatePersistentConfig() {
 		t,
 		ptr.Val(config.MinEpochDuration),
 		mutableParams.EpochParameters.MinEpochDuration)
+}
+
+func (suite *BasicKopiaIntegrationSuite) TestConsumeBackupCollections_SetsSourceInfo() {
+	table := []struct {
+		name        string
+		reasons     []identity.Reasoner
+		expectError assert.ErrorAssertionFunc
+		expectUser  string
+		expectHost  string
+	}{
+		{
+			name: "DifferentDataTypesInService",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-" + testUser,
+			expectHost: path.ExchangeService.String() +
+				path.ContactsCategory.String() + "-" + path.ExchangeService.String() +
+				path.EmailCategory.String(),
+		},
+		{
+			name: "DifferentServices",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.OneDriveService, path.FilesCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-" + testUser,
+			expectHost: path.ExchangeService.String() +
+				path.EmailCategory.String() + "-" + path.OneDriveService.String() +
+				path.FilesCategory.String(),
+		},
+		{
+			name: "EmptyTenant",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  "-" + testUser,
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyResource",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.NoError,
+			expectUser:  testTenant + "-",
+			expectHost:  path.ExchangeService.String() + path.EmailCategory.String(),
+		},
+		{
+			name: "EmptyTenantAndResource Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", "", path.ExchangeService, path.EmailCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "EmptyAndPopulatedTenant Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason("", testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "DifferentTenants Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant+"1", testUser, path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+		{
+			name: "DifferentResources Errors",
+			reasons: []identity.Reasoner{
+				identity.NewReason(testTenant, testUser+"1", path.ExchangeService, path.EmailCategory),
+				identity.NewReason(testTenant, testUser, path.ExchangeService, path.ContactsCategory),
+			},
+			expectError: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			var cols []data.BackupCollection
+
+			for i, reason := range test.reasons {
+				colPath, err := path.Build(
+					testTenant,
+					testUser,
+					reason.Service(),
+					reason.Category(),
+					false,
+					fmt.Sprintf("%d", i))
+				require.NoError(t, err, clues.ToCore(err))
+
+				cols = append(cols, exchMock.NewCollection(colPath, colPath, 0))
+			}
+
+			c, err := openLocalKopiaRepo(t, ctx)
+			require.NoError(t, err, clues.ToCore(err))
+
+			wrapper := &Wrapper{c}
+
+			defer wrapper.Close(ctx)
+
+			stats, _, _, err := wrapper.ConsumeBackupCollections(
+				ctx,
+				test.reasons,
+				nil,
+				cols,
+				nil,
+				nil,
+				true,
+				count.New(),
+				fault.New(true))
+			test.expectError(t, err, clues.ToCore(err))
+
+			if err != nil {
+				return
+			}
+
+			snap, err := snapshot.LoadSnapshot(
+				ctx,
+				wrapper.c,
+				manifest.ID(stats.SnapshotID))
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.expectHost, snap.Source.Host, "source host")
+			assert.Equal(t, test.expectUser, snap.Source.UserName, "source user")
+		})
+	}
 }
 
 // ---------------
@@ -592,7 +733,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 	// This will set common maintenance config parameters. There's some interplay
 	// between the maintenance schedule and retention period that we want to check
 	// below.
-	err = w.RepoMaintenance(ctx, nil, mOpts)
+	err = w.RepoMaintenance(ctx, nil, mOpts, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 
 	// Enable retention.
@@ -697,7 +838,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 			// This will set common maintenance config parameters. There's some interplay
 			// between the maintenance schedule and retention period that we want to check
 			// below.
-			err = w.RepoMaintenance(ctx, ms, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Enable retention.
@@ -741,7 +882,7 @@ func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunM
 
 			// Run full maintenance again. This should extend object locks for things if
 			// they exist.
-			err = w.RepoMaintenance(ctx, ms, mOpts)
+			err = w.RepoMaintenance(ctx, ms, mOpts, fault.New(true))
 			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
@@ -1009,6 +1150,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				suite.w.c,
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Contains(t, snap.Pins, defaultCorsoPin)
 
 			man = snap
 		})

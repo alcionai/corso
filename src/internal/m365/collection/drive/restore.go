@@ -17,7 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/internal/operations/inject"
@@ -31,6 +31,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	"github.com/alcionai/corso/src/pkg/services/m365/custom"
 )
 
@@ -552,7 +553,7 @@ func CreateRestoreFolders(
 	drivePath *path.DrivePath,
 	restoreDir *path.Builder,
 	folderPath path.Path,
-	folderMetadata metadata.Metadata,
+	folderMetadata odmetadata.Metadata,
 	caches *restoreCaches,
 	restorePerms bool,
 	errs *fault.Bus,
@@ -876,12 +877,12 @@ func FetchAndReadMetadata(
 	ctx context.Context,
 	fibn data.FetchItemByNamer,
 	metaName string,
-) (metadata.Metadata, error) {
+) (odmetadata.Metadata, error) {
 	ctx = clues.Add(ctx, "meta_file_name", metaName)
 
 	metaFile, err := fibn.FetchItemByName(ctx, metaName)
 	if err != nil {
-		return metadata.Metadata{}, clues.Wrap(err, "getting item metadata")
+		return odmetadata.Metadata{}, clues.Wrap(err, "getting item metadata")
 	}
 
 	metaReader := metaFile.ToReader()
@@ -889,25 +890,25 @@ func FetchAndReadMetadata(
 
 	meta, err := getMetadata(metaReader)
 	if err != nil {
-		return metadata.Metadata{}, clues.Wrap(err, "deserializing item metadata")
+		return odmetadata.Metadata{}, clues.Wrap(err, "deserializing item metadata")
 	}
 
 	return meta, nil
 }
 
 // getMetadata read and parses the metadata info for an item
-func getMetadata(metar io.ReadCloser) (metadata.Metadata, error) {
-	var meta metadata.Metadata
+func getMetadata(metar io.ReadCloser) (odmetadata.Metadata, error) {
+	var meta odmetadata.Metadata
 	// `metar` will be nil for the top level container folder
 	if metar != nil {
 		metaraw, err := io.ReadAll(metar)
 		if err != nil {
-			return metadata.Metadata{}, err
+			return odmetadata.Metadata{}, err
 		}
 
 		err = json.Unmarshal(metaraw, &meta)
 		if err != nil {
-			return metadata.Metadata{}, err
+			return odmetadata.Metadata{}, err
 		}
 	}
 

@@ -40,8 +40,7 @@ func testGetPostByID(
 			suite.its.group.id,
 			ptr.Val(conv.GetId()),
 			ptr.Val(thread.GetId()),
-			ptr.Val(post.GetId()),
-			CallConfig{})
+			ptr.Val(post.GetId()))
 		require.NoError(t, err, clues.ToCore(err))
 		require.Equal(t, ptr.Val(post.GetId()), ptr.Val(resp.GetId()))
 	})
@@ -135,118 +134,126 @@ func (suite *ConversationAPIIntgSuite) SetupSuite() {
 	suite.its = newIntegrationTesterSetup(suite.T())
 }
 
-func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload() {
+func (suite *ConversationAPIIntgSuite) TestGetConversationPost() {
 	pid := "fake-post-id"
+	replyToID := "fake-reply-to-id"
 	aid := "fake-attachment-id"
 	contentWithAttachment := "<html><body><img src=\"cid:fake-attach-id\"/></body></html>"
 
+	interceptPathWithExpand := func(
+		item *models.Post,
+		expandProperty string,
+		path ...string,
+	) *gock.Response {
+		return interceptV1Path(
+			"groups",
+			"group",
+			"conversations",
+			"conv",
+			"threads",
+			"thread",
+			"posts",
+			pid).
+			MatchParam("$expand", expandProperty).
+			Reply(200).
+			JSON(graphTD.ParseableToMap(suite.T(), item))
+	}
+
 	tests := []struct {
-		name            string
-		setupf          func()
-		attachmentCount int
-		size            int64
-		expect          assert.ErrorAssertionFunc
+		name             string
+		setupf           func()
+		attachmentCount  int
+		inReplyToPresent bool
+		size             int64
+		expect           assert.ErrorAssertionFunc
 	}{
 		{
-			name: "no attachments",
+			name: "no inReplyTo, no attachment",
 			setupf: func() {
-				itm := models.NewPost()
-				itm.SetId(&pid)
+				item := models.NewPost()
+				item.SetId(&pid)
 
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "inReplyTo")
 			},
 			expect: assert.NoError,
 		},
 		{
-			name: "fetch with attachment",
+			name: "with inReplyTo, no attachment",
 			setupf: func() {
-				itm := models.NewPost()
-				itm.SetId(&pid)
-				itm.SetHasAttachments(ptr.To(true))
+				item := models.NewPost()
+				parentPost := models.NewPost()
 
-				// First call to get the post will not expand attachments.
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				item.SetId(&pid)
+				parentPost.SetId(&replyToID)
+				item.SetInReplyTo(parentPost)
+
+				interceptPathWithExpand(item, "inReplyTo")
+			},
+			inReplyToPresent: true,
+			expect:           assert.NoError,
+		},
+		{
+			name: "no inreplyTo, with attachment",
+			setupf: func() {
+				item := models.NewPost()
+				item.SetId(&pid)
+				item.SetHasAttachments(ptr.To(true))
+
+				interceptPathWithExpand(item, "inReplyTo")
 
 				attch := models.NewAttachment()
 				attch.SetSize(ptr.To[int32](50))
+				item.SetAttachments([]models.Attachmentable{attch})
 
-				itm.SetAttachments([]models.Attachmentable{attch})
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					MatchParam("$expand", "attachments").
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "attachments")
 			},
 			attachmentCount: 1,
 			size:            50,
 			expect:          assert.NoError,
 		},
 		{
-			name: "fetch multiple individual attachments",
+			name: "with inreplyTo, with attachment",
 			setupf: func() {
-				itm := models.NewPost()
+				item := models.NewPost()
+				parentPost := models.NewPost()
 
-				itm.SetId(&pid)
-				itm.SetHasAttachments(ptr.To(true))
+				item.SetId(&pid)
+				parentPost.SetId(&replyToID)
+				item.SetInReplyTo(parentPost)
+				item.SetHasAttachments(ptr.To(true))
 
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "inReplyTo")
+
+				attch := models.NewAttachment()
+				attch.SetSize(ptr.To[int32](50))
+				item.SetAttachments([]models.Attachmentable{attch})
+
+				interceptPathWithExpand(item, "attachments")
+			},
+			inReplyToPresent: true,
+			attachmentCount:  1,
+			size:             50,
+			expect:           assert.NoError,
+		},
+		// At this point we have tested inReplyTo behavior thoroughly.
+		// Skip for remaining tests.
+		{
+			name: "fetch multiple attachments",
+			setupf: func() {
+				item := models.NewPost()
+
+				item.SetId(&pid)
+				item.SetHasAttachments(ptr.To(true))
+
+				interceptPathWithExpand(item, "inReplyTo")
 
 				attch := models.NewAttachment()
 				attch.SetId(&aid)
 				attch.SetSize(ptr.To[int32](200))
 
-				itm.SetAttachments([]models.Attachmentable{attch, attch, attch, attch, attch})
+				item.SetAttachments([]models.Attachmentable{attch, attch, attch, attch, attch})
 
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					MatchParam("$expand", "attachments").
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "attachments")
 			},
 			attachmentCount: 5,
 			size:            1000,
@@ -255,46 +262,21 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 		{
 			name: "embedded attachment",
 			setupf: func() {
-				itm := models.NewPost()
-				itm.SetId(&pid)
+				item := models.NewPost()
+				item.SetId(&pid)
 
 				body := models.NewItemBody()
 				body.SetContentType(ptr.To(models.HTML_BODYTYPE))
-
-				// Test html content with embedded attachment.
-
 				body.SetContent(ptr.To(contentWithAttachment))
+				item.SetBody(body)
 
-				itm.SetBody(body)
-
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "inReplyTo")
 
 				attch := models.NewAttachment()
 				attch.SetSize(ptr.To[int32](50))
-				itm.SetAttachments([]models.Attachmentable{attch})
+				item.SetAttachments([]models.Attachmentable{attch})
 
-				interceptV1Path(
-					"groups",
-					"group",
-					"conversations",
-					"conv",
-					"threads",
-					"thread",
-					"posts",
-					pid).
-					MatchParam("$expand", "attachments").
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), itm))
+				interceptPathWithExpand(item, "attachments")
 			},
 			attachmentCount: 1,
 			size:            50 + int64(len(contentWithAttachment)),
@@ -319,9 +301,14 @@ func (suite *ConversationAPIIntgSuite) TestConversations_attachmentListDownload(
 					"group",
 					"conv",
 					"thread",
-					pid,
-					CallConfig{})
+					pid)
 			test.expect(t, err)
+
+			// inReplyTo checks
+			if test.inReplyToPresent {
+				require.NotNil(t, item.GetInReplyTo())
+				assert.Equal(t, replyToID, ptr.Val(item.GetInReplyTo().GetId()))
+			}
 
 			var size int64
 

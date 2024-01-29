@@ -78,7 +78,7 @@ func (op *MaintenanceOperation) do(ctx context.Context) error {
 		op.Results.CompletedAt = time.Now()
 	}()
 
-	err := op.operation.kopia.RepoMaintenance(ctx, op.store, op.mOpts)
+	err := op.operation.kopia.RepoMaintenance(ctx, op.store, op.mOpts, op.Errors)
 	if err != nil {
 		op.Status = Failed
 		return clues.Wrap(err, "running maintenance operation")
