@@ -133,7 +133,7 @@ func Pretty(ctx context.Context, a any) {
 		return
 	}
 
-	printPrettyJSON(getRootCmd(ctx).ErrOrStderr(), a)
+	printPrettyJSON(ctx, getRootCmd(ctx).ErrOrStderr(), a)
 }
 
 // PrettyJSON prettifies and prints the value.
@@ -143,7 +143,7 @@ func PrettyJSON(ctx context.Context, p minimumPrintabler) {
 		return
 	}
 
-	outputJSON(getRootCmd(ctx).ErrOrStderr(), p, outputAsJSONDebug)
+	outputJSON(ctx, getRootCmd(ctx).ErrOrStderr(), p, outputAsJSONDebug)
 }
 
 // out is the testable core of exported print funcs
@@ -193,56 +193,56 @@ type minimumPrintabler interface {
 
 // Item prints the printable, according to the caller's requested format.
 func Item(ctx context.Context, p Printable) {
-	printItem(getRootCmd(ctx).OutOrStdout(), p)
+	printItem(ctx, getRootCmd(ctx).OutOrStdout(), p)
 }
 
 // print prints the printable items,
 // according to the caller's requested format.
-func printItem(w io.Writer, p Printable) {
+func printItem(ctx context.Context, w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
-		outputJSON(w, p, outputAsJSONDebug)
+		outputJSON(ctx, w, p, outputAsJSONDebug)
 		return
 	}
 
-	outputTable(w, []Printable{p})
+	outputTable(ctx, w, []Printable{p})
 }
 
 // ItemProperties prints the printable either as in a single line or a json
 // The difference between this and Item is that this one does not print the ID
 func ItemProperties(ctx context.Context, p Printable) {
-	printItemProperties(getRootCmd(ctx).OutOrStdout(), p)
+	printItemProperties(ctx, getRootCmd(ctx).OutOrStdout(), p)
 }
 
 // print prints the printable items,
 // according to the caller's requested format.
-func printItemProperties(w io.Writer, p Printable) {
+func printItemProperties(ctx context.Context, w io.Writer, p Printable) {
 	if outputAsJSON || outputAsJSONDebug {
-		outputJSON(w, p, outputAsJSONDebug)
+		outputJSON(ctx, w, p, outputAsJSONDebug)
 		return
 	}
 
-	outputOneLine(w, []Printable{p})
+	outputOneLine(ctx, w, []Printable{p})
 }
 
 // All prints the slice of printable items,
 // according to the caller's requested format.
 func All(ctx context.Context, ps ...Printable) {
-	printAll(getRootCmd(ctx).OutOrStdout(), ps)
+	printAll(ctx, getRootCmd(ctx).OutOrStdout(), ps)
 }
 
 // printAll prints the slice of printable items,
 // according to the caller's requested format.
-func printAll(w io.Writer, ps []Printable) {
+func printAll(ctx context.Context, w io.Writer, ps []Printable) {
 	if len(ps) == 0 {
 		return
 	}
 
 	if outputAsJSON || outputAsJSONDebug {
-		outputJSONArr(w, ps, outputAsJSONDebug)
+		outputJSONArr(ctx, w, ps, outputAsJSONDebug)
 		return
 	}
 
-	outputTable(w, ps)
+	outputTable(ctx, w, ps)
 }
 
 // ------------------------------------------------------------------------------------------
@@ -252,11 +252,11 @@ func printAll(w io.Writer, ps []Printable) {
 // Table writes the printables in a tabular format.  Takes headers from
 // the 0th printable only.
 func Table(ctx context.Context, ps []Printable) {
-	outputTable(getRootCmd(ctx).OutOrStdout(), ps)
+	outputTable(ctx, getRootCmd(ctx).OutOrStdout(), ps)
 }
 
 // output to stdout the list of printable structs in a table
-func outputTable(w io.Writer, ps []Printable) {
+func outputTable(ctx context.Context, w io.Writer, ps []Printable) {
 	t := table.Table{
 		Headers: ps[0].Headers(false),
 		Rows:    [][]string{},
@@ -265,6 +265,9 @@ func outputTable(w io.Writer, ps []Printable) {
 	for _, p := range ps {
 		t.Rows = append(t.Rows, p.Values(false))
 	}
+
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
 
 	_ = t.WriteTable(
 		w,
@@ -279,20 +282,20 @@ func outputTable(w io.Writer, ps []Printable) {
 // JSON
 // ------------------------------------------------------------------------------------------
 
-func outputJSON(w io.Writer, p minimumPrintabler, debug bool) {
+func outputJSON(ctx context.Context, w io.Writer, p minimumPrintabler, debug bool) {
 	if debug {
-		printJSON(w, p)
+		printJSON(ctx, w, p)
 		return
 	}
 
 	if debug {
-		printJSON(w, p)
+		printJSON(ctx, w, p)
 	} else {
-		printJSON(w, p.MinimumPrintable())
+		printJSON(ctx, w, p.MinimumPrintable())
 	}
 }
 
-func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
+func outputJSONArr(ctx context.Context, w io.Writer, ps []Printable, debug bool) {
 	sl := make([]any, 0, len(ps))
 
 	for _, p := range ps {
@@ -303,11 +306,14 @@ func outputJSONArr(w io.Writer, ps []Printable, debug bool) {
 		}
 	}
 
-	printJSON(w, sl)
+	printJSON(ctx, w, sl)
 }
 
 // output to stdout the list of printable structs as json.
-func printJSON(w io.Writer, a any) {
+func printJSON(ctx context.Context, w io.Writer, a any) {
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
+
 	bs, err := json.Marshal(a)
 	if err != nil {
 		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
@@ -318,7 +324,10 @@ func printJSON(w io.Writer, a any) {
 }
 
 // output to stdout the list of printable structs as prettified json.
-func printPrettyJSON(w io.Writer, a any) {
+func printPrettyJSON(ctx context.Context, w io.Writer, a any) {
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
+
 	bs, err := json.MarshalIndent(a, "", "  ")
 	if err != nil {
 		fmt.Fprintf(w, "error formatting results to json: %v\n", err)
@@ -334,7 +343,10 @@ func printPrettyJSON(w io.Writer, a any) {
 
 // Output in the following format:
 // Bytes Uploaded: 401 kB | Items Uploaded: 59 | Items Skipped: 0 | Errors: 0
-func outputOneLine(w io.Writer, ps []Printable) {
+func outputOneLine(ctx context.Context, w io.Writer, ps []Printable) {
+	// observe bars needs to be flushed before printing
+	observe.Flush(ctx)
+
 	headers := ps[0].Headers(true)
 	rows := [][]string{}
 

@@ -17,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
 
@@ -527,7 +528,6 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	// ATTACH - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.1
-	// TODO Handle different attachment types (file, item and reference)
 	attachments := event.GetAttachments()
 	for _, attachment := range attachments {
 		props := []ics.PropertyParameter{}
@@ -546,6 +546,17 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		cb, err := attachment.GetBackingStore().Get("contentBytes")
 		if err != nil {
 			return clues.WrapWC(ctx, err, "getting attachment content")
+		}
+
+		if cb == nil {
+			// TODO(meain): Handle non file attachments
+			// https://github.com/alcionai/corso/issues/4772
+			logger.Ctx(ctx).
+				With("attachment_id", ptr.Val(attachment.GetId()),
+					"attachment_type", ptr.Val(attachment.GetOdataType())).
+				Info("no contentBytes for attachment")
+
+			continue
 		}
 
 		content, ok := cb.([]uint8)

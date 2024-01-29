@@ -18,7 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
 	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odStub "github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -29,6 +29,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 func testElementsMatch[T any](
@@ -693,7 +694,7 @@ func compareExchangeEvent(
 	checkEvent(t, expectedEvent, itemEvent)
 }
 
-func permissionEqual(expected metadata.Permission, got metadata.Permission) bool {
+func permissionEqual(expected odmetadata.Permission, got odmetadata.Permission) bool {
 	if !strings.EqualFold(expected.Email, got.Email) {
 		return false
 	}
@@ -722,7 +723,7 @@ func permissionEqual(expected metadata.Permission, got metadata.Permission) bool
 	return true
 }
 
-func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
+func linkSharesEqual(expected odmetadata.LinkShare, got odmetadata.LinkShare) bool {
 	if !strings.EqualFold(expected.Link.Scope, got.Link.Scope) {
 		return false
 	}
@@ -731,8 +732,22 @@ func linkSharesEqual(expected metadata.LinkShare, got metadata.LinkShare) bool {
 		return false
 	}
 
-	if !slices.Equal(expected.Entities, got.Entities) {
+	if len(expected.Entities) != len(got.Entities) {
 		return false
+	}
+
+	for i, e := range expected.Entities {
+		if !strings.EqualFold(e.ID, got.Entities[i].ID) {
+			return false
+		}
+
+		if !strings.EqualFold(e.Email, got.Entities[i].Email) {
+			return false
+		}
+
+		if e.EntityType != got.Entities[i].EntityType {
+			return false
+		}
 	}
 
 	if (expected.Expiration == nil && got.Expiration != nil) ||
@@ -801,8 +816,8 @@ func compareDriveItem(
 
 	if isMeta {
 		var (
-			itemMeta     metadata.Metadata
-			expectedMeta metadata.Metadata
+			itemMeta     odmetadata.Metadata
+			expectedMeta odmetadata.Metadata
 		)
 
 		err = json.Unmarshal(buf, &itemMeta)
@@ -845,7 +860,7 @@ func compareDriveItem(
 		assert.Equal(t, expectedMeta.SharingMode, itemMeta.SharingMode, "sharing mode")
 
 		// We cannot restore owner permissions, so skip checking them
-		itemPerms := []metadata.Permission{}
+		itemPerms := []odmetadata.Permission{}
 
 		for _, p := range itemMeta.Permissions {
 			if p.Roles[0] != "owner" {

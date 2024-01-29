@@ -27,7 +27,6 @@ import (
 	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
 	"github.com/alcionai/corso/src/internal/data"
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	istats "github.com/alcionai/corso/src/internal/stats"
 	"github.com/alcionai/corso/src/internal/tester"
@@ -38,6 +37,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 )
 
@@ -1150,6 +1150,8 @@ func (suite *KopiaIntegrationSuite) TestBackupCollections() {
 				suite.w.c,
 				manifest.ID(stats.SnapshotID))
 			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Contains(t, snap.Pins, defaultCorsoPin)
 
 			man = snap
 		})

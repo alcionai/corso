@@ -18,6 +18,7 @@ const (
 	ListModifiedBeforeFN = "list-modified-before"
 	ListCreatedAfterFN   = "list-created-after"
 	ListCreatedBeforeFN  = "list-created-before"
+	AllowListsRestoreFN  = "allow-lists-restore"
 
 	PageFolderFN = "page-folder"
 	PageFN       = "page"
@@ -34,6 +35,7 @@ var (
 	ListModifiedBeforeFV string
 	ListCreatedAfterFV   string
 	ListCreatedBeforeFV  string
+	AllowListsRestoreFV  bool
 
 	PageFolderFV []string
 	PageFV       []string
@@ -99,6 +101,11 @@ func AddSharePointDetailsAndRestoreFlags(cmd *cobra.Command) {
 		&ListCreatedBeforeFV,
 		ListCreatedBeforeFN, "",
 		"Select lists created before this datetime.")
+	fs.BoolVar(
+		&AllowListsRestoreFV,
+		AllowListsRestoreFN, false,
+		"enables lists restore if provided")
+	cobra.CheckErr(fs.MarkHidden(AllowListsRestoreFN))
 
 	// pages
 
