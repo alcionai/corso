@@ -577,6 +577,19 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 			},
 		},
 		{
+			name: "not cancelled event",
+			event: func() *models.Event {
+				e := baseEvent()
+
+				e.SetIsCancelled(ptr.To(false))
+
+				return e
+			},
+			check: func(out string) {
+				assert.NotContains(t, out, "STATUS:CANCELLED", "cancelled status")
+			},
+		},
+		{
 			name: "text body",
 			event: func() *models.Event {
 				e := baseEvent()
