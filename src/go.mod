@@ -11,7 +11,7 @@ replace (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
-	github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2
+	github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-xray-sdk-go v1.8.3
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -51,7 +51,7 @@ require (
 )
 
 require (
-	github.com/arran4/golang-ical v0.2.3
+	github.com/arran4/golang-ical v0.2.4
 	github.com/emersion/go-vcard v0.0.0-20230815062825-8fda7d206ec9
 	jaytaylor.com/html2text v0.0.0-20230321000545-74c2419ad056
 )
