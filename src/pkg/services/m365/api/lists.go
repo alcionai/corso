@@ -620,7 +620,7 @@ func specifyODataType(filteredData map[string]any, colDetails *columnDetails, co
 	}
 
 	switch {
-	case colDetails.isPersonColumn || colDetails.isLookupColumn:
+	case colDetails.isPersonColumn, colDetails.isLookupColumn:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameIntVal
 	default:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
