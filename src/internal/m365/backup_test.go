@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange"
@@ -19,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
@@ -36,10 +36,7 @@ import (
 
 type DataCollectionIntgSuite struct {
 	tester.Suite
-	user     string
-	site     string
-	tenantID string
-	ac       api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestDataCollectionIntgSuite(t *testing.T) {
@@ -51,29 +48,14 @@ func TestDataCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *DataCollectionIntgSuite) SetupSuite() {
-	t := suite.T()
-
-	suite.user = tconfig.M365UserID(t)
-	suite.site = tconfig.M365SiteID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	selUsers := []string{suite.user}
+	selUsers := []string{suite.m365.User.ID}
 
 	ctrl := newController(ctx, suite.T(), path.ExchangeService)
 	tests := []struct {
@@ -85,7 +67,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.user
+				sel.DiscreteOwner = suite.m365.User.ID
 				return sel.Selector
 			},
 		},
@@ -94,7 +76,7 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 			getSelector: func(t *testing.T) selectors.Selector {
 				sel := selectors.NewExchangeBackup(selUsers)
 				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.user
+				sel.DiscreteOwner = suite.m365.User.ID
 				return sel.Selector
 			},
 		},
@@ -142,8 +124,8 @@ func (suite *DataCollectionIntgSuite) TestExchangeDataCollection() {
 				collections, excludes, canUsePreviousBackup, err := exchange.NewBackup().ProduceBackupCollections(
 					ctx,
 					bpc,
-					suite.ac,
-					suite.ac.Credentials,
+					suite.m365.AC,
+					suite.m365.Creds,
 					ctrl.UpdateStatus,
 					count.New(),
 					fault.New(true))
@@ -270,7 +252,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 	ctx, flush := tester.NewContext(suite.T())
 	defer flush()
 
-	selSites := []string{suite.site}
+	selSites := []string{suite.m365.Site.ID}
 	ctrl := newController(ctx, suite.T(), path.SharePointService)
 	tests := []struct {
 		name        string
@@ -312,7 +294,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 			collections, excludes, canUsePreviousBackup, err := sharepoint.NewBackup().ProduceBackupCollections(
 				ctx,
 				bpc,
-				suite.ac,
+				suite.m365.AC,
 				ctrl.credentials,
 				ctrl.UpdateStatus,
 				count.New(),
@@ -352,7 +334,7 @@ func (suite *DataCollectionIntgSuite) TestSharePointDataCollection() {
 type SPCollectionIntgSuite struct {
 	tester.Suite
 	connector *Controller
-	user      string
+	m365      its.M365IntgTestSetup
 }
 
 func TestSPCollectionIntgSuite(t *testing.T) {
@@ -364,13 +346,13 @@ func TestSPCollectionIntgSuite(t *testing.T) {
 }
 
 func (suite *SPCollectionIntgSuite) SetupSuite() {
-	ctx, flush := tester.NewContext(suite.T())
+	t := suite.T()
+	suite.m365 = its.GetM365(t)
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.connector = newController(ctx, suite.T(), path.SharePointService)
-	suite.user = tconfig.M365UserID(suite.T())
-
-	tester.LogTimeOfTest(suite.T())
+	suite.connector = newController(ctx, t, path.SharePointService)
 }
 
 func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
@@ -380,23 +362,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Libraries() {
 	defer flush()
 
 	var (
-		siteID  = tconfig.M365SiteID(t)
 		ctrl    = newController(ctx, t, path.SharePointService)
-		siteIDs = []string{siteID}
+		siteIDs = []string{suite.m365.Site.ID}
 	)
-
-	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
-	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.LibraryFolders([]string{"foo"}, selectors.PrefixMatch()))
-
-	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
+	sel.SetDiscreteOwnerIDName(suite.m365.Site.ID, suite.m365.Site.WebURL)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: site,
+		ProtectedResource: suite.m365.Site.Provider,
 		Selector:          sel.Selector,
 	}
 
@@ -431,23 +408,18 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 	defer flush()
 
 	var (
-		siteID  = tconfig.M365SiteID(t)
 		ctrl    = newController(ctx, t, path.SharePointService)
-		siteIDs = []string{siteID}
+		siteIDs = []string{suite.m365.Site.ID}
 	)
-
-	site, err := ctrl.PopulateProtectedResourceIDAndName(ctx, siteID, nil)
-	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewSharePointBackup(siteIDs)
 	sel.Include(sel.Lists(selectors.Any()))
-
-	sel.SetDiscreteOwnerIDName(site.ID(), site.Name())
+	sel.SetDiscreteOwnerIDName(suite.m365.Site.ID, suite.m365.Site.WebURL)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: site,
+		ProtectedResource: suite.m365.Site.Provider,
 		Selector:          sel.Selector,
 	}
 
@@ -483,8 +455,7 @@ func (suite *SPCollectionIntgSuite) TestCreateSharePointCollection_Lists() {
 type GroupsCollectionIntgSuite struct {
 	tester.Suite
 	connector *Controller
-	tenantID  string
-	user      string
+	m365      its.M365IntgTestSetup
 }
 
 func TestGroupsCollectionIntgSuite(t *testing.T) {
@@ -497,20 +468,12 @@ func TestGroupsCollectionIntgSuite(t *testing.T) {
 
 func (suite *GroupsCollectionIntgSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	suite.connector = newController(ctx, t, path.GroupsService)
-	suite.user = tconfig.M365UserID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
-
-	tester.LogTimeOfTest(t)
 }
 
 func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() {
@@ -520,23 +483,18 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	defer flush()
 
 	var (
-		groupID  = tconfig.M365TeamID(t)
 		ctrl     = newController(ctx, t, path.GroupsService)
-		groupIDs = []string{groupID}
+		groupIDs = []string{suite.m365.Group.ID}
 	)
-
-	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
-	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
-
-	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
+	sel.SetDiscreteOwnerIDName(suite.m365.Group.ID, suite.m365.Group.DisplayName)
 
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: group,
+		ProtectedResource: suite.m365.Group.Provider,
 		Selector:          sel.Selector,
 	}
 
@@ -555,8 +513,8 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint() 
 	assert.Greater(t, len(collections), 1)
 
 	p, err := path.BuildMetadata(
-		suite.tenantID,
-		groupID,
+		suite.m365.TenantID,
+		suite.m365.Group.ID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		false)
@@ -595,30 +553,22 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	defer flush()
 
 	var (
-		groupID  = tconfig.M365TeamID(t)
 		ctrl     = newController(ctx, t, path.GroupsService)
-		groupIDs = []string{groupID}
+		groupIDs = []string{suite.m365.Group.ID}
 	)
-
-	group, err := ctrl.PopulateProtectedResourceIDAndName(ctx, groupID, nil)
-	require.NoError(t, err, clues.ToCore(err))
 
 	sel := selectors.NewGroupsBackup(groupIDs)
 	sel.Include(sel.LibraryFolders([]string{"test"}, selectors.PrefixMatch()))
-
-	sel.SetDiscreteOwnerIDName(group.ID(), group.Name())
-
-	site, err := suite.connector.AC.Groups().GetRootSite(ctx, groupID)
-	require.NoError(t, err, clues.ToCore(err))
+	sel.SetDiscreteOwnerIDName(suite.m365.Group.ID, suite.m365.Group.DisplayName)
 
 	pth, err := path.Build(
-		suite.tenantID,
-		groupID,
+		suite.m365.TenantID,
+		suite.m365.Group.ID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		true,
 		odConsts.SitesPathDir,
-		ptr.Val(site.GetId()))
+		suite.m365.Group.RootSite.ID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	mmc := []data.RestoreCollection{
@@ -636,7 +586,7 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion:   version.NoBackup,
 		Options:             control.DefaultOptions(),
-		ProtectedResource:   group,
+		ProtectedResource:   suite.m365.Group.Provider,
 		Selector:            sel.Selector,
 		MetadataCollections: mmc,
 	}
@@ -656,8 +606,8 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	assert.Greater(t, len(collections), 1)
 
 	p, err := path.BuildMetadata(
-		suite.tenantID,
-		groupID,
+		suite.m365.TenantID,
+		suite.m365.Group.ID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		false)
@@ -670,13 +620,13 @@ func (suite *GroupsCollectionIntgSuite) TestCreateGroupsCollection_SharePoint_In
 	foundRootTombstone := false
 
 	sp, err := path.BuildPrefix(
-		suite.tenantID,
-		groupID,
+		suite.m365.TenantID,
+		suite.m365.Group.ID,
 		path.GroupsService,
 		path.LibrariesCategory)
 	require.NoError(t, err, clues.ToCore(err))
 
-	sp, err = sp.Append(false, odConsts.SitesPathDir, ptr.Val(site.GetId()))
+	sp, err = sp.Append(false, odConsts.SitesPathDir, suite.m365.Site.ID)
 	require.NoError(t, err, clues.ToCore(err))
 
 	for _, coll := range collections {
