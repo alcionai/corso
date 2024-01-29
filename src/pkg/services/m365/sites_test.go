@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -23,7 +24,8 @@ import (
 
 type siteIntegrationSuite struct {
 	tester.Suite
-	cli client
+	cli  client
+	m365 its.M365IntgTestSetup
 }
 
 func TestSiteIntegrationSuite(t *testing.T) {
@@ -36,16 +38,15 @@ func TestSiteIntegrationSuite(t *testing.T) {
 
 func (suite *siteIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	var err error
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tconfig.NewM365Account(t)
-
-	var err error
+	suite.m365 = its.GetM365(t)
 
 	// will init the concurrency limiter
-	suite.cli, err = NewM365Client(ctx, acct)
+	suite.cli, err = NewM365Client(ctx, suite.m365.Acct)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -257,9 +258,9 @@ func (suite *siteUnitSuite) TestGetSites() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			gas := test.mock(ctx)
+			getAllSites := test.mock(ctx)
 
-			site, err := getSiteByID(ctx, gas, "id", api.CallConfig{})
+			site, err := getSiteByID(ctx, getAllSites, "id", api.CallConfig{})
 			test.expectSite(t, site)
 			test.expectErr(t, err, clues.ToCore(err))
 		})
