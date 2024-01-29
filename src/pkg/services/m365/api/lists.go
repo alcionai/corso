@@ -389,12 +389,12 @@ func setColumnType(
 	colName := ptr.Val(newColumn.GetName())
 	colDetails := &columnDetails{}
 
-	// for certain columns like 'person', the column name is for example 'personName'
+	// for certain columns like 'person', the column name is say 'personName'.
 	// if the list item for that column holds single value,
 	// the field data is fetched as '{"personNameLookupId": "10"}'
 	// if the list item for that column holds multiple values,
 	// the field data is fetched as '{"personName": [{"lookupId": 10}, {"lookupId": 11}]}'.
-	// Hence this is function helps us to determine which name to use while accessing stored data
+	// Hence this function helps us to determine which name to use while accessing stored data
 	colDetails.getFieldName = colName
 	colDetails.createFieldName = colName
 
