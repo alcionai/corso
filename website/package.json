@@ -24,7 +24,7 @@
     "docusaurus-plugin-image-zoom": "^1.0.1",
     "docusaurus-plugin-sass": "^0.2.5",
     "feather-icons": "^4.29.1",
-    "jarallax": "^2.1.4",
+    "jarallax": "^2.2.0",
     "mdx-mermaid": "^2.0.0",
     "mermaid": "^10.7.0",
     "prism-react-renderer": "^2.1.0",
