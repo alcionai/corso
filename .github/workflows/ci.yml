@@ -317,6 +317,12 @@ jobs:
             ./... \
             2>&1 | tee -a /tmp/corso-testlog/gotest-unit.log
 
+      - name: peek tmp dir
+        run: ls /tmp
+
+      - name: github workspace dir
+        run: echo ${{ github.workspace }}
+
       # run the tests
       # - name: Unit Tests
       #   env:
