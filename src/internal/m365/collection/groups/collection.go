@@ -180,9 +180,8 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 			defer func() { <-semaphoreCh }()
 
 			// This is a no-op for conversations, as there is no way to detect
-			// deleted items in a conversation. It might be added in the future
-			// if graph supports it, so make sure we put up both .data and .meta
-			// files for deletions.
+			// deleted items. It might be added in future if graph supports it,
+			// so make sure we put up both .data and .meta files for deletions.
 			if col.getAndAugment.supportsItemMetadata() {
 				col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
 				col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
