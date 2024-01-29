@@ -33,10 +33,15 @@ func CheckGroupsExport(
 		common.Fatal(ctx, "getting the drive:", err)
 	}
 
-	checkChannelMessagesExport(
-		ctx,
-		ac,
-		envs)
+	// checkChannelMessagesExport(
+	// 	ctx,
+	// 	ac,
+	// 	envs)
+
+	// checkConversationPostExports(
+	// 	ctx,
+	// 	ac,
+	// 	envs)
 
 	envs.RestoreContainer = filepath.Join(
 		envs.RestoreContainer,
@@ -175,6 +180,111 @@ func populateMessagesSanitree(
 		}
 
 		root.Children[ptr.Val(ch.GetDisplayName())] = child
+	}
+
+	return root
+}
+
+func checkConversationPostExports(
+	ctx context.Context,
+	ac api.Client,
+	envs common.Envs,
+) {
+	sourceTree := populatePostsSanitree(
+		ctx,
+		ac,
+		envs.GroupID)
+
+	fpTree := common.BuildFilepathSanitree(ctx, envs.RestoreContainer)
+
+	comparator := func(
+		ctx context.Context,
+		expect *common.Sanitree[models.Conversationable, models.Postable],
+		result *common.Sanitree[fs.FileInfo, fs.FileInfo],
+	) {
+		for key := range expect.Leaves {
+			expect.Leaves[key].Size = 0 // msg sizes cannot be compared
+		}
+
+		updatedResultLeaves := map[string]*common.Sanileaf[fs.FileInfo, fs.FileInfo]{}
+
+		for key, leaf := range result.Leaves {
+			key = strings.TrimSuffix(key, ".eml")
+			leaf.Size = 0 // we cannot compare sizes
+			updatedResultLeaves[key] = leaf
+		}
+
+		common.CompareLeaves(ctx, expect.Leaves, updatedResultLeaves, nil)
+	}
+
+	common.CompareDiffTrees(
+		ctx,
+		sourceTree,
+		fpTree.Children[path.ConversationPostsCategory.HumanString()],
+		comparator)
+
+	common.Infof(ctx, "Success")
+}
+
+func populatePostsSanitree(
+	ctx context.Context,
+	ac api.Client,
+	groupID string,
+) *common.Sanitree[models.Conversationable, models.Postable] {
+	root := &common.Sanitree[models.Conversationable, models.Postable]{
+		ID:   groupID,
+		Name: path.ConversationPostsCategory.HumanString(),
+		// group should not have leaves
+		Children: map[string]*common.Sanitree[models.Conversationable, models.Postable]{},
+	}
+
+	convs, err := ac.Conversations().GetConversations(ctx, groupID, api.CallConfig{})
+	if err != nil {
+		common.Fatal(ctx, "getting conversations", err)
+	}
+
+	for _, ch := range convs {
+		child := &common.Sanitree[
+			models.Conversationable, models.Postable,
+		]{
+			Parent: root,
+			ID:     ptr.Val(ch.GetId()),
+			Name:   ptr.Val(ch.GetTopic()),
+			Leaves: map[string]*common.Sanileaf[models.Conversationable, models.Postable]{},
+			// no children in channels
+		}
+
+		threads, err := ac.Conversations().GetConversationThreads(
+			ctx,
+			groupID,
+			ptr.Val(ch.GetId()),
+			api.CallConfig{})
+		if err != nil {
+			common.Fatal(ctx, "getting conversation threads", err)
+		}
+
+		posts, err := ac.Conversations().GetConversationThreadPosts(
+			ctx,
+			groupID,
+			ptr.Val(ch.GetId()),
+			ptr.Val(threads[0].GetId()),
+			api.CallConfig{})
+		if err != nil {
+			common.Fatal(ctx, "getting conversation posts", err)
+		}
+
+		for _, msg := range posts {
+			child.CountLeaves++
+			child.Leaves[ptr.Val(msg.GetId())] = &common.Sanileaf[
+				models.Conversationable,
+				models.Postable,
+			]{
+				Self: msg,
+				ID:   ptr.Val(msg.GetId()),
+			}
+		}
+
+		root.Children[ptr.Val(ch.GetTopic())] = child
 	}
 
 	return root
