@@ -492,7 +492,12 @@ func setAdditionalDataByColumnNames(
 
 	for colName, colDetails := range columnNames {
 		if val, ok := fieldData[colName]; ok {
-			setMultipleEnabledByFieldData(val, colDetails)
+			// for columns like 'choice', even though it has an option to hold single/multiple values,
+			// the columnDefinition property 'allowMultipleValues' is not available.
+			// Hence we determine single/multiple from the actual field data.
+			if isSlice(val) {
+				colDetails.isMultipleEnabled = true
+			}
 
 			filteredData[colName] = fieldData[colName]
 		}
@@ -501,15 +506,6 @@ func setAdditionalDataByColumnNames(
 	}
 
 	return filteredData
-}
-
-func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
-	// for columns like 'choice', even though it has an option to hold single/multiple values,
-	// the columnDefinition property 'allowMultipleValues' is not available.
-	// Hence we determine single/multiple from the actual field data.
-	if reflect.TypeOf(val).Kind() == reflect.Slice {
-		colDetails.isMultipleEnabled = true
-	}
 }
 
 // when creating list items with multiple values for a single column
@@ -678,4 +674,8 @@ func ListCollisionKey(list models.Listable) string {
 	}
 
 	return ptr.Val(list.GetDisplayName())
+}
+
+func isSlice(val any) bool {
+	return reflect.TypeOf(val).Kind() == reflect.Slice
 }
