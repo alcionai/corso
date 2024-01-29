@@ -226,9 +226,9 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-golang-${{ github.sha }}
+          key: ${{ runner.os }}-golang-retention-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-golang-
+            ${{ runner.os }}-golang-retention-
 
       - run: mkdir -p /tmp/corso-testlog
 
