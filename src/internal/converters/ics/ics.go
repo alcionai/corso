@@ -339,7 +339,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 
 	// STATUS - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.11
 	cancelled := event.GetIsCancelled()
-	if cancelled != nil {
+	if cancelled != nil && ptr.Val(cancelled) {
 		iCalEvent.SetStatus(ics.ObjectStatusCancelled)
 	}
 
