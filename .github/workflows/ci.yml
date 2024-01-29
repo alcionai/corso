@@ -209,7 +209,7 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: /tmp/corso-testlog/run-ci-retention.log
+      CORSO_LOG_FILE: /tmp/corso-retention-testlog/run-ci-retention.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
@@ -230,7 +230,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-golang-retention-
 
-      - run: mkdir -p /tmp/corso-testlog
+      - run: mkdir -p /tmp/corso-retention-testlog
 
       # AWS creds
       - name: Configure AWS credentials from Test account
@@ -259,7 +259,7 @@ jobs:
           -p 1          \
           -timeout 10m  \
           ./... \
-          2>&1 | tee /tmp/corso-testlog/gotest-ci.log
+          2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -267,7 +267,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-retention-test-log
-          path: /tmp/corso-testlog/*
+          path: /tmp/corso-retention-testlog/*
           if-no-files-found: error
           retention-days: 14
 
