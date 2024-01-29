@@ -21,13 +21,15 @@ func parseMetadataCollections(
 ) (metadata.CatDeltaPaths, bool, error) {
 	// cdp stores metadata
 	cdp := metadata.CatDeltaPaths{
-		path.ChannelMessagesCategory: {},
+		path.ChannelMessagesCategory:   {},
+		path.ConversationPostsCategory: {},
 	}
 
 	// found tracks the metadata we've loaded, to make sure we don't
 	// fetch overlapping copies.
 	found := map[path.CategoryType]map[string]struct{}{
-		path.ChannelMessagesCategory: {},
+		path.ChannelMessagesCategory:   {},
+		path.ConversationPostsCategory: {},
 	}
 
 	// errors from metadata items should not stop the backup,
@@ -104,7 +106,8 @@ func parseMetadataCollections(
 		logger.CtxErr(ctx, errs.Failure()).Info("reading metadata collection items")
 
 		return metadata.CatDeltaPaths{
-			path.ChannelMessagesCategory: {},
+			path.ChannelMessagesCategory:   {},
+			path.ConversationPostsCategory: {},
 		}, false, nil
 	}
 
