@@ -286,7 +286,7 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 10m  \
-          ./pkg/config \
+          -run '^TestWrapperIntegrationSuite/' ./internal/kopia \
           2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
 
       # run the tests
