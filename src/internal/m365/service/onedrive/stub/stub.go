@@ -8,41 +8,42 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
+	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 // For any version post this(inclusive), we expect to be using IDs for
 // permission instead of email
 const versionPermissionSwitchedToID = version.OneDrive4DirIncludesPermissions
 
-func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metadata {
-	if meta.SharingMode != metadata.SharingModeCustom {
-		return metadata.Metadata{
+func getMetadata(fileName string, meta MetaData, permUseID bool) odmetadata.Metadata {
+	if meta.SharingMode != odmetadata.SharingModeCustom {
+		return odmetadata.Metadata{
 			FileName:    fileName,
 			SharingMode: meta.SharingMode,
 		}
 	}
 
-	testMeta := metadata.Metadata{FileName: fileName}
+	testMeta := odmetadata.Metadata{FileName: fileName}
 
 	if len(meta.Perms.User) != 0 {
 		// In case of permissions, the id will usually be same for same
 		// user/role combo unless deleted and readded, but we have to do
 		// this as we only have two users of which one is already taken.
 		id := uuid.NewString()
-		uperm := metadata.Permission{ID: id, Roles: meta.Perms.Roles}
+		uperm := odmetadata.Permission{ID: id, Roles: meta.Perms.Roles}
 
 		uperm.Email = meta.Perms.User
 		if permUseID {
 			uperm.EntityID = meta.Perms.EntityID
 		}
 
-		testMeta.Permissions = []metadata.Permission{uperm}
+		testMeta.Permissions = []odmetadata.Permission{uperm}
 	}
 
 	if len(meta.LinkShares) != 0 {
@@ -61,9 +62,9 @@ func getMetadata(fileName string, meta MetaData, permUseID bool) metadata.Metada
 				roles = []string{"read"}
 			}
 
-			ls := metadata.LinkShare{
+			ls := odmetadata.LinkShare{
 				ID: id, // id is required for mapping from parent
-				Link: metadata.LinkShareLink{
+				Link: odmetadata.LinkShareLink{
 					Scope:  ls.Scope,
 					Type:   ls.Type,
 					WebURL: id,
@@ -86,13 +87,13 @@ type PermData struct {
 }
 
 type LinkShareData struct {
-	Entities []metadata.Entity
+	Entities []odmetadata.Entity
 	Scope    string
 	Type     string
 }
 
 type MetaData struct {
-	SharingMode metadata.SharingMode
+	SharingMode odmetadata.SharingMode
 	Perms       PermData
 	LinkShares  []LinkShareData
 }
