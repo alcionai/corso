@@ -82,7 +82,7 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 		)
 
 		switch cat {
-		case path.ChannelMessagesCategory:
+		case path.ChannelMessagesCategory, path.ConversationPostsCategory:
 			folders = append(folders, fp.Folders()...)
 
 			coll = groups.NewExportCollection(
@@ -90,7 +90,8 @@ func (h *baseGroupsHandler) ProduceExportCollections(
 				[]data.RestoreCollection{restoreColl},
 				backupVersion,
 				exportCfg,
-				stats)
+				stats,
+				cat)
 
 		case path.LibrariesCategory:
 			drivePath, err := path.ToDrivePath(restoreColl.FullPath())
