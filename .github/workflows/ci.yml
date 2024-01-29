@@ -320,6 +320,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: peek
+        run: ls
+
   Unit-Test-Suite:
     needs: [Precheck, Checkout]
     environment: Testing
