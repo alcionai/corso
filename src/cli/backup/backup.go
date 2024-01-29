@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -197,12 +196,11 @@ func genericCreateCommand(
 			cerr := clues.WrapWC(ictx, err, owner)
 			errs = append(errs, cerr)
 
-			meta, err := json.Marshal(cerr.Core().Values)
-			if err != nil {
-				meta = []byte("Unable to marshal error metadata")
-			}
-
-			Errf(ictx, "%s\nMessage: %v\nMetadata:%s", "Unable to complete backup", err, meta)
+			Errf(
+				ictx,
+				"%s\nCause: %s",
+				"Unable to initiate backup",
+				err.Error())
 
 			continue
 		}
@@ -227,12 +225,11 @@ func genericCreateCommand(
 			cerr := clues.Wrap(err, owner)
 			errs = append(errs, cerr)
 
-			meta, err := json.Marshal(cerr.Core().Values)
-			if err != nil {
-				meta = []byte("Unable to marshal error metadata")
-			}
-
-			Errf(ictx, "%s\nMessage: %v\nMetadata:%s", "Unable to complete backup", err, meta)
+			Errf(
+				ictx,
+				"%s\nCause: %s",
+				"Unable to complete backup",
+				err.Error())
 
 			continue
 		}
