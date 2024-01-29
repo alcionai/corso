@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/kopia"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/control/repository"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -177,7 +178,16 @@ func (suite *StreamStoreIntgSuite) TestStreamer() {
 				require.NoError(t, err)
 			}
 
-			snapid, err := ss.Write(ctx, fault.New(true))
+			snapid, err := ss.Write(
+				ctx,
+				[]identity.Reasoner{
+					identity.NewReason(
+						deetsPath.Tenant(),
+						deetsPath.ProtectedResource(),
+						path.ExchangeMetadataService,
+						deetsPath.Category()),
+				},
+				fault.New(true))
 			require.NoError(t, err)
 			test.hasSnapID(t, snapid)
 
