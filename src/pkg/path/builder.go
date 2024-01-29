@@ -232,18 +232,7 @@ func (pb Builder) ToStreamStorePath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	case GroupsService:
-		metadataService = GroupsMetadataService
-	}
+	metadataService := service.ToMetadata()
 
 	return &dataLayerResourcePath{
 		Builder: *pb.withPrefix(
@@ -275,18 +264,7 @@ func (pb Builder) ToServiceCategoryMetadataPath(
 		return nil, clues.New("missing path beyond prefix")
 	}
 
-	metadataService := UnknownService
-
-	switch service {
-	case ExchangeService:
-		metadataService = ExchangeMetadataService
-	case OneDriveService:
-		metadataService = OneDriveMetadataService
-	case SharePointService:
-		metadataService = SharePointMetadataService
-	case GroupsService:
-		metadataService = GroupsMetadataService
-	}
+	metadataService := service.ToMetadata()
 
 	rp := dataLayerResourcePath{
 		Builder: *pb.withPrefix(

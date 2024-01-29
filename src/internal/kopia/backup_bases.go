@@ -75,6 +75,10 @@ type BackupBases interface {
 	SnapshotAssistBases() []BackupBase
 }
 
+func EmptyBackupBase() BackupBases {
+	return &backupBases{}
+}
+
 type backupBases struct {
 	mergeBases  []BackupBase
 	assistBases []BackupBase
