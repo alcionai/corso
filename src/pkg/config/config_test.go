@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -337,77 +338,70 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 		disableTLS, disableTLSVerification)
 
 	testConfigFilePath := filepath.Join(t.TempDir(), "corso.toml")
+	err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
+	require.NoError(t, err, clues.ToCore(err))
 
-	assert.NotEmpty(t, testConfigData)
-	assert.NotEmpty(t, testConfigFilePath)
+	// Configure viper to read test config file
+	vpr.SetConfigFile(testConfigFilePath)
 
-	_ = vpr
-	_ = ctx
+	// Read and validate config
+	err = vpr.ReadInConfig()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	// err := os.WriteFile(testConfigFilePath, []byte(testConfigData), 0o700)
-	// require.NoError(t, err, clues.ToCore(err))
+	overrides := map[string]string{}
+	flags.AzureClientTenantFV = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
+	flags.AzureClientIDFV = "azure-id-flag-value"
+	flags.AzureClientSecretFV = "azure-secret-flag-value"
 
-	// // Configure viper to read test config file
-	// vpr.SetConfigFile(testConfigFilePath)
+	flags.AWSAccessKeyFV = "aws-access-key"
+	flags.AWSSecretAccessKeyFV = "aws-access-secret-flag-value"
+	flags.AWSSessionTokenFV = "aws-access-session-flag-value"
 
-	// // Read and validate config
-	// err = vpr.ReadInConfig()
-	// require.NoError(t, err, "reading repo config", clues.ToCore(err))
+	overrides[storage.Bucket] = "flag-bucket"
+	overrides[storage.Endpoint] = "flag-endpoint"
+	overrides[storage.Prefix] = "flag-prefix"
+	overrides[storage.DoNotUseTLS] = "true"
+	overrides[storage.DoNotVerifyTLS] = "true"
+	overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
+	overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
+	overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
 
-	// overrides := map[string]string{}
-	// flags.AzureClientTenantFV = "6f34ac30-8196-469b-bf8f-d83deadbbbba"
-	// flags.AzureClientIDFV = "azure-id-flag-value"
-	// flags.AzureClientSecretFV = "azure-secret-flag-value"
+	flags.PassphraseFV = "passphrase-flags"
 
-	// flags.AWSAccessKeyFV = "aws-access-key"
-	// flags.AWSSecretAccessKeyFV = "aws-access-secret-flag-value"
-	// flags.AWSSessionTokenFV = "aws-access-session-flag-value"
+	repoDetails, err := getStorageAndAccountWithViper(
+		ctx,
+		vpr,
+		storage.ProviderS3,
+		true,
+		false,
+		overrides)
+	require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
 
-	// overrides[storage.Bucket] = "flag-bucket"
-	// overrides[storage.Endpoint] = "flag-endpoint"
-	// overrides[storage.Prefix] = "flag-prefix"
-	// overrides[storage.DoNotUseTLS] = "true"
-	// overrides[storage.DoNotVerifyTLS] = "true"
-	// overrides[credentials.AWSAccessKeyID] = flags.AWSAccessKeyFV
-	// overrides[credentials.AWSSecretAccessKey] = flags.AWSSecretAccessKeyFV
-	// overrides[credentials.AWSSessionToken] = flags.AWSSessionTokenFV
+	m365Config, _ := repoDetails.Account.M365Config()
 
-	// flags.PassphraseFV = "passphrase-flags"
+	s3Cfg, err := repoDetails.Storage.ToS3Config()
+	require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
 
-	// repoDetails, err := getStorageAndAccountWithViper(
-	// 	ctx,
-	// 	vpr,
-	// 	storage.ProviderS3,
-	// 	true,
-	// 	false,
-	// 	overrides)
-	// require.NoError(t, err, "getting storage and account from config", clues.ToCore(err))
+	commonConfig, _ := repoDetails.Storage.CommonConfig()
+	pass := commonConfig.Corso.CorsoPassphrase
 
-	// m365Config, _ := repoDetails.Account.M365Config()
+	require.NoError(t, err, "reading repo config", clues.ToCore(err))
 
-	// s3Cfg, err := repoDetails.Storage.ToS3Config()
-	// require.NoError(t, err, "reading s3 config from storage", clues.ToCore(err))
+	assert.Equal(t, flags.AWSAccessKeyFV, s3Cfg.AWS.AccessKey)
+	assert.Equal(t, flags.AWSSecretAccessKeyFV, s3Cfg.AWS.SecretKey)
+	assert.Equal(t, flags.AWSSessionTokenFV, s3Cfg.AWS.SessionToken)
 
-	// commonConfig, _ := repoDetails.Storage.CommonConfig()
-	// pass := commonConfig.Corso.CorsoPassphrase
+	assert.Equal(t, overrides[storage.Bucket], s3Cfg.Bucket)
+	assert.Equal(t, overrides[storage.Endpoint], s3Cfg.Endpoint)
+	assert.Equal(t, overrides[storage.Prefix], s3Cfg.Prefix)
+	assert.Equal(t, str.ParseBool(overrides[storage.DoNotUseTLS]), s3Cfg.DoNotUseTLS)
+	assert.Equal(t, str.ParseBool(overrides[storage.DoNotVerifyTLS]), s3Cfg.DoNotVerifyTLS)
 
-	// require.NoError(t, err, "reading repo config", clues.ToCore(err))
+	assert.Equal(t, flags.AzureClientIDFV, m365Config.AzureClientID)
+	assert.Equal(t, flags.AzureClientSecretFV, m365Config.AzureClientSecret)
+	assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
 
-	// assert.Equal(t, flags.AWSAccessKeyFV, s3Cfg.AWS.AccessKey)
-	// assert.Equal(t, flags.AWSSecretAccessKeyFV, s3Cfg.AWS.SecretKey)
-	// assert.Equal(t, flags.AWSSessionTokenFV, s3Cfg.AWS.SessionToken)
-
-	// assert.Equal(t, overrides[storage.Bucket], s3Cfg.Bucket)
-	// assert.Equal(t, overrides[storage.Endpoint], s3Cfg.Endpoint)
-	// assert.Equal(t, overrides[storage.Prefix], s3Cfg.Prefix)
-	// assert.Equal(t, str.ParseBool(overrides[storage.DoNotUseTLS]), s3Cfg.DoNotUseTLS)
-	// assert.Equal(t, str.ParseBool(overrides[storage.DoNotVerifyTLS]), s3Cfg.DoNotVerifyTLS)
-
-	// assert.Equal(t, flags.AzureClientIDFV, m365Config.AzureClientID)
-	// assert.Equal(t, flags.AzureClientSecretFV, m365Config.AzureClientSecret)
-	// assert.Equal(t, flags.AzureClientTenantFV, m365Config.AzureTenantID)
-
-	// assert.Equal(t, flags.PassphraseFV, pass)
+	assert.Equal(t, flags.PassphraseFV, pass)
 }
 
 // ------------------------------------------------------------
