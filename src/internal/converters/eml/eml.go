@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/converters/ics"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -297,6 +298,140 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
+	if err = email.GetError(); err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to eml")
+	}
+
+	return email.GetMessage(), nil
+}
+
+//-------------------------------------------------------------
+// Postable -> EML
+//-------------------------------------------------------------
+
+// FromJSONPostToEML converts a postable (as json) to .eml format.
+// TODO(pandeyabs): This is a stripped down copy of messageable to
+// eml conversion, it can be folded into one function by having a post
+// to messageable converter.
+func FromJSONPostToEML(
+	ctx context.Context,
+	body []byte,
+	postMetadata metadata.ConversationPostMetadata,
+) (string, error) {
+	ctx = clues.Add(ctx, "body_len", len(body))
+
+	data, err := api.BytesToPostable(body)
+	if err != nil {
+		return "", clues.WrapWC(ctx, err, "converting to postable")
+	}
+
+	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
+
+	email := mail.NewMSG()
+	email.Encoding = mail.EncodingBase64 // Doing it to be safe for when we have eventMessage (newline issues)
+	email.AllowDuplicateAddress = true   // More "correct" conversion
+	email.AddBccToHeader = true          // Don't ignore Bcc
+	email.AllowEmptyAttachments = true   // Don't error on empty attachments
+	email.UseProvidedAddress = true      // Don't try to parse the email address
+
+	if data.GetFrom() != nil {
+		email.SetFrom(formatAddress(data.GetFrom().GetEmailAddress()))
+	}
+
+	// We don't have the To, Cc, Bcc recipient information for posts due to a graph
+	// limitation. All posts carry the group email address as the only recipient
+	// for now.
+	email.AddTo(postMetadata.Recipients...)
+	email.SetSubject(postMetadata.Topic)
+
+	// Reply-To email address is not available for posts. Note that this is different
+	// from inReplyTo field.
+
+	if data.GetReceivedDateTime() != nil {
+		email.SetDate(ptr.Val(data.GetReceivedDateTime()).Format(dateFormat))
+	}
+
+	if data.GetBody() != nil {
+		if data.GetBody().GetContentType() != nil {
+			var contentType mail.ContentType
+
+			switch data.GetBody().GetContentType().String() {
+			case "html":
+				contentType = mail.TextHTML
+			case "text":
+				contentType = mail.TextPlain
+			default:
+				// https://learn.microsoft.com/en-us/graph/api/resources/itembody?view=graph-rest-1.0#properties
+				// This should not be possible according to the documentation
+				logger.Ctx(ctx).
+					With("body_type", data.GetBody().GetContentType().String()).
+					Info("unknown body content type")
+
+				contentType = mail.TextPlain
+			}
+
+			email.SetBody(contentType, ptr.Val(data.GetBody().GetContent()))
+		}
+	}
+
+	if data.GetAttachments() != nil {
+		for _, attachment := range data.GetAttachments() {
+			kind := ptr.Val(attachment.GetContentType())
+
+			bytes, err := attachment.GetBackingStore().Get("contentBytes")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes").
+					With("kind", kind)
+			}
+
+			if bytes == nil {
+				// TODO(meain): Handle non file attachments
+				// https://github.com/alcionai/corso/issues/4772
+				//
+				// TODO(pandeyabs): Above issue is for messages.
+				// This is not a problem for posts but leaving it here for safety.
+				logger.Ctx(ctx).
+					With("attachment_id", ptr.Val(attachment.GetId()),
+						"attachment_type", ptr.Val(attachment.GetOdataType())).
+					Info("no contentBytes for attachment")
+
+				continue
+			}
+
+			bts, ok := bytes.([]byte)
+			if !ok {
+				return "", clues.WrapWC(ctx, err, "invalid content bytes").
+					With("kind", kind).
+					With("interface_type", fmt.Sprintf("%T", bytes))
+			}
+
+			name := ptr.Val(attachment.GetName())
+
+			contentID, err := attachment.GetBackingStore().Get("contentId")
+			if err != nil {
+				return "", clues.WrapWC(ctx, err, "getting content id for attachment").
+					With("kind", kind)
+			}
+
+			if contentID != nil {
+				cids, _ := str.AnyToString(contentID)
+				if len(cids) > 0 {
+					name = cids
+				}
+			}
+
+			email.Attach(&mail.File{
+				// cannot use filename as inline attachment will not get mapped properly
+				Name:     name,
+				MimeType: kind,
+				Data:     bts,
+				Inline:   ptr.Val(attachment.GetIsInline()),
+			})
+		}
+	}
+
+	// Note: Posts cannot be of type EventMessageResponse, EventMessage or
+	// CalendarSharingMessage. So we don't need to handle those cases here.
 	if err = email.GetError(); err != nil {
 		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
