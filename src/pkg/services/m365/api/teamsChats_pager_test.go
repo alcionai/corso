@@ -1,7 +1,6 @@
 package api
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -80,8 +79,6 @@ func testGetChatByID(
 	require.NoError(t, err, clues.ToCore(err))
 	require.NotNil(t, chat)
 }
-
-var attachmentHtmlRegexp = regexp.MustCompile("<attachment id=\"[a-zA-Z0-9].*\"></attachment>")
 
 func testEnumerateChatMessages(
 	t *testing.T,

@@ -78,26 +78,19 @@ func (svc ServiceType) HumanString() string {
 func (svc ServiceType) ToMetadata() ServiceType {
 	//exhaustive:enforce
 	switch svc {
-	case ExchangeService:
+	case ExchangeService, ExchangeMetadataService:
 		return ExchangeMetadataService
-	case OneDriveService:
+	case OneDriveService, OneDriveMetadataService:
 		return OneDriveMetadataService
-	case SharePointService:
+	case SharePointService, SharePointMetadataService:
 		return SharePointMetadataService
-	case GroupsService:
+	case GroupsService, GroupsMetadataService:
 		return GroupsMetadataService
-
-	case ExchangeMetadataService:
-		fallthrough
-	case OneDriveMetadataService:
-		fallthrough
-	case SharePointMetadataService:
-		fallthrough
-	case GroupsMetadataService:
-		fallthrough
+	case TeamsChatsService, TeamsChatsMetadataService:
+		return TeamsChatsMetadataService
 	case UnknownService:
-		return svc
+		fallthrough
+	default:
+		return UnknownService
 	}
-
-	return UnknownService
 }
