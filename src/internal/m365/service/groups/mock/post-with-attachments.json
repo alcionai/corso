@@ -1,0 +1,85 @@
+{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups('1623c35a-b67a-473a-9b21-5e4891f22e70')/conversations('AAQkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQAQAHUiDz4vCHZNqyz90GJoN54%3D')/threads('AAQkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQMkABAAdSIPPi8Idk2rLP3QYmg3nhAAdSIPPi8Idk2rLP3QYmg3ng%3D%3D')/posts(*,attachments())/$entity",
+    "@odata.etag": "W/\"CQAAABYAAADxkJD2bSaUS7TYwOHY6vKrAAAiegI9\"",
+    "id": "AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidRn9AAA=",
+    "createdDateTime": "2024-01-29T02:22:18Z",
+    "lastModifiedDateTime": "2024-01-29T02:22:19Z",
+    "changeKey": "CQAAABYAAADxkJD2bSaUS7TYwOHY6vKrAAAiegI9",
+    "categories": [],
+    "receivedDateTime": "2024-01-29T02:22:19Z",
+    "hasAttachments": true,
+    "conversationThreadId": "AAQkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQMkABAAdSIPPi8Idk2rLP3QYmg3nhAAdSIPPi8Idk2rLP3QYmg3ng==",
+    "conversationId": null,
+    "body": {
+        "contentType": "html",
+        "content": "<html><body><div>\r\n<div dir=\"ltr\"><table id=\"x_x_x_x_x_x_content\" style=\"text-align:left;background-color:white;border-spacing:0;border-collapse:collapse;margin:0;box-sizing:border-box;\">\r\n<tr>\r\n<td style=\"text-align:left;vertical-align:top;box-sizing:border-box;\">\r\n<div style=\"text-align:left;margin:0;\"><span style=\"color:black;font-size:15px;font-family:Segoe UI,Tahoma,Microsoft Sans Serif,Verdana,sans-serif;background-color:white;\"><a href=\"mailto:dc_test@10rqc2.onmicrosoft.com\" id=\"OWAf1f38008-d513-0f95-4824-1d46e7a2841b\" data-linkindex=\"0\" style=\"text-align:left;background-color:white;text-decoration:none;margin:0;\"><img data-imagetype=\"AttachmentByCid\" originalSrc=\"cid:7fa9ea6b-8e03-473c-8b34-cae13eaa33aa\" explicitlogon=\"dc_test@10rqc2.onmicrosoft.com\" src=\"cid:7fa9ea6b-8e03-473c-8b34-cae13eaa33aa\" id=\"x_x_image_0\" data-outlook-trace=\"F:5|T:5\" size=\"447\" style=\"vertical-align:top;display:block;width:64px;height:64px;max-width:1001px;margin:0;min-height:auto;min-width:auto;\"></a></span></div></td></tr></table>\r\n<div style=\"color:black;font-size:12pt;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;text-align:left;background-color:white;margin:0;\"><span style=\"color:black;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;\"><br>\r\n</span></div>\r\n<div style=\"color:black;font-size:12pt;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;text-align:left;background-color:white;margin:0;\"><span style=\"color:black;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;\">Embedded + direct attachments.</span></div></div></div>\r\n</body></html>"
+    },
+    "from": {
+        "emailAddress": {
+            "name": "Dustin Corners",
+            "address": "Dustin.Corners@10rqc2.onmicrosoft.com"
+        }
+    },
+    "sender": {
+        "emailAddress": {
+            "name": "Dustin Corners",
+            "address": "Dustin.Corners@10rqc2.onmicrosoft.com"
+        }
+    },
+    "newParticipants": [],
+    "attachments": [
+        {
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "@odata.mediaContentType": "image/png",
+            "id": "AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidRn9AAABEgAQAJALn6ReFnlAuFpgf3BBdwM=",
+            "lastModifiedDateTime": "2024-01-29T02:22:18Z",
+            "name": "image.png",
+            "contentType": "image/png",
+            "size": 690,
+            "isInline": true,
+            "contentId": "7fa9ea6b-8e03-473c-8b34-cae13eaa33aa",
+            "contentLocation": null,
+            "contentBytes": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAXlJREFUeF7tmcFtwkAQRWcjhIKogQLSQ5pIIbnkEkqAC23QQ670EArIKeckQuICWsAGrayFsdhRtPO4YuOdN//NYjuI809wXr8AgAQ4J4ACzgPAEEQBFHBOAAWcB4BdAAVQwDkBFHAeAHYBFEAB5wRQwHkA2AVQQKbr3b/WYPZUtEkBAE0CCpNWp8xoXecEAKCsayRASwAFTrtTYTWZAe02WJi01gCrdZEAK9IkQEuAXYBd4HiTVng4MwQZgkbDRjsDrRqDAlakSYCWgJGaKIACRlHTGmDVGBRQk158jeRtslF3VHuCUTLz7wXS/+Gx+O+fDwnhWVtP7+PN7gW6Vnh58UPxv3MJ8tq7mD4nFgfQtag0fmnn46KsVOgDTXFO93u3FMD756qNfUXFR055AH+DRxlvlyIPL+29eSWdb0KSB7CRrYxkaPFgQpHaux6aB9BcqvAgumtFyh+7DqAy51M+14dgZc7fDqDyzueHYPy28s7nATgpPkLYA1p04EEgvdAkAAAAAElFTkSuQmCC"
+        },
+        {
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "@odata.mediaContentType": "application/octet-stream",
+            "id": "AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidRn9AAABEgAQAO6vI6h5OXZDlVIaM2DTB_I=",
+            "lastModifiedDateTime": "2024-01-29T02:22:18Z",
+            "name": "file_100bytes",
+            "contentType": "application/octet-stream",
+            "size": 250,
+            "isInline": false,
+            "contentId": null,
+            "contentLocation": null,
+            "contentBytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+        }
+    ],
+    "inReplyTo@odata.associationLink": "https://graph.microsoft.com/v1.0/groups('1623c35a-b67a-473a-9b21-5e4891f22e70')/threads('AAQkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQMkABAAdSIPPi8Idk2rLP3QYmg3nhAAdSIPPi8Idk2rLP3QYmg3ng==')/posts('AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidMn9AAA=')/$ref",
+    "inReplyTo@odata.navigationLink": "https://graph.microsoft.com/v1.0/groups('1623c35a-b67a-473a-9b21-5e4891f22e70')/threads('AAQkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQMkABAAdSIPPi8Idk2rLP3QYmg3nhAAdSIPPi8Idk2rLP3QYmg3ng==')/posts('AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidMn9AAA=')",
+    "inReplyTo": {
+        "@odata.etag": "W/\"CQAAABYAAADxkJD2bSaUS7TYwOHY6vKrAAAiegI9\"",
+        "id": "AAMkAGNhMGQwY2ZmLTEzZDctNDNhZC05Y2I4LWIyOTgzNjk4YWExZQBGAAAAAADdwE6qobHzQo5d_R1eoqPKBwDxkJD2bSaUS7TYwOHY6vKrAAAAAAEMAADxkJD2bSaUS7TYwOHY6vKrAAAidMn9AAA=",
+        "createdDateTime": "2024-01-29T02:21:18Z",
+        "lastModifiedDateTime": "2024-01-29T02:21:19Z",
+        "changeKey": "CQAAABYAAADxkJD2bSaUS7TYwOHY6vKrAAAiegI9",
+        "categories": [],
+        "receivedDateTime": "2024-01-29T02:21:19Z",
+        "hasAttachments": true,
+        "body": {
+            "contentType": "html",
+            "content": "<html><body><div>\r\n<div dir=\"ltr\">\r\n<div style=\"color:black;font-size:12pt;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;\">Test Reply</div></div></div>\r\n</body></html>"        },
+        "from": {
+            "emailAddress": {
+                "name": "Dustin Corners",
+                "address": "Dustin.Corners@10rqc2.onmicrosoft.com"
+            }
+        },
+        "sender": {
+            "emailAddress": {
+                "name": "Dustin Corners",
+                "address": "Dustin.Corners@10rqc2.onmicrosoft.com"
+            }
+        }
+    }
+}

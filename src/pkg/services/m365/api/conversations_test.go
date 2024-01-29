@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
+	stub "github.com/alcionai/corso/src/internal/m365/service/groups/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -111,6 +113,68 @@ func (suite *ConversationsAPIUnitSuite) TestConversationPostInfo() {
 			result := conversationPostInfo(post, 0, "")
 
 			assert.Equal(t, expected, result)
+		})
+	}
+}
+
+// TestBytesToPostable_InvalidError tests that the error message kiota returns
+// for invalid JSON matches what we check for. This helps keep things in sync
+// when kiota is updated.
+func (suite *MailAPIUnitSuite) TestBytesToPostable_InvalidError() {
+	t := suite.T()
+	input := exchMock.MessageWithSpecialCharacters("m365 mail support test")
+
+	_, err := CreateFromBytes(input, models.CreatePostFromDiscriminatorValue)
+	require.Error(t, err, clues.ToCore(err))
+
+	assert.Contains(t, err.Error(), invalidJSON)
+}
+
+func (suite *ConversationsAPIUnitSuite) TestBytesToPostable() {
+	table := []struct {
+		name        string
+		byteArray   []byte
+		checkError  assert.ErrorAssertionFunc
+		checkObject assert.ValueAssertionFunc
+	}{
+		{
+			name:        "Empty Bytes",
+			byteArray:   make([]byte, 0),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
+		},
+		{
+			name: "post bytes",
+			// Note: inReplyTo is not serialized or deserialized by kiota so we can't
+			// test that aspect. The payload does contain inReplyTo data for future use.
+			byteArray:   []byte(stub.PostWithAttachments),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+		// Using test data from exchMock package for these tests because posts are
+		// essentially email messages.
+		{
+			name:        "malformed JSON bytes passes sanitization",
+			byteArray:   exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+			checkError:  assert.NoError,
+			checkObject: assert.NotNil,
+		},
+		{
+			name: "invalid JSON bytes",
+			byteArray: append(
+				exchMock.MessageWithSpecialCharacters("m365 mail support test"),
+				[]byte("}")...),
+			checkError:  assert.Error,
+			checkObject: assert.Nil,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result, err := BytesToPostable(test.byteArray)
+			test.checkError(t, err, clues.ToCore(err))
+			test.checkObject(t, result)
 		})
 	}
 }

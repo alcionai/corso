@@ -18,6 +18,8 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/converters/eml/testdata"
 	"github.com/alcionai/corso/src/internal/converters/ics"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
+	stub "github.com/alcionai/corso/src/internal/m365/service/groups/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -324,4 +326,75 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics_from_event_obj() {
 	assert.Equal(t, ptr.Val(evt.GetId()), event.Id())
 	assert.NotEqual(t, ptr.Val(msg.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
 	assert.Equal(t, ptr.Val(evt.GetSubject()), event.GetProperty(ical.ComponentPropertySummary).Value)
+}
+
+//-------------------------------------------------------------
+// Postable -> EML tests
+//-------------------------------------------------------------
+
+func (suite *EMLUnitSuite) TestConvert_postable_to_eml() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(stub.PostWithAttachments)
+
+	postMetadata := metadata.ConversationPostMetadata{
+		Recipients: []string{"group@example.com"},
+		Topic:      "test subject",
+	}
+
+	out, err := FromJSONPostToEML(ctx, body, postMetadata)
+	assert.NoError(t, err, "converting to eml")
+
+	post, err := api.BytesToPostable(body)
+	require.NoError(t, err, "creating post")
+
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
+
+	assert.Equal(t, postMetadata.Topic, eml.GetHeader("Subject"))
+	assert.Equal(t, post.GetReceivedDateTime().Format(time.RFC1123Z), eml.GetHeader("Date"))
+
+	assert.Equal(t, formatAddress(post.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
+
+	// Test recipients. The post metadata should contain the group email address.
+
+	tos := strings.Split(eml.GetHeader("To"), ", ")
+	for _, sourceTo := range postMetadata.Recipients {
+		assert.Contains(t, tos, sourceTo)
+	}
+
+	// Assert cc, bcc to be empty since they are not supported for posts right now.
+	assert.Equal(t, "", eml.GetHeader("Cc"))
+	assert.Equal(t, "", eml.GetHeader("Bcc"))
+
+	// Test attachments using PostWithAttachments data as a reference.
+	// This data has 1 direct attachment and 1 inline attachment.
+	assert.Equal(t, 1, len(eml.Attachments), "direct attachment count")
+	assert.Equal(t, 1, len(eml.Inlines), "inline attachment count")
+
+	for _, sourceAttachment := range post.GetAttachments() {
+		targetContent := eml.Attachments[0].Content
+		if ptr.Val(sourceAttachment.GetIsInline()) {
+			targetContent = eml.Inlines[0].Content
+		}
+
+		sourceContent, err := sourceAttachment.GetBackingStore().Get("contentBytes")
+		assert.NoError(t, err, "getting source attachment content")
+
+		assert.Equal(t, sourceContent, targetContent)
+	}
+
+	// Test body
+	source := strings.ReplaceAll(eml.HTML, "\n", "")
+	target := strings.ReplaceAll(ptr.Val(post.GetBody().GetContent()), "\n", "")
+
+	// replace the cid with a constant value to make the comparison
+	re := regexp.MustCompile(`(?:src|originalSrc)="cid:[^"]*"`)
+	source = re.ReplaceAllString(source, `src="cid:replaced"`)
+	target = re.ReplaceAllString(target, `src="cid:replaced"`)
+
+	assert.Equal(t, source, target)
 }
