@@ -1602,7 +1602,7 @@ func (suite *ExchangeSelectorSuite) TestCategoryFromItemType() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			result := categoryFromItemType(test.input)
+			result := exchangeCategoryFromItemType(test.input)
 			assert.Equal(t, test.expect, result)
 		})
 	}

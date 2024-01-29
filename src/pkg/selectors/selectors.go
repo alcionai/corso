@@ -26,6 +26,7 @@ const (
 	ServiceOneDrive   service = 2 // OneDrive
 	ServiceSharePoint service = 3 // SharePoint
 	ServiceGroups     service = 4 // Groups
+	ServiceTeamsChats service = 5 // TeamsChats
 )
 
 var serviceToPathType = map[service]path.ServiceType{
@@ -34,6 +35,7 @@ var serviceToPathType = map[service]path.ServiceType{
 	ServiceOneDrive:   path.OneDriveService,
 	ServiceSharePoint: path.SharePointService,
 	ServiceGroups:     path.GroupsService,
+	ServiceTeamsChats: path.TeamsChatsService,
 }
 
 var (
