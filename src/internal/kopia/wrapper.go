@@ -665,7 +665,12 @@ func (w Wrapper) RepoMaintenance(
 	ctx context.Context,
 	storer store.Storer,
 	opts repository.Maintenance,
+	errs *fault.Bus,
 ) error {
+	// Check the existing config parameters first so that even if we fail for some
+	// reason below we know we checked the config.
+	w.c.verifyDefaultConfigOptions(ctx, errs)
+
 	kopiaSafety, err := translateSafety(opts.Safety)
 	if err != nil {
 		return clues.WrapWC(ctx, err, "identifying safety level")
@@ -696,8 +701,9 @@ func (w Wrapper) RepoMaintenance(
 		// Even if we fail this we don't want to fail the overall maintenance
 		// operation since there's other useful work we can still do.
 		if err := cleanupOrphanedData(ctx, storer, w.c, buffer, time.Now); err != nil {
-			logger.CtxErr(ctx, err).Info(
-				"cleaning up failed backups, some space may not be freed")
+			errs.AddRecoverable(ctx, clues.Wrap(
+				err,
+				"cleaning up failed backups, some space may not be freed"))
 		}
 	}
 
