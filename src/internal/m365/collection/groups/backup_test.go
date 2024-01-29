@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/testdata"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -480,9 +480,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_incremental() {
 
 type BackupIntgSuite struct {
 	tester.Suite
-	resource string
-	tenantID string
-	ac       api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupIntgSuite(t *testing.T) {
@@ -495,36 +493,22 @@ func TestBackupIntgSuite(t *testing.T) {
 
 func (suite *BackupIntgSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.resource = tconfig.M365TeamID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
 }
 
 func (suite *BackupIntgSuite) TestCreateCollections() {
 	var (
-		protectedResource = tconfig.M365TeamID(suite.T())
-		resources         = []string{protectedResource}
-		qp                = graph.QueryParams{
-			ProtectedResource: idname.NewProvider(protectedResource, protectedResource),
-			TenantID:          "tenant",
+		resources = []string{suite.m365.Group.ID}
+		qp        = graph.QueryParams{
+			ProtectedResource: suite.m365.Group.Provider,
+			TenantID:          suite.m365.TenantID,
 		}
-		handler = NewChannelBackupHandler(qp, suite.ac.Channels())
+		handler = NewChannelBackupHandler(qp, suite.m365.AC.Channels())
 	)
 
 	tests := []struct {
@@ -550,13 +534,13 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 
 			ctrlOpts := control.DefaultOptions()
 
-			sel := selectors.NewGroupsBackup([]string{protectedResource})
+			sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 			sel.Include(selTD.GroupsBackupChannelScope(sel))
 
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           ctrlOpts,
-				ProtectedResource: inMock.NewProvider(protectedResource, protectedResource),
+				ProtectedResource: suite.m365.Group.Provider,
 				Selector:          sel.Selector,
 			}
 
@@ -564,7 +548,7 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				ctx,
 				bpc,
 				handler,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				func(status *support.ControllerOperationStatus) {},
 				false,
