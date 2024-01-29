@@ -1,31 +1,26 @@
 package m365
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive/stub"
 	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -45,118 +40,11 @@ var (
 	readPerm  = []string{"read"}
 )
 
-func mustGetDefaultDriveID(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	ac api.Client,
-	service path.ServiceType,
-	resourceOwner string,
-) string {
-	var (
-		err error
-		d   models.Driveable
-	)
-
-	switch service {
-	case path.OneDriveService:
-		d, err = ac.Users().GetDefaultDrive(ctx, resourceOwner)
-	case path.SharePointService:
-		d, err = ac.Sites().GetDefaultDrive(ctx, resourceOwner)
-	default:
-		assert.FailNowf(t, "unknown service type %s", service.String())
-	}
-
-	if err != nil {
-		err = graph.Wrap(ctx, err, "retrieving drive")
-	}
-
-	require.NoError(t, err, clues.ToCore(err))
-
-	id := ptr.Val(d.GetId())
-	require.NotEmpty(t, id)
-
-	return id
-}
-
-type suiteInfo interface {
-	APIClient() api.Client
-	Tenant() string
-	// Returns (username, user ID) for the user. These values are used for
-	// permissions.
-	PrimaryUser() (string, string)
-	SecondaryUser() (string, string)
-	TertiaryUser() (string, string)
-	// ResourceOwner returns the resource owner to run the backup/restore
-	// with. This can be different from the values used for permissions and it can
-	// also be a site.
-	ResourceOwner() string
-	Service() path.ServiceType
-}
-
-type oneDriveSuite interface {
-	tester.Suite
-	suiteInfo
-}
-
-type suiteInfoImpl struct {
-	ac              api.Client
-	controller      *Controller
-	resourceOwner   string
-	secondaryUser   string
-	secondaryUserID string
-	service         path.ServiceType
-	tertiaryUser    string
-	tertiaryUserID  string
-	user            string
-	userID          string
-}
-
-func NewSuiteInfoImpl(
-	t *testing.T,
-	ctx context.Context, //revive:disable-line:context-as-argument
-	resourceOwner string,
-	service path.ServiceType,
-) suiteInfoImpl {
-	ctrl := newController(ctx, t, path.OneDriveService)
-
-	return suiteInfoImpl{
-		ac:            ctrl.AC,
-		controller:    ctrl,
-		resourceOwner: resourceOwner,
-		secondaryUser: tconfig.SecondaryM365UserID(t),
-		service:       service,
-		tertiaryUser:  tconfig.TertiaryM365UserID(t),
-		user:          tconfig.M365UserID(t),
-	}
-}
-
-func (si suiteInfoImpl) APIClient() api.Client {
-	return si.ac
-}
-
-func (si suiteInfoImpl) Tenant() string {
-	return si.controller.tenant
-}
-
-func (si suiteInfoImpl) PrimaryUser() (string, string) {
-	return si.user, si.userID
-}
-
-func (si suiteInfoImpl) SecondaryUser() (string, string) {
-	return si.secondaryUser, si.secondaryUserID
-}
-
-func (si suiteInfoImpl) TertiaryUser() (string, string) {
-	return si.tertiaryUser, si.tertiaryUserID
-}
-
-func (si suiteInfoImpl) ResourceOwner() string {
-	return si.resourceOwner
-}
-
-func (si suiteInfoImpl) Service() path.ServiceType {
-	return si.service
-}
+// type suiteInfoImpl struct {
+// 	controller    *Controller
+// 	resourceOwner string
+// 	service       path.ServiceType
+// }
 
 // ---------------------------------------------------------------------------
 // SharePoint Libraries
@@ -167,7 +55,8 @@ func (si suiteInfoImpl) Service() path.ServiceType {
 
 type SharePointIntegrationSuite struct {
 	tester.Suite
-	suiteInfo
+	m365 its.M365IntgTestSetup
+	rs   its.ResourceServicer
 }
 
 func TestSharePointIntegrationSuite(t *testing.T) {
@@ -179,57 +68,38 @@ func TestSharePointIntegrationSuite(t *testing.T) {
 }
 
 func (suite *SharePointIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	si := NewSuiteInfoImpl(suite.T(), ctx, tconfig.M365SiteID(suite.T()), path.SharePointService)
-
-	// users needed for permissions
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
-	si.userID = ptr.Val(user.GetId())
-
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
-	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
-
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
-	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
-
-	suite.suiteInfo = si
+	suite.m365 = its.GetM365(suite.T())
+	suite.rs = its.NewResourceService(suite.m365.Site, path.SharePointService)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, version.Backup)
 }
 
 // TODO: Re-enable these tests (disabled as it currently acting up CI)
 func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsRestoreAndBackup(suite, version.Backup)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testRestoreNoPermissionsAndBackup(suite, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +107,8 @@ func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression(
 // ---------------------------------------------------------------------------
 type OneDriveIntegrationSuite struct {
 	tester.Suite
-	suiteInfo
+	m365 its.M365IntgTestSetup
+	rs   its.ResourceServicer
 }
 
 func TestOneDriveIntegrationSuite(t *testing.T) {
@@ -249,51 +120,33 @@ func TestOneDriveIntegrationSuite(t *testing.T) {
 }
 
 func (suite *OneDriveIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
-
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
-	si.userID = ptr.Val(user.GetId())
-
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
-	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
-
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
-	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
-
-	suite.suiteInfo = si
+	suite.m365 = its.GetM365(suite.T())
+	suite.rs = its.NewResourceService(suite.m365.User, path.OneDriveService)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, version.Backup)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
-	testPermissionsRestoreAndBackup(suite, version.Backup)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
-	testRestoreNoPermissionsAndBackup(suite, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
-	testPermissionsInheritanceRestoreAndBackup(suite, version.Backup)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
-	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
 }
 
 // ---------------------------------------------------------------------------
@@ -301,7 +154,8 @@ func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() 
 // ---------------------------------------------------------------------------
 type OneDriveNightlySuite struct {
 	tester.Suite
-	suiteInfo
+	m365 its.M365IntgTestSetup
+	rs   its.ResourceServicer
 }
 
 func TestOneDriveNightlySuite(t *testing.T) {
@@ -313,70 +167,44 @@ func TestOneDriveNightlySuite(t *testing.T) {
 }
 
 func (suite *OneDriveNightlySuite) SetupSuite() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	si := NewSuiteInfoImpl(t, ctx, tconfig.M365UserID(t), path.OneDriveService)
-
-	user, err := si.controller.AC.Users().GetByID(ctx, si.user, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.user, clues.ToCore(err))
-	si.userID = ptr.Val(user.GetId())
-
-	secondaryUser, err := si.controller.AC.Users().GetByID(ctx, si.secondaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.secondaryUser, clues.ToCore(err))
-	si.secondaryUserID = ptr.Val(secondaryUser.GetId())
-
-	tertiaryUser, err := si.controller.AC.Users().GetByID(ctx, si.tertiaryUser, api.CallConfig{})
-	require.NoError(t, err, "fetching user", si.tertiaryUser, clues.ToCore(err))
-	si.tertiaryUserID = ptr.Val(tertiaryUser.GetId())
-
-	suite.suiteInfo = si
+	suite.m365 = its.GetM365(suite.T())
+	suite.rs = its.NewResourceService(suite.m365.User, path.OneDriveService)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, 0)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, 0)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
-	testPermissionsRestoreAndBackup(suite, version.OneDrive1DataAndMetaFiles)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreNoPermissionsAndBackup() {
-	testRestoreNoPermissionsAndBackup(suite, version.OneDrive1DataAndMetaFiles)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testPermissionsInheritanceRestoreAndBackup(suite, version.OneDrive4DirIncludesPermissions)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.OneDrive4DirIncludesPermissions)
 }
 
 func (suite *OneDriveNightlySuite) TestLinkSharesInheritanceRestoreAndBackup() {
-	testLinkSharesInheritanceRestoreAndBackup(suite, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
 }
 
 func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
-	suite oneDriveSuite,
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
 	startVersion int,
 ) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -489,17 +317,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(irs.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -513,8 +341,8 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -525,21 +353,14 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	}
 }
 
-func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	secondaryUserName, secondaryUserID := suite.SecondaryUser()
-
+func testPermissionsRestoreAndBackup(
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
+	startVersion int,
+) {
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	fileName2 := "test-file2.txt"
 	folderCName := "folder-c"
@@ -589,8 +410,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileAData,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    writePerm,
 						},
 					},
@@ -616,8 +437,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Name: folderAName,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    readPerm,
 						},
 					},
@@ -626,8 +447,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Name: folderCName,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    readPerm,
 						},
 					},
@@ -647,8 +468,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileBData,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    writePerm,
 						},
 					},
@@ -659,8 +480,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Name: folderAName,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    readPerm,
 						},
 					},
@@ -678,15 +499,15 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 		// 			name: fileName,
 		// 			data: fileDData,
 		// 			perms: stub.PermData{
-		// 				user:     secondaryUserName,
-		// 				entityID: secondaryUserID,
+		// 				user:     m365.SecondaryUser.Email,
+		// 				entityID: m365.SecondaryUser.ID,
 		// 				roles:    readPerm,
 		// 			},
 		// 		},
 		// 	},
 		// 	Perms: stub.PermData{
-		// 		User:     secondaryUserName,
-		// 		EntityID: secondaryUserID,
+		// 		User:     m365.SecondaryUser.Email,
+		// 		EntityID: m365.SecondaryUser.ID,
 		// 		Roles:    readPerm,
 		// 	},
 		// },
@@ -700,8 +521,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileEData,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    writePerm,
 						},
 					},
@@ -709,8 +530,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			},
 			Meta: stub.MetaData{
 				Perms: stub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
+					User:     m365.SecondaryUser.Email,
+					EntityID: m365.SecondaryUser.ID,
 					Roles:    readPerm,
 				},
 			},
@@ -730,17 +551,18 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			},
 			Meta: stub.MetaData{
 				Perms: stub.PermData{
-					User:     secondaryUserName,
-					EntityID: secondaryUserID,
+					User:     m365.SecondaryUser.Email,
+					EntityID: m365.SecondaryUser.ID,
 					Roles:    readPerm,
 				},
 			},
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.Service().String()
+
+	bss := irs.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -748,11 +570,11 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(irs.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -766,8 +588,8 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -778,21 +600,14 @@ func testPermissionsRestoreAndBackup(suite oneDriveSuite, startVersion int) {
 	}
 }
 
-func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	secondaryUserName, secondaryUserID := suite.SecondaryUser()
-
+func testRestoreNoPermissionsAndBackup(
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
+	startVersion int,
+) {
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	inputCols := []stub.ColInfo{
 		{
@@ -807,8 +622,8 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 					Data: fileAData,
 					Meta: stub.MetaData{
 						Perms: stub.PermData{
-							User:     secondaryUserName,
-							EntityID: secondaryUserID,
+							User:     m365.SecondaryUser.Email,
+							EntityID: m365.SecondaryUser.ID,
 							Roles:    writePerm,
 						},
 						SharingMode: metadata.SharingModeCustom,
@@ -835,18 +650,20 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), expectedCols, version.Backup)
-	require.NoError(suite.T(), err)
-	bss := suite.Service().String()
+	expected, err := stub.DataForInfo(irs.Service(), expectedCols, version.Backup)
+	require.NoError(suite.T(), err, clues.ToCore(err))
+
+	bss := irs.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := stub.DataForInfo(suite.Service(), inputCols, vn)
-			require.NoError(suite.T(), err)
+
+			input, err := stub.DataForInfo(irs.Service(), inputCols, vn)
+			require.NoError(t, err, clues.ToCore(err))
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -860,8 +677,8 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -874,22 +691,14 @@ func testRestoreNoPermissionsAndBackup(suite oneDriveSuite, startVersion int) {
 
 // This is similar to TestPermissionsRestoreAndBackup but tests purely
 // for inheritance and that too only with newer versions
-func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion int) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	secondaryUserName, secondaryUserID := suite.SecondaryUser()
-	tertiaryUserName, tertiaryUserID := suite.TertiaryUser()
-
+func testPermissionsInheritanceRestoreAndBackup(
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
+	startVersion int,
+) {
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -933,8 +742,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		Data: fileAData,
 		Meta: stub.MetaData{
 			Perms: stub.PermData{
-				User:     secondaryUserName,
-				EntityID: secondaryUserID,
+				User:     m365.SecondaryUser.Email,
+				EntityID: m365.SecondaryUser.ID,
 				Roles:    writePerm,
 			},
 			SharingMode: metadata.SharingModeCustom,
@@ -1006,8 +815,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			},
 			Meta: stub.MetaData{
 				Perms: stub.PermData{
-					User:     tertiaryUserName,
-					EntityID: tertiaryUserID,
+					User:     m365.TertiaryUser.Email,
+					EntityID: m365.TertiaryUser.ID,
 					Roles:    readPerm,
 				},
 				SharingMode: metadata.SharingModeCustom,
@@ -1018,8 +827,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			Files:        fileSet,
 			Meta: stub.MetaData{
 				Perms: stub.PermData{
-					User:     tertiaryUserName,
-					EntityID: tertiaryUserID,
+					User:     m365.TertiaryUser.Email,
+					EntityID: m365.TertiaryUser.ID,
 					Roles:    writePerm,
 				},
 				SharingMode: metadata.SharingModeCustom,
@@ -1041,9 +850,10 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.Service().String()
+
+	bss := irs.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -1051,11 +861,11 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(irs.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1069,8 +879,8 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -1081,22 +891,14 @@ func testPermissionsInheritanceRestoreAndBackup(suite oneDriveSuite, startVersio
 	}
 }
 
-func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion int) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	_, secondaryUserID := suite.SecondaryUser()
-	_, tertiaryUserID := suite.TertiaryUser()
-
+func testLinkSharesInheritanceRestoreAndBackup(
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
+	startVersion int,
+) {
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		t,
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -1142,7 +944,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{secondaryUserID},
+						EntityIDs: []string{m365.SecondaryUser.ID},
 						Scope:     "users",
 						Type:      "edit",
 					},
@@ -1203,7 +1005,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{tertiaryUserID},
+						EntityIDs: []string{m365.TertiaryUser.ID},
 						Scope:     "anonymous",
 						Type:      "edit",
 					},
@@ -1216,7 +1018,7 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			Meta: stub.MetaData{
 				LinkShares: []stub.LinkShareData{
 					{
-						EntityIDs: []string{tertiaryUserID},
+						EntityIDs: []string{m365.TertiaryUser.ID},
 						Scope:     "users",
 						Type:      "edit",
 					},
@@ -1240,9 +1042,10 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.Service().String()
+
+	bss := irs.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -1250,11 +1053,11 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(irs.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1268,8 +1071,8 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -1281,21 +1084,13 @@ func testLinkSharesInheritanceRestoreAndBackup(suite oneDriveSuite, startVersion
 }
 
 func testRestoreFolderNamedFolderRegression(
-	suite oneDriveSuite,
+	suite tester.Suite,
+	m365 its.M365IntgTestSetup,
+	irs its.ResourceServicer,
 	startVersion int,
 ) {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
 	// Get the default drive ID for the test user.
-	driveID := mustGetDefaultDriveID(
-		suite.T(),
-		ctx,
-		suite.APIClient(),
-		suite.Service(),
-		suite.ResourceOwner())
+	driveID := irs.Resource().DriveID
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1364,18 +1159,19 @@ func testRestoreFolderNamedFolderRegression(
 		},
 	}
 
-	expected, err := stub.DataForInfo(suite.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
-	bss := suite.Service().String()
+
+	bss := irs.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := stub.DataForInfo(suite.Service(), cols, vn)
+			input, err := stub.DataForInfo(irs.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             suite.Service(),
+				service:             irs.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1388,8 +1184,8 @@ func testRestoreFolderNamedFolderRegression(
 			opts.ToggleFeatures.UseDeltaTree = true
 
 			cfg := m365Stub.ConfigInfo{
-				Tenant:         suite.Tenant(),
-				ResourceOwners: []string{suite.ResourceOwner()},
+				Tenant:         m365.TenantID,
+				ResourceOwners: []string{irs.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,

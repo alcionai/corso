@@ -48,12 +48,12 @@ func (suite *M365IntgSuite) TestGetM365() {
 		t,
 		result.Group,
 		[]string{id, email, provider, testcontainerid},
-		[]string{id, weburl, provider, driveid, driverootfolderid})
+		[]string{id, weburl, provider, displayname, driveid, driverootfolderid})
 	assertIDs(
 		t,
 		result.SecondaryGroup,
 		[]string{id, email, provider, testcontainerid},
-		[]string{id, weburl, provider, driveid, driverootfolderid})
+		[]string{id, weburl, provider, displayname, driveid, driverootfolderid})
 	assertIDs(
 		t,
 		result.User,
@@ -75,6 +75,7 @@ const (
 	provider          = "provider"
 	id                = "id"
 	email             = "email"
+	displayname       = "displayname"
 	driveid           = "driveid"
 	driverootfolderid = "driverootfolderid"
 	testcontainerid   = "testcontainerid"
@@ -151,6 +152,12 @@ func assertIDs(
 		assert.NotEmpty(t, ids.RootSite.DriveID)
 	} else {
 		assert.Empty(t, ids.RootSite.DriveID)
+	}
+
+	if slices.Contains(expectRootSite, displayname) {
+		assert.NotEmpty(t, ids.RootSite.DisplayName)
+	} else {
+		assert.Empty(t, ids.RootSite.DisplayName)
 	}
 
 	if slices.Contains(expectRootSite, driverootfolderid) {

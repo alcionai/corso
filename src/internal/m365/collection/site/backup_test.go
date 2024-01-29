@@ -66,8 +66,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 		canUsePreviousBackup bool
 	}{
 		{
-			name:                 "one list",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, nil),
+			name: "one list",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one"),
+				suite.creds.AzureTenantID,
+				siteID,
+				nil),
 			expectErr:            require.NoError,
 			expectColls:          2,
 			expectNewColls:       1,
@@ -75,8 +79,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 			canUsePreviousBackup: true,
 		},
 		{
-			name:                 "many lists",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one", "two"), suite.creds.AzureTenantID, siteID, nil),
+			name: "many lists",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one", "two"),
+				suite.creds.AzureTenantID,
+				siteID,
+				nil),
 			expectErr:            require.NoError,
 			expectColls:          3,
 			expectNewColls:       2,
@@ -84,8 +92,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 			canUsePreviousBackup: true,
 		},
 		{
-			name:                 "with error",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, errors.New("some error")),
+			name: "with error",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one"),
+				suite.creds.AzureTenantID,
+				siteID,
+				errors.New("some error")),
 			expectErr:            require.Error,
 			expectColls:          0,
 			expectNewColls:       0,

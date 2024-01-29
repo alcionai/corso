@@ -73,6 +73,7 @@ type IDs struct {
 	RootSite          struct {
 		Provider          idname.Provider
 		ID                string
+		DisplayName       string
 		DriveID           string
 		DriveRootFolderID string
 		WebURL            string
@@ -244,6 +245,7 @@ func fillTeam(
 
 	ids.RootSite.ID = ptr.Val(site.GetId())
 	ids.RootSite.WebURL = ptr.Val(site.GetWebUrl())
+	ids.RootSite.DisplayName = ptr.Val(site.GetDisplayName())
 	ids.RootSite.Provider = idname.NewProvider(ids.RootSite.ID, ids.RootSite.WebURL)
 
 	drive, err := ac.Sites().GetDefaultDrive(ctx, ids.RootSite.ID)
