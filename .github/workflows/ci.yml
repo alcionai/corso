@@ -283,7 +283,7 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 10m  \
-          -run github.com/alcionai/corso/src/pkg/config \
+          ./pkg/config \
           2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
 
       # run the tests
