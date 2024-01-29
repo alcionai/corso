@@ -278,6 +278,9 @@ jobs:
           S3_BUCKET: ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }}
         run: |
           set -euo pipefail
+
+          export GODEBUG=gocachetest=1
+
           go test       \
           -tags testing \
           -failfast     \
