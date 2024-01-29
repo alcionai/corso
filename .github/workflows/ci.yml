@@ -308,8 +308,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          export GODEBUG=gocachetest=1
-
           # Run the first test
           go test \
             -tags testing \
