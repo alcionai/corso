@@ -941,6 +941,34 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 	}
 }
 
+func (suite *ListsUnitSuite) TestCheckFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name         string
+		colDetails   *columnDetails
+		expectedKeys []string
+	}{
+		{
+			name:         "lookup column",
+			colDetails:   &columnDetails{isLookupColumn: true},
+			expectedKeys: []string{LookupIDKey, LookupValueKey},
+		},
+		{
+			name:         "person column",
+			colDetails:   &columnDetails{isPersonColumn: true},
+			expectedKeys: []string{LookupIDKey, LookupValueKey, PersonEmailKey},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			res := checkFields(test.colDetails)
+			assert.Equal(t, test.expectedKeys, res)
+		})
+	}
+}
+
 type ListsAPIIntgSuite struct {
 	tester.Suite
 	its intgTesterSetup

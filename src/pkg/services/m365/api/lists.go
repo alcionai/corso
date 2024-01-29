@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -424,13 +425,11 @@ func setColumnType(
 		colDetails.isLookupColumn = true
 		isMultipleEnabled := ptr.Val(orig.GetLookup().GetAllowMultipleValues())
 		colDetails.isMultipleEnabled = isMultipleEnabled
+		updatedName := colName + LookupIDFieldNamePart
+		colDetails.createFieldName = updatedName
 
-		if isMultipleEnabled {
-			colDetails.createFieldName = colName + LookupIDFieldNamePart
-		} else {
-			updatedName := colName + LookupIDFieldNamePart
+		if !isMultipleEnabled {
 			colDetails.getFieldName = updatedName
-			colDetails.createFieldName = updatedName
 		}
 
 		newColumn.SetLookup(orig.GetLookup())
@@ -442,13 +441,11 @@ func setColumnType(
 		colDetails.isPersonColumn = true
 		isMultipleEnabled := ptr.Val(orig.GetPersonOrGroup().GetAllowMultipleSelection())
 		colDetails.isMultipleEnabled = isMultipleEnabled
+		updatedName := colName + LookupIDFieldNamePart
+		colDetails.createFieldName = updatedName
 
-		if isMultipleEnabled {
-			colDetails.createFieldName = colName + LookupIDFieldNamePart
-		} else {
-			updatedName := colName + LookupIDFieldNamePart
+		if !isMultipleEnabled {
 			colDetails.getFieldName = updatedName
-			colDetails.createFieldName = updatedName
 		}
 
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
@@ -533,7 +530,13 @@ func setAdditionalDataByColumnNames(
 
 	for _, colDetails := range columnNames {
 		if val, ok := fieldData[colDetails.getFieldName]; ok {
-			setMultipleEnabledByFieldData(val, colDetails)
+			// for columns like 'choice', even though it has an option to hold single/multiple values,
+			// the columnDefinition property 'allowMultipleValues' is not available.
+			// Hence we determine single/multiple from the actual field data.
+			if !colDetails.isMultipleEnabled && isSlice(val) {
+				colDetails.isMultipleEnabled = true
+			}
+
 			filteredData[colDetails.createFieldName] = val
 			populateMultipleValues(val, filteredData, colDetails)
 		}
@@ -561,44 +564,31 @@ func populateMultipleValues(val any, filteredData map[string]any, colDetails *co
 
 	lookupIDs := make([]float64, 0)
 
-	checkFields := func(colDetails *columnDetails) []string {
-		if colDetails.isLookupColumn {
-			return []string{LookupIDKey, LookupValueKey}
-		}
-
-		if colDetails.isPersonColumn {
-			return []string{LookupIDKey, LookupValueKey, PersonEmailKey}
-		}
-
-		return []string{}
-	}
-
 	for _, nestedFields := range multiNestedFields {
-		if md, ok := nestedFields.(map[string]any); ok && keys.HasKeys(md, checkFields(colDetails)...) {
-			lookupID, ok := md[LookupIDKey].(*float64)
-			if !ok {
-				continue
-			}
-
-			lookupIDs = append(lookupIDs, ptr.Val(lookupID))
+		md, ok := nestedFields.(map[string]any)
+		if !ok || !keys.HasKeys(md, checkFields(colDetails)...) {
+			continue
 		}
+
+		v, err := tform.AnyValueToT[float64](LookupIDKey, md)
+		if err != nil {
+			continue
+		}
+
+		lookupIDs = append(lookupIDs, v)
 	}
 
 	filteredData[colDetails.createFieldName] = lookupIDs
 }
 
-func setMultipleEnabledByFieldData(val any, colDetails *columnDetails) {
-	// already set while column definition
-	// not required to determined from field values
-	if colDetails.isMultipleEnabled {
-		return
-	}
-
-	// for columns like 'choice', even though it has an option to hold single/multiple values,
-	// the columnDefinition property 'allowMultipleValues' is not available.
-	// Hence we determine single/multiple from the actual field data.
-	if reflect.TypeOf(val).Kind() == reflect.Slice {
-		colDetails.isMultipleEnabled = true
+func checkFields(colDetails *columnDetails) []string {
+	switch {
+	case colDetails.isLookupColumn:
+		return []string{LookupIDKey, LookupValueKey}
+	case colDetails.isPersonColumn:
+		return []string{LookupIDKey, LookupValueKey, PersonEmailKey}
+	default:
+		return []string{}
 	}
 }
 
@@ -776,4 +766,8 @@ func ListCollisionKey(list models.Listable) string {
 	}
 
 	return ptr.Val(list.GetDisplayName())
+}
+
+func isSlice(val any) bool {
+	return reflect.TypeOf(val).Kind() == reflect.Slice
 }
