@@ -36,7 +36,11 @@ func TestRepositoryUnitSuite(t *testing.T) {
 	suite.Run(t, &RepositoryUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *RepositoryUnitSuite) TestClose() {
+// TestCloseWithoutConnectOrInit ensures SDK users can always call Close() on a
+// Repositoryer handle without having to track if they called the Connect or
+// Init functions. This makes cleanup easier for them because they can just use
+// a defer Close() in some cases instead of having to track state.
+func (suite *RepositoryUnitSuite) TestCloseWithoutConnectOrInit() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
