@@ -12,7 +12,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/keys"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/common/tform"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
@@ -574,12 +573,12 @@ func populateMultipleValues(val any, filteredData map[string]any, colDetails *co
 			continue
 		}
 
-		v, err := tform.AnyValueToT[float64](LookupIDKey, md)
-		if err != nil {
+		v, ok := md[LookupIDKey].(*float64)
+		if !ok {
 			continue
 		}
 
-		lookupIDs = append(lookupIDs, v)
+		lookupIDs = append(lookupIDs, ptr.Val(v))
 	}
 
 	filteredData[colDetails.createFieldName] = lookupIDs
