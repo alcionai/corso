@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -36,8 +35,6 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	if givenDir := os.Getenv("TEST_DIR"); len(givenDir) > 0 {
 		dir = givenDir
 	}
-
-	fmt.Println("----------------->", dir)
 
 	cfg, err := tconfig.ReadTestConfig()
 	require.NoError(t, err, "configuring storage from test file", clues.ToCore(err))

@@ -191,6 +191,9 @@ jobs:
           -run '^TestExchangeBackupIntgSuite/TestBackup_Run_exchange$' ./internal/operations/test/m365/exchange \
           2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log
 
+      - name: peek
+        run: ls /tmp/corso-trusted-testlog
+
       # # run the tests
       # - name: Integration Tests
       #   env:
