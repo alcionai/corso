@@ -71,8 +71,17 @@ func (suite *ItemInfoUnitSuite) TestItemInfo_IsDriveItem() {
 		{
 			name: "exchange anything",
 			ii: ItemInfo{
-				Groups: &GroupsInfo{
+				Exchange: &ExchangeInfo{
 					ItemType: ExchangeMail,
+				},
+			},
+			expect: assert.False,
+		},
+		{
+			name: "teams chat",
+			ii: ItemInfo{
+				TeamsChats: &TeamsChatsInfo{
+					ItemType: TeamsChat,
 				},
 			},
 			expect: assert.False,
