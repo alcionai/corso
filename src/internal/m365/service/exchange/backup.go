@@ -19,9 +19,17 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
+type exchangeBackup struct{}
+
+// NewBackup provides a struct that matches standard apis
+// across m365/service handlers.
+func NewBackup() *exchangeBackup {
+	return &exchangeBackup{}
+}
+
 // ProduceBackupCollections returns a DataCollection which the caller can
 // use to read mailbox data out for the specified user
-func ProduceBackupCollections(
+func (exchangeBackup) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,

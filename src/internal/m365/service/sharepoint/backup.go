@@ -20,7 +20,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-func ProduceBackupCollections(
+type sharePointBackup struct{}
+
+// NewBackup provides a struct that matches standard apis
+// across m365/service handlers.
+func NewBackup() *sharePointBackup {
+	return &sharePointBackup{}
+}
+
+func (sharePointBackup) ProduceBackupCollections(
 	ctx context.Context,
 	bpc inject.BackupProducerConfig,
 	ac api.Client,
