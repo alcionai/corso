@@ -234,43 +234,71 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_ColumnType() {
 	tests := []struct {
 		name    string
 		getOrig func() models.ColumnDefinitionable
-		checkFn func(models.ColumnDefinitionable) bool
+		checkFn func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool
 	}{
 		{
-			name: "column type should be number",
+			name: "number column",
 			getOrig: func() models.ColumnDefinitionable {
 				numColumn := models.NewNumberColumn()
 
 				cd := models.NewColumnDefinition()
 				cd.SetNumber(numColumn)
+				cd.SetName(ptr.To("num-col"))
 
 				return cd
 			},
-			checkFn: func(cd models.ColumnDefinitionable) bool {
-				return cd.GetNumber() != nil
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetNumber() != nil &&
+					colNames["num-col"].getFieldName == "num-col" &&
+					colNames["num-col"].createFieldName == "num-col"
 			},
 		},
 		{
-			name: "column type should be person or group",
+			name: "person or group column, single value",
 			getOrig: func() models.ColumnDefinitionable {
 				pgColumn := models.NewPersonOrGroupColumn()
 
 				cd := models.NewColumnDefinition()
 				cd.SetPersonOrGroup(pgColumn)
+				cd.SetName(ptr.To("pg-col"))
 
 				return cd
 			},
-			checkFn: func(cd models.ColumnDefinitionable) bool {
-				return cd.GetPersonOrGroup() != nil
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetPersonOrGroup() != nil &&
+					colNames["pg-col"].getFieldName == "pg-colLookupId" &&
+					colNames["pg-col"].createFieldName == "pg-colLookupId"
 			},
 		},
 		{
-			name: "column type should default to text",
+			name: "person or group column, multiple value",
 			getOrig: func() models.ColumnDefinitionable {
-				return models.NewColumnDefinition()
+				pgColumn := models.NewPersonOrGroupColumn()
+				pgColumn.SetAllowMultipleSelection(ptr.To(true))
+
+				cd := models.NewColumnDefinition()
+				cd.SetPersonOrGroup(pgColumn)
+				cd.SetName(ptr.To("pg-col"))
+
+				return cd
 			},
-			checkFn: func(cd models.ColumnDefinitionable) bool {
-				return cd.GetText() != nil
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetPersonOrGroup() != nil &&
+					colNames["pg-col"].getFieldName == "pg-col" &&
+					colNames["pg-col"].createFieldName == "pg-colLookupId"
+			},
+		},
+		{
+			name: "defaulted to text column",
+			getOrig: func() models.ColumnDefinitionable {
+				cd := models.NewColumnDefinition()
+				cd.SetName(ptr.To("some-col"))
+				return cd
+			},
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetText() != nil &&
+					colNames["some-col"].getFieldName == "some-col" &&
+					colNames["some-col"].createFieldName == "some-col"
 			},
 		},
 	}
@@ -282,7 +310,7 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_ColumnType() {
 			newCd := cloneColumnDefinitionable(test.getOrig(), colNames)
 
 			require.NotEmpty(t, newCd)
-			assert.True(t, test.checkFn(newCd))
+			assert.True(t, test.checkFn(newCd, colNames))
 		})
 	}
 }
@@ -345,8 +373,11 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length:           0,
-			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
+			length: 0,
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {
+				getFieldName:    TitleColumnName,
+				createFieldName: TitleColumnName,
+			}},
 		},
 		{
 			name: "title and legacy columns",
@@ -360,8 +391,11 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length:           0,
-			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
+			length: 0,
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {
+				getFieldName:    TitleColumnName,
+				createFieldName: TitleColumnName,
+			}},
 		},
 		{
 			name: "readonly and legacy columns",
@@ -375,8 +409,11 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 				})
 				return lst
 			},
-			length:           0,
-			expectedColNames: map[string]*columnDetails{TitleColumnName: {}},
+			length: 0,
+			expectedColNames: map[string]*columnDetails{TitleColumnName: {
+				getFieldName:    TitleColumnName,
+				createFieldName: TitleColumnName,
+			}},
 		},
 		{
 			name: "legacy and a text column",
@@ -392,8 +429,14 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_LegacyColumns() {
 			},
 			length: 1,
 			expectedColNames: map[string]*columnDetails{
-				TitleColumnName: {},
-				textColumnName:  {},
+				TitleColumnName: {
+					getFieldName:    TitleColumnName,
+					createFieldName: TitleColumnName,
+				},
+				textColumnName: {
+					getFieldName:    textColumnName,
+					createFieldName: textColumnName,
+				},
 			},
 		},
 	}
@@ -442,7 +485,10 @@ func (suite *ListsUnitSuite) TestFieldValueSetable() {
 	origFs = models.NewFieldValueSet()
 	origFs.SetAdditionalData(additionalData)
 
-	colNames["itemName"] = &columnDetails{}
+	colNames["itemName"] = &columnDetails{
+		getFieldName:    "itemName",
+		createFieldName: "itemName",
+	}
 
 	fs = retrieveFieldData(origFs, colNames)
 	fsAdditionalData = fs.GetAdditionalData()
@@ -510,7 +556,10 @@ func (suite *ListsUnitSuite) TestFieldValueSetable_Location() {
 	origFs.SetAdditionalData(additionalData)
 
 	colNames := map[string]*columnDetails{
-		"MyAddress": {},
+		"MyAddress": {
+			getFieldName:    "MyAddress",
+			createFieldName: "MyAddress",
+		},
 	}
 
 	fs := retrieveFieldData(origFs, colNames)
@@ -709,51 +758,95 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 	tests := []struct {
 		name           string
 		additionalData map[string]any
-		colName        string
+		colDetails     map[string]*columnDetails
 		assertFn       assert.BoolAssertionFunc
+		expectedResult map[string]any
 	}{
 		{
 			name: "choice column, single value",
 			additionalData: map[string]any{
-				"choice": "good",
+				"choice": ptr.To("good"),
 			},
-			colName:  "choice",
+			colDetails: map[string]*columnDetails{
+				"choice": {
+					getFieldName:    "choice",
+					createFieldName: "choice",
+				},
+			},
 			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"choice": ptr.To("good"),
+			},
 		},
 		{
 			name: "choice column, multiple values",
 			additionalData: map[string]any{
-				"choice": []string{"good", "ok"},
+				"choice": []*string{
+					ptr.To("good"),
+					ptr.To("ok"),
+				},
 			},
-			colName:  "choice",
+			colDetails: map[string]*columnDetails{
+				"choice": {
+					getFieldName:    "choice",
+					createFieldName: "choice",
+				},
+			},
 			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"choice@odata.type": "Collection(Edm.String)",
+				"choice": []*string{
+					ptr.To("good"),
+					ptr.To("ok"),
+				},
+			},
 		},
 		{
 			name: "person column, single value",
 			additionalData: map[string]any{
-				"PersonsLookupId": 10,
+				"PersonsLookupId": ptr.To(10),
 			},
-			colName:  "PersonsLookupId",
+			colDetails: map[string]*columnDetails{
+				"Persons": {
+					isPersonColumn:  true,
+					getFieldName:    "PersonsLookupId",
+					createFieldName: "PersonsLookupId",
+				},
+			},
 			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"PersonsLookupId": ptr.To(10),
+			},
 		},
 		{
 			name: "person column, multiple values",
 			additionalData: map[string]any{
-				"Persons": []map[string]any{
-					{
-						"LookupId":    10,
-						"LookupValue": "Who1",
-						"Email":       "Who1@10rqc2.onmicrosoft.com",
+				"Persons": []any{
+					map[string]any{
+						"LookupId":    ptr.To(float64(10)),
+						"LookupValue": ptr.To("Who1"),
+						"Email":       ptr.To("Who1@10rqc2.onmicrosoft.com"),
 					},
-					{
-						"LookupId":    11,
-						"LookupValue": "Who2",
-						"Email":       "Who2@10rqc2.onmicrosoft.com",
+					map[string]any{
+						"LookupId":    ptr.To(float64(11)),
+						"LookupValue": ptr.To("Who2"),
+						"Email":       ptr.To("Who2@10rqc2.onmicrosoft.com"),
 					},
 				},
 			},
-			colName:  "Persons",
+			colDetails: map[string]*columnDetails{
+				"Persons": {
+					isPersonColumn:    true,
+					isMultipleEnabled: true,
+					getFieldName:      "Persons",
+					createFieldName:   "PersonsLookupId",
+				},
+			},
 			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"PersonsLookupId":            []float64{10, 11},
+				"PersonsLookupId@odata.type": "Collection(Edm.Int32)",
+			},
 		},
 	}
 
@@ -761,13 +854,9 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 		origFs := models.NewFieldValueSet()
 		origFs.SetAdditionalData(test.additionalData)
 
-		colNames := map[string]*columnDetails{
-			test.colName: {},
-		}
-
 		suite.Run(test.name, func() {
-			setAdditionalDataByColumnNames(origFs, colNames)
-			test.assertFn(t, colNames[test.colName].isMultipleEnabled)
+			res := setAdditionalDataByColumnNames(origFs, test.colDetails)
+			assert.Equal(t, test.expectedResult, res)
 		})
 	}
 }
