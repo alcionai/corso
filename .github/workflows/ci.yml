@@ -180,7 +180,6 @@ jobs:
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
-          TEST_DIR: /tmp/corso-trusted-testlog
         run: |
           set -euo pipefail
           go test       \

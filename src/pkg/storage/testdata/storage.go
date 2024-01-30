@@ -31,11 +31,6 @@ var AWSStorageCredEnvs = []string{
 func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 
-	dir := t.TempDir()
-	if givenDir := os.Getenv("TEST_DIR"); len(givenDir) > 0 {
-		dir = givenDir
-	}
-
 	cfg, err := tconfig.ReadTestConfig()
 	require.NoError(t, err, "configuring storage from test file", clues.ToCore(err))
 
@@ -50,7 +45,7 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 		},
 		storage.CommonConfig{
 			Corso:       GetAndInsertCorso(""),
-			KopiaCfgDir: dir,
+			KopiaCfgDir: t.TempDir(),
 		})
 	require.NoErrorf(t, err, "creating storage: %+v", clues.ToCore(err))
 
