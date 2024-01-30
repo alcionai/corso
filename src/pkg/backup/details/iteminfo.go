@@ -41,6 +41,9 @@ const (
 	// Groups/Teams(40x)
 	GroupsChannelMessage   ItemType = 401
 	GroupsConversationPost ItemType = 402
+
+	// Teams Chat
+	TeamsChat ItemType = 501
 )
 
 func UpdateItem(item *ItemInfo, newLocPath *path.Builder) {
@@ -73,6 +76,7 @@ type ItemInfo struct {
 	SharePoint *SharePointInfo `json:"sharePoint,omitempty"`
 	OneDrive   *OneDriveInfo   `json:"oneDrive,omitempty"`
 	Groups     *GroupsInfo     `json:"groups,omitempty"`
+	TeamsChats *TeamsChatsInfo `json:"teamsChats,omitempty"`
 	// Optional item extension data
 	Extension *ExtensionData `json:"extension,omitempty"`
 }
@@ -99,6 +103,9 @@ func (i ItemInfo) infoType() ItemType {
 
 	case i.Groups != nil:
 		return i.Groups.ItemType
+
+	case i.TeamsChats != nil:
+		return i.TeamsChats.ItemType
 	}
 
 	return UnknownType
@@ -120,6 +127,9 @@ func (i ItemInfo) size() int64 {
 
 	case i.Folder != nil:
 		return i.Folder.Size
+
+	case i.TeamsChats != nil:
+		return int64(i.TeamsChats.Chat.MessageCount)
 	}
 
 	return 0
@@ -141,6 +151,9 @@ func (i ItemInfo) Modified() time.Time {
 
 	case i.Folder != nil:
 		return i.Folder.Modified
+
+	case i.TeamsChats != nil:
+		return i.TeamsChats.Modified
 	}
 
 	return time.Time{}
@@ -160,6 +173,9 @@ func (i ItemInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error) {
 	case i.Groups != nil:
 		return i.Groups.uniqueLocation(baseLoc)
 
+	case i.TeamsChats != nil:
+		return i.TeamsChats.uniqueLocation(baseLoc)
+
 	default:
 		return nil, clues.New("unsupported type")
 	}
@@ -178,6 +194,9 @@ func (i ItemInfo) updateFolder(f *FolderInfo) error {
 
 	case i.Groups != nil:
 		return i.Groups.updateFolder(f)
+
+	case i.TeamsChats != nil:
+		return i.TeamsChats.updateFolder(f)
 
 	default:
 		return clues.New("unsupported type")

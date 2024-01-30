@@ -170,6 +170,7 @@ func insertStringToBody(body getContenter, newContent string) string {
 	return newContent + content
 }
 
+//nolint:lll
 // ===============================================================================================
 // Sanitization section
 // Set of functions that support ItemAttachemtable object restoration.
@@ -187,14 +188,6 @@ func insertStringToBody(body getContenter, newContent string) string {
 // currently supported for Restore operations.
 // itemAttachments
 // support ODataType values
-//
-//nolint:lll
-const (
-	itemAttachment  = "#microsoft.graph.itemAttachment"
-	eventItemType   = "#microsoft.graph.event"
-	mailItemType    = "#microsoft.graph.message"
-	contactItemType = "#microsoft.graph.contact"
-)
 
 // toItemAttachment transforms internal item, OutlookItemables, into
 // objects that are able to be uploaded into M365.
@@ -205,20 +198,16 @@ func toItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 	}
 
 	item := transform.GetItem()
-	itemType := ptr.Val(item.GetOdataType())
 
-	switch itemType {
-	case contactItemType:
-		contact := item.(models.Contactable)
-		revised := sanitizeContact(contact)
-
+	switch val := item.(type) {
+	case models.Contactable:
+		revised := sanitizeContact(val)
 		transform.SetItem(revised)
 
 		return transform, nil
-	case eventItemType:
-		event := item.(models.Eventable)
 
-		newEvent, err := sanitizeEvent(event)
+	case models.Eventable:
+		newEvent, err := sanitizeEvent(val)
 		if err != nil {
 			return nil, err
 		}
@@ -226,10 +215,9 @@ func toItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 		transform.SetItem(newEvent)
 
 		return transform, nil
-	case mailItemType:
-		message := item.(models.Messageable)
 
-		newMessage, err := sanitizeMessage(message)
+	case models.Messageable:
+		newMessage, err := sanitizeMessage(val)
 		if err != nil {
 			return nil, err
 		}
@@ -237,8 +225,12 @@ func toItemAttachment(orig models.Attachmentable) (models.Attachmentable, error)
 		transform.SetItem(newMessage)
 
 		return transform, nil
+
 	default:
-		return nil, clues.New(fmt.Sprintf("unsupported attachment type: %T", itemType))
+		return nil, clues.New(fmt.Sprintf(
+			"unsupported attachment type: (%T) %s",
+			val,
+			ptr.Val(item.GetOdataType())))
 	}
 }
 
