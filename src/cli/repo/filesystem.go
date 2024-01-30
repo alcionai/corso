@@ -2,7 +2,6 @@ package repo
 
 import (
 	"github.com/alcionai/clues"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/alcionai/corso/src/cli/flags"
@@ -110,10 +109,6 @@ func initFilesystemCmd(cmd *cobra.Command, args []string) error {
 	ric := repository.InitConfig{RetentionOpts: retentionOpts}
 
 	if err = r.Initialize(ctx, ric); err != nil {
-		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
-			return nil
-		}
-
 		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 

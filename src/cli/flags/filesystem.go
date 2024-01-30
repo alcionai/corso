@@ -28,13 +28,6 @@ func AddFilesystemFlags(cmd *cobra.Command) {
 		"",
 		"path to local or network storage")
 	cobra.CheckErr(cmd.MarkFlagRequired(FilesystemPathFN))
-
-	fs.BoolVar(
-		&SucceedIfExistsFV,
-		SucceedIfExistsFN,
-		false,
-		"Exit with success if the repo has already been initialized.")
-	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
 }
 
 func FilesystemFlagOverrides(cmd *cobra.Command) map[string]string {
