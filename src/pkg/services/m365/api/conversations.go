@@ -2,13 +2,16 @@ package api
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alcionai/clues"
 	"github.com/jaytaylor/html2text"
+	"github.com/microsoft/kiota-abstractions-go/serialization"
 	"github.com/microsoftgraph/msgraph-sdk-go/groups"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/common/sanitize"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -189,4 +192,30 @@ func (c Conversations) getAttachments(
 	}
 
 	return result, totalSize, nil
+}
+
+func bytesToPostable(body []byte) (serialization.Parsable, error) {
+	v, err := CreateFromBytes(body, models.CreatePostFromDiscriminatorValue)
+	if err != nil {
+		if !strings.Contains(err.Error(), invalidJSON) {
+			return nil, clues.Wrap(err, "deserializing bytes to message")
+		}
+
+		// If the JSON was invalid try sanitizing and deserializing again.
+		// Sanitizing should transform characters < 0x20 according to the spec where
+		// possible. The resulting JSON may still be invalid though.
+		body = sanitize.JSONBytes(body)
+		v, err = CreateFromBytes(body, models.CreatePostFromDiscriminatorValue)
+	}
+
+	return v, clues.Stack(err).OrNil()
+}
+
+func BytesToPostable(body []byte) (models.Postable, error) {
+	v, err := bytesToPostable(body)
+	if err != nil {
+		return nil, clues.Stack(err)
+	}
+
+	return v.(models.Postable), nil
 }
