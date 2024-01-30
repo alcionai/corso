@@ -591,7 +591,7 @@ func (ec exchangeCategory) isLeaf() bool {
 // pathValues transforms the two paths to maps of identified properties.
 //
 // Example:
-// [tenantID, service, userPN, category, mailFolder, mailID]
+// [tenantID, service, userID, category, mailFolder, mailID]
 // => {exchMailFolder: mailFolder, exchMail: mailID}
 func (ec exchangeCategory) pathValues(
 	repo path.Path,
@@ -772,7 +772,7 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 
 	infoCat := s.InfoCategory()
 
-	cfpc := categoryFromItemType(info.ItemType)
+	cfpc := exchangeCategoryFromItemType(info.ItemType)
 	if !typeAndCategoryMatches(infoCat, cfpc) {
 		return false
 	}
@@ -801,10 +801,10 @@ func (s ExchangeScope) matchesInfo(dii details.ItemInfo) bool {
 	return s.Matches(infoCat, i)
 }
 
-// categoryFromItemType interprets the category represented by the ExchangeInfo
+// exchangeCategoryFromItemType interprets the category represented by the ExchangeInfo
 // struct.  Since every ExchangeInfo can hold all exchange data info, the exact
 // type that the struct represents must be compared using its ItemType prop.
-func categoryFromItemType(pct details.ItemType) exchangeCategory {
+func exchangeCategoryFromItemType(pct details.ItemType) exchangeCategory {
 	switch pct {
 	case details.ExchangeContact:
 		return ExchangeContact
