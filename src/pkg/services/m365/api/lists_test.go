@@ -289,6 +289,41 @@ func (suite *ListsUnitSuite) TestColumnDefinitionable_ColumnType() {
 			},
 		},
 		{
+			name: "lookup column, single value",
+			getOrig: func() models.ColumnDefinitionable {
+				lookupColumn := models.NewLookupColumn()
+
+				cd := models.NewColumnDefinition()
+				cd.SetLookup(lookupColumn)
+				cd.SetName(ptr.To("refer-col"))
+
+				return cd
+			},
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetLookup() != nil &&
+					colNames["refer-col"].getFieldName == "refer-colLookupId" &&
+					colNames["refer-col"].createFieldName == "refer-colLookupId"
+			},
+		},
+		{
+			name: "lookup column, multiple value",
+			getOrig: func() models.ColumnDefinitionable {
+				lookupColumn := models.NewLookupColumn()
+				lookupColumn.SetAllowMultipleValues(ptr.To(true))
+
+				cd := models.NewColumnDefinition()
+				cd.SetLookup(lookupColumn)
+				cd.SetName(ptr.To("refer-col"))
+
+				return cd
+			},
+			checkFn: func(cd models.ColumnDefinitionable, colNames map[string]*columnDetails) bool {
+				return cd.GetLookup() != nil &&
+					colNames["refer-col"].getFieldName == "refer-col" &&
+					colNames["refer-col"].createFieldName == "refer-colLookupId"
+			},
+		},
+		{
 			name: "defaulted to text column",
 			getOrig: func() models.ColumnDefinitionable {
 				cd := models.NewColumnDefinition()
@@ -848,6 +883,51 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 				"PersonsLookupId@odata.type": "Collection(Edm.Int32)",
 			},
 		},
+		{
+			name: "lookup column, single value",
+			additionalData: map[string]any{
+				"ReferLookupId": ptr.To(10),
+			},
+			colDetails: map[string]*columnDetails{
+				"Refer": {
+					isLookupColumn:  true,
+					getFieldName:    "ReferLookupId",
+					createFieldName: "ReferLookupId",
+				},
+			},
+			assertFn: assert.False,
+			expectedResult: map[string]any{
+				"ReferLookupId": ptr.To(10),
+			},
+		},
+		{
+			name: "lookup column, multiple values",
+			additionalData: map[string]any{
+				"Refers": []any{
+					map[string]any{
+						"LookupId":    ptr.To(float64(10)),
+						"LookupValue": ptr.To("item-1"),
+					},
+					map[string]any{
+						"LookupId":    ptr.To(float64(11)),
+						"LookupValue": ptr.To("item-1"),
+					},
+				},
+			},
+			colDetails: map[string]*columnDetails{
+				"Refers": {
+					isLookupColumn:    true,
+					isMultipleEnabled: true,
+					getFieldName:      "Refers",
+					createFieldName:   "RefersLookupId",
+				},
+			},
+			assertFn: assert.True,
+			expectedResult: map[string]any{
+				"RefersLookupId":            []float64{10, 11},
+				"RefersLookupId@odata.type": "Collection(Edm.Int32)",
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -857,6 +937,34 @@ func (suite *ListsUnitSuite) TestSetAdditionalDataByColumnNames() {
 		suite.Run(test.name, func() {
 			res := setAdditionalDataByColumnNames(origFs, test.colDetails)
 			assert.Equal(t, test.expectedResult, res)
+		})
+	}
+}
+
+func (suite *ListsUnitSuite) TestCheckFields() {
+	t := suite.T()
+
+	tests := []struct {
+		name         string
+		colDetails   *columnDetails
+		expectedKeys []string
+	}{
+		{
+			name:         "lookup column",
+			colDetails:   &columnDetails{isLookupColumn: true},
+			expectedKeys: []string{LookupIDKey, LookupValueKey},
+		},
+		{
+			name:         "person column",
+			colDetails:   &columnDetails{isPersonColumn: true},
+			expectedKeys: []string{LookupIDKey, LookupValueKey, PersonEmailKey},
+		},
+	}
+
+	for _, test := range tests {
+		suite.Run(test.name, func() {
+			res := checkFields(test.colDetails)
+			assert.Equal(t, test.expectedKeys, res)
 		})
 	}
 }

@@ -23,6 +23,7 @@ type columnDetails struct {
 	createFieldName    string
 	getFieldName       string
 	isPersonColumn     bool
+	isLookupColumn     bool
 	isMultipleEnabled  bool
 	hasDefaultedToText bool
 }
@@ -420,6 +421,16 @@ func setColumnType(
 	case orig.GetNumber() != nil:
 		newColumn.SetNumber(orig.GetNumber())
 	case orig.GetLookup() != nil:
+		colDetails.isLookupColumn = true
+		isMultipleEnabled := ptr.Val(orig.GetLookup().GetAllowMultipleValues())
+		colDetails.isMultipleEnabled = isMultipleEnabled
+		updatedName := colName + LookupIDFieldNamePart
+		colDetails.createFieldName = updatedName
+
+		if !isMultipleEnabled {
+			colDetails.getFieldName = updatedName
+		}
+
 		newColumn.SetLookup(orig.GetLookup())
 	case orig.GetThumbnail() != nil:
 		newColumn.SetThumbnail(orig.GetThumbnail())
@@ -540,7 +551,8 @@ func populateMultipleValues(val any, filteredData map[string]any, colDetails *co
 		return
 	}
 
-	if !colDetails.isPersonColumn {
+	if !colDetails.isPersonColumn &&
+		!colDetails.isLookupColumn {
 		return
 	}
 
@@ -550,11 +562,10 @@ func populateMultipleValues(val any, filteredData map[string]any, colDetails *co
 	}
 
 	lookupIDs := make([]float64, 0)
-	lookupKeys := []string{LookupIDKey, LookupValueKey, PersonEmailKey}
 
 	for _, nestedFields := range multiNestedFields {
 		md, ok := nestedFields.(map[string]any)
-		if !ok || !keys.HasKeys(md, lookupKeys...) {
+		if !ok || !keys.HasKeys(md, checkFields(colDetails)...) {
 			continue
 		}
 
@@ -567,6 +578,17 @@ func populateMultipleValues(val any, filteredData map[string]any, colDetails *co
 	}
 
 	filteredData[colDetails.createFieldName] = lookupIDs
+}
+
+func checkFields(colDetails *columnDetails) []string {
+	switch {
+	case colDetails.isLookupColumn:
+		return []string{LookupIDKey, LookupValueKey}
+	case colDetails.isPersonColumn:
+		return []string{LookupIDKey, LookupValueKey, PersonEmailKey}
+	default:
+		return []string{}
+	}
 }
 
 // when creating list items with multiple values for a single column
@@ -587,7 +609,7 @@ func specifyODataType(filteredData map[string]any, colDetails *columnDetails, co
 	}
 
 	switch {
-	case colDetails.isPersonColumn:
+	case colDetails.isPersonColumn, colDetails.isLookupColumn:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameIntVal
 	default:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
