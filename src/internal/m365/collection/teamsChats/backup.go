@@ -131,9 +131,10 @@ func populateCollection[I chatsItemer](
 	for _, item := range items {
 		if !bh.includeItem(item, scope) {
 			cl.Inc(count.SkippedItems)
-		} else {
-			includedItems = append(includedItems, item)
+			continue
 		}
+
+		includedItems = append(includedItems, item)
 	}
 
 	cl.Add(count.ItemsAdded, int64(len(includedItems)))
@@ -158,8 +159,7 @@ func populateCollection[I chatsItemer](
 		qp.ProtectedResource.ID(),
 		includedItems,
 		container,
-		statusUpdater,
-		useLazyReader)
+		statusUpdater)
 
 	return collection, clues.Stack(errs.Failure()).OrNil()
 }

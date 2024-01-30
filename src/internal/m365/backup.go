@@ -13,7 +13,10 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/service/groups"
 	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
 	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
+	"github.com/alcionai/corso/src/internal/m365/service/teamschats"
+	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
+	"github.com/alcionai/corso/src/pkg/account"
 	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
@@ -22,8 +25,32 @@ import (
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
+
+type backupHandler interface {
+	produceBackupCollectionser
+}
+
+type produceBackupCollectionser interface {
+	ProduceBackupCollections(
+		ctx context.Context,
+		bpc inject.BackupProducerConfig,
+		ac api.Client,
+		creds account.M365Config,
+		su support.StatusUpdater,
+		counter *count.Bus,
+		errs *fault.Bus,
+	) (
+		collections []data.BackupCollection,
+		excludeItems *prefixmatcher.StringSetMatcher,
+		// canUsePreviousBacukp can be always returned true for impelementations
+		// that always return a tombstone collection when the metadata read fails
+		canUsePreviousBackup bool,
+		err error,
+	)
+}
 
 // ---------------------------------------------------------------------------
 // Data Collections
@@ -63,65 +90,38 @@ func (ctrl *Controller) ProduceBackupCollections(
 		canUsePreviousBackup bool
 	)
 
+	var handler backupHandler
+
 	switch service {
 	case path.ExchangeService:
-		colls, excludeItems, canUsePreviousBackup, err = exchange.ProduceBackupCollections(
-			ctx,
-			bpc,
-			ctrl.AC,
-			ctrl.credentials,
-			ctrl.UpdateStatus,
-			counter,
-			errs)
-		if err != nil {
-			return nil, nil, false, err
-		}
+		handler = exchange.NewBackup()
 
 	case path.OneDriveService:
-		colls, excludeItems, canUsePreviousBackup, err = onedrive.ProduceBackupCollections(
-			ctx,
-			bpc,
-			ctrl.AC,
-			ctrl.credentials,
-			ctrl.UpdateStatus,
-			counter,
-			errs)
-		if err != nil {
-			return nil, nil, false, err
-		}
+		handler = onedrive.NewBackup()
 
 	case path.SharePointService:
-		colls, excludeItems, canUsePreviousBackup, err = sharepoint.ProduceBackupCollections(
-			ctx,
-			bpc,
-			ctrl.AC,
-			ctrl.credentials,
-			ctrl.UpdateStatus,
-			counter,
-			errs)
-		if err != nil {
-			return nil, nil, false, err
-		}
+		handler = sharepoint.NewBackup()
 
 	case path.GroupsService:
-		colls, excludeItems, err = groups.ProduceBackupCollections(
-			ctx,
-			bpc,
-			ctrl.AC,
-			ctrl.credentials,
-			ctrl.UpdateStatus,
-			counter,
-			errs)
-		if err != nil {
-			return nil, nil, false, err
-		}
+		handler = groups.NewBackup()
 
-		// canUsePreviousBacukp can be always returned true for groups as we
-		// return a tombstone collection in case the metadata read fails
-		canUsePreviousBackup = true
+	case path.TeamsChatsService:
+		handler = teamschats.NewBackup()
 
 	default:
 		return nil, nil, false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
+	}
+
+	colls, excludeItems, canUsePreviousBackup, err = handler.ProduceBackupCollections(
+		ctx,
+		bpc,
+		ctrl.AC,
+		ctrl.credentials,
+		ctrl.UpdateStatus,
+		counter,
+		errs)
+	if err != nil {
+		return nil, nil, false, err
 	}
 
 	for _, c := range colls {
@@ -153,25 +153,27 @@ func (ctrl *Controller) IsServiceEnabled(
 		return sharepoint.IsServiceEnabled(ctx, ctrl.AC.Sites(), resourceOwner)
 	case path.GroupsService:
 		return groups.IsServiceEnabled(ctx, ctrl.AC.Groups(), resourceOwner)
+	case path.TeamsChatsService:
+		return teamschats.IsServiceEnabled(ctx, ctrl.AC.Users(), resourceOwner)
 	}
 
 	return false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
 }
 
-func verifyBackupInputs(sels selectors.Selector, cachedIDs []string) error {
+func verifyBackupInputs(sel selectors.Selector, cachedIDs []string) error {
 	var ids []string
 
-	switch sels.Service {
+	switch sel.Service {
 	case selectors.ServiceExchange, selectors.ServiceOneDrive:
 		// Exchange and OneDrive user existence now checked in checkServiceEnabled.
 		return nil
 
-	case selectors.ServiceSharePoint, selectors.ServiceGroups:
+	case selectors.ServiceSharePoint, selectors.ServiceGroups, selectors.ServiceTeamsChats:
 		ids = cachedIDs
 	}
 
-	if !filters.Contains(ids).Compare(sels.ID()) {
-		return clues.Stack(core.ErrNotFound).With("selector_protected_resource", sels.DiscreteOwner)
+	if !filters.Contains(ids).Compare(sel.ID()) {
+		return clues.Stack(core.ErrNotFound).With("selector_protected_resource", sel.ID())
 	}
 
 	return nil
