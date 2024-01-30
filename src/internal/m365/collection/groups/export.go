@@ -33,9 +33,15 @@ func NewExportCollection(
 	stats *metrics.ExportStats,
 	cat path.CategoryType,
 ) export.Collectioner {
-	streamItems := streamChannelMessages
-	if cat == path.ConversationPostsCategory {
+	var streamItems export.ItemStreamer
+
+	switch cat {
+	case path.ChannelMessagesCategory:
+		streamItems = streamChannelMessages
+	case path.ConversationPostsCategory:
 		streamItems = streamConversationPosts
+	default:
+		return nil
 	}
 
 	return export.BaseCollection{
@@ -232,17 +238,18 @@ func streamConversationPosts(
 	errs := fault.New(false)
 
 	for _, rc := range drc {
-		ictx := clues.Add(ctx, "path_short_ref", rc.FullPath().ShortRef())
-
 		for item := range rc.Items(ctx, errs) {
-			itemCtx := clues.Add(ictx, "stream_item_id", item.ID())
+			ictx := clues.Add(
+				ctx,
+				"path_short_ref", rc.FullPath().ShortRef(),
+				"stream_item_id", item.ID())
 
 			// Trim .data suffix from itemID. Also, we don't expect .meta files
 			// here since details are not persisted for metadata files.
 			trimmedID := strings.TrimSuffix(item.ID(), metadata.DataFileSuffix)
 			exportName := trimmedID + ".eml"
 
-			postMetadata, err := fetchAndReadMetadata(itemCtx, trimmedID, rc)
+			postMetadata, err := fetchAndReadMetadata(ictx, trimmedID, rc)
 			if err != nil {
 				ch <- export.Item{
 					ID:    item.ID(),
@@ -267,11 +274,11 @@ func streamConversationPosts(
 			}
 
 			// Convert JSON to eml.
-			email, err := eml.FromJSONPostToEML(itemCtx, content, postMetadata)
+			email, err := eml.FromJSONPostToEML(ictx, content, postMetadata)
 			if err != nil {
 				err = clues.Wrap(err, "converting JSON to eml")
 
-				logger.CtxErr(itemCtx, err).Info("processing collection item")
+				logger.CtxErr(ictx, err).Info("processing collection item")
 
 				ch <- export.Item{
 					ID:    item.ID(),
@@ -318,9 +325,9 @@ func fetchAndReadMetadata(
 ) (groupMeta.ConversationPostMetadata, error) {
 	metaName := itemID + metadata.MetaFileSuffix
 
-	ictx := clues.Add(ctx, "meta_file_name", metaName)
+	ctx = clues.Add(ctx, "meta_file_name", metaName)
 
-	meta, err := fin.FetchItemByName(ictx, metaName)
+	meta, err := fin.FetchItemByName(ctx, metaName)
 	if err != nil {
 		return groupMeta.ConversationPostMetadata{},
 			clues.WrapWC(ctx, err, "fetching metadata")
@@ -341,17 +348,15 @@ func fetchAndReadMetadata(
 // getMetadata reads and parses the metadata info for an item
 func readMetadata(metaRC io.ReadCloser) (groupMeta.ConversationPostMetadata, error) {
 	var meta groupMeta.ConversationPostMetadata
-	// `metaRC` will be nil for the top level container folder
-	if metaRC != nil {
-		metaraw, err := io.ReadAll(metaRC)
-		if err != nil {
-			return groupMeta.ConversationPostMetadata{}, err
-		}
 
-		err = json.Unmarshal(metaraw, &meta)
-		if err != nil {
-			return groupMeta.ConversationPostMetadata{}, err
-		}
+	metaraw, err := io.ReadAll(metaRC)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{}, err
+	}
+
+	err = json.Unmarshal(metaraw, &meta)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{}, err
 	}
 
 	return meta, nil
