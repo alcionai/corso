@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -24,11 +25,14 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/kopia/retention"
 	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/storage"
 )
 
 const (
+	corsoWrapperAlertNamespace = "corso-kopia-wrapper"
+
 	defaultKopiaConfigDir   = "/tmp/"
 	kopiaConfigFileTemplate = "repository-%s.config"
 	defaultCompressor       = "zstd-better-compression"
@@ -735,4 +739,116 @@ func (w *conn) updatePersistentConfig(
 		formatManager.SetParameters(ctx, mutableParams, blobCfg, reqFeatures),
 		"persisting updated config").
 		OrNil()
+}
+
+func (w *conn) verifyDefaultPolicyConfigOptions(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	const alertName = "kopia-global-policy"
+
+	globalPol, err := w.getGlobalPolicyOrEmpty(ctx)
+	if err != nil {
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"fetch-policy",
+			alertName,
+			nil))
+
+		return
+	}
+
+	ctx = clues.Add(ctx, "current_global_policy", globalPol.String())
+
+	if globalPol.CompressionPolicy.CompressorName != defaultCompressor {
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected compressor",
+			corsoWrapperAlertNamespace,
+			"compressor",
+			alertName,
+			nil))
+	}
+
+	// Need to use deep equals because the values are pointers to optional types.
+	// That makes regular equality checks fail even if the data contained in each
+	// policy is the same.
+	if !reflect.DeepEqual(globalPol.RetentionPolicy, defaultRetention) {
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected retention policy",
+			corsoWrapperAlertNamespace,
+			"retention-policy",
+			alertName,
+			nil))
+	}
+
+	if globalPol.SchedulingPolicy.Interval() != defaultSchedulingInterval {
+		errs.AddAlert(ctx, fault.NewAlert(
+			"unexpected scheduling interval",
+			corsoWrapperAlertNamespace,
+			"scheduling-interval",
+			alertName,
+			nil))
+	}
+}
+
+func (w *conn) verifyRetentionConfig(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	const alertName = "kopia-object-locking"
+
+	directRepo, ok := w.Repository.(repo.DirectRepository)
+	if !ok {
+		errs.AddAlert(ctx, fault.NewAlert(
+			"",
+			corsoWrapperAlertNamespace,
+			"fetch-direct-repo",
+			alertName,
+			nil))
+
+		return
+	}
+
+	blobConfig, maintenanceParams, err := getRetentionConfigs(ctx, directRepo)
+	if err != nil {
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"fetch-config",
+			alertName,
+			nil))
+
+		return
+	}
+
+	err = retention.OptsFromConfigs(*blobConfig, *maintenanceParams).
+		Verify(ctx)
+	if err != nil {
+		errs.AddAlert(ctx, fault.NewAlert(
+			err.Error(),
+			corsoWrapperAlertNamespace,
+			"config-values",
+			alertName,
+			nil))
+	}
+}
+
+// verifyDefaultConfigOptions checks the following configurations:
+// kopia global policy:
+//   - kopia snapshot retention is disabled
+//   - kopia compression matches the default compression for corso
+//   - kopia scheduling is disabled
+//
+// object locking:
+//   - maintenance and blob config blob parameters are consistent (i.e. all
+//     enabled or all disabled)
+func (w *conn) verifyDefaultConfigOptions(
+	ctx context.Context,
+	errs *fault.Bus,
+) {
+	logger.Ctx(ctx).Info("verifying config parameters")
+
+	w.verifyDefaultPolicyConfigOptions(ctx, errs)
+	w.verifyRetentionConfig(ctx, errs)
 }

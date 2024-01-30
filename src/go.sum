@@ -19,8 +19,8 @@ github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1o
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
-github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2 h1:Oiz7puLziTpDUsEoiZMNor3j6um8RSvPOSIf4heGgTk=
-github.com/alcionai/clues v0.0.0-20231222002615-24ee69e6ecc2/go.mod h1:1YJwJy3W6GGsC2UiDAEWABUjgvT8OZHjKs8OoaXeKbw=
+github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c h1:QtARFaqYKtGjmEejr07KFf2iyfCAdTxYGRAAFveLjFA=
+github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c/go.mod h1:1YJwJy3W6GGsC2UiDAEWABUjgvT8OZHjKs8OoaXeKbw=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a h1:4nhM0NM1qtUT1s55rQ+D0Xw1Re5mIU9/crjEl6KdE+k=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a/go.mod h1:b7P5ygho6SYE+VIqpxA6QkYfv4teeyG4MKqB3utRu98=
 github.com/alcionai/kopia v0.12.2-0.20240116215733-ec3d100029fe h1:nLS5pxhm04Jz4+qeipNlxdyPGxqNWpBu8UGkRYpWoIw=
@@ -35,8 +35,8 @@ github.com/andybalholm/brotli v1.0.6 h1:Yf9fFpf49Zrxb9NlQaluyE92/+X7UVHlhMNJN2sx
 github.com/andybalholm/brotli v1.0.6/go.mod h1:fO7iG3H7G2nSZ7m0zPUDn85XEX2GTukHGRSepvi9Eig=
 github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
-github.com/arran4/golang-ical v0.2.3 h1:C4Vj7+BjJBIrAJhHgi6Ku+XUkQVugRq4re5Cqj5QVdE=
-github.com/arran4/golang-ical v0.2.3/go.mod h1:RqMuPGmwRRwjkb07hmm+JBqcWa1vF1LvVmPtSZN2OhQ=
+github.com/arran4/golang-ical v0.2.4 h1:0/rTXn2qqEekLKec3SzRRy+z7pCLtniMb0KD/dPogUo=
+github.com/arran4/golang-ical v0.2.4/go.mod h1:RqMuPGmwRRwjkb07hmm+JBqcWa1vF1LvVmPtSZN2OhQ=
 github.com/aws/aws-sdk-go v1.48.6 h1:hnL/TE3eRigirDLrdRE9AWE1ALZSVLAsC4wK8TGsMqk=
 github.com/aws/aws-sdk-go v1.48.6/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
 github.com/aws/aws-xray-sdk-go v1.8.3 h1:S8GdgVncBRhzbNnNUgTPwhEqhwt2alES/9rLASyhxjU=

@@ -28,7 +28,7 @@ jobs:
 
       # only run CI tests if the src folder or workflow actions have changed
       - name: Check for file changes in src/ or .github/workflows/
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: dornycheck
         with:
           list-files: json
