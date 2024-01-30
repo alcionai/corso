@@ -112,8 +112,6 @@ func (i *ExchangeInfo) uniqueLocation(baseLoc *path.Builder) (*uniqueLoc, error)
 }
 
 func (i *ExchangeInfo) updateFolder(f *FolderInfo) error {
-	// Use a switch instead of a rather large if-statement. Just make sure it's an
-	// Exchange type. If it's not return an error.
 	switch i.ItemType {
 	case ExchangeContact, ExchangeEvent, ExchangeMail:
 	default:
