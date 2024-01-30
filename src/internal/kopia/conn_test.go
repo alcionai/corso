@@ -96,7 +96,7 @@ func TestWrapperIntegrationSuite(t *testing.T) {
 	})
 }
 
-func (suite *WrapperIntegrationSuite) TestRepoNoExistsError_SamePassphrase() {
+func (suite *WrapperIntegrationSuite) TestInitialize_SamePassphrase() {
 	t := suite.T()
 	repoNameHash := strTD.NewHashForRepoConfigName()
 
@@ -116,7 +116,7 @@ func (suite *WrapperIntegrationSuite) TestRepoNoExistsError_SamePassphrase() {
 	assert.NoError(t, err, clues.ToCore(err))
 }
 
-func (suite *WrapperIntegrationSuite) TestRepoExistsError_IncorrectPassphrase() {
+func (suite *WrapperIntegrationSuite) TestInitialize_IncorrectPassphrase() {
 	t := suite.T()
 	repoNameHash := strTD.NewHashForRepoConfigName()
 
