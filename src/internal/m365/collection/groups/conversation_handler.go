@@ -129,8 +129,7 @@ func (bh conversationsBackupHandler) getItem(
 		groupID,
 		containerIDs[0],
 		containerIDs[1],
-		postID,
-		api.CallConfig{})
+		postID)
 }
 
 //lint:ignore U1000 false linter issue due to generics

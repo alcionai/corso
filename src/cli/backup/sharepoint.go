@@ -96,6 +96,8 @@ func addSharePointCommands(cmd *cobra.Command) *cobra.Command {
 
 		flags.AddSiteFlag(c, true)
 		flags.AddSiteIDFlag(c, true)
+		// [TODO](hitesh) to add lists flag to invoke backup for lists
+		// when explicit invoke is not required anymore
 		flags.AddDataFlag(c, []string{flags.DataLibraries}, true)
 		flags.AddGenericBackupFlags(c)
 

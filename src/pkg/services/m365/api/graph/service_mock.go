@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"context"
+
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
@@ -9,6 +11,23 @@ import (
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/count"
 )
+
+// authMock implements the
+// github.com/microsoft.kiota-abstractions-go/authentication:AuthenticationProvider
+// interface.
+type authMock struct{}
+
+// AuthenticateRequest is the function called prior to sending a graph API
+// request. It ensures the client has the proper authentication to send the
+// request. Returning nil allows us to skip the authentication that would
+// normally happen.
+func (a authMock) AuthenticateRequest(
+	context.Context,
+	*abstractions.RequestInformation,
+	map[string]any,
+) error {
+	return nil
+}
 
 func NewGockService(
 	creds account.M365Config,
@@ -35,11 +54,6 @@ func CreateGockAdapter(
 	counter *count.Bus,
 	opts ...Option,
 ) (abstractions.RequestAdapter, error) {
-	auth, err := GetAuth(tenant, client, secret)
-	if err != nil {
-		return nil, err
-	}
-
 	httpClient, cc := KiotaHTTPClient(counter, opts...)
 
 	// This makes sure that we are able to intercept any requests via
@@ -47,7 +61,9 @@ func CreateGockAdapter(
 	gock.InterceptClient(httpClient)
 
 	ng, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
-		auth,
+		// Use our own mock auth instance. This allows us to completely avoid having
+		// to make requests to microsoft servers during testing.
+		authMock{},
 		nil, nil,
 		httpClient)
 

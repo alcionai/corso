@@ -16,6 +16,7 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/kopia/kopia/snapshot/snapshotmaintenance"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
 	"github.com/alcionai/corso/src/internal/common/readers"
@@ -33,12 +34,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/store"
 )
 
-const (
-	// TODO(ashmrtnz): These should be some values from upper layer corso,
-	// possibly corresponding to who is making the backup.
-	corsoHost = "corso-host"
-	corsoUser = "corso"
-)
+const defaultCorsoPin = "corso"
 
 // common manifest tags
 const (
@@ -202,24 +198,12 @@ func (w Wrapper) ConsumeBackupCollections(
 		return nil, nil, nil, clues.Wrap(err, "building kopia directories")
 	}
 
-	// Add some extra tags so we can look things up by reason.
-	tags := maps.Clone(additionalTags)
-	if tags == nil {
-		// Some platforms seem to return nil if the input is nil.
-		tags = map[string]string{}
-	}
-
-	for _, r := range backupReasons {
-		for _, k := range tagKeys(r) {
-			tags[k] = ""
-		}
-	}
-
 	s, err := w.makeSnapshotWithRoot(
 		ctx,
+		backupReasons,
 		assistBase,
 		dirTree,
-		tags,
+		additionalTags,
 		progress)
 	if err != nil {
 		return nil, nil, nil, err
@@ -228,8 +212,72 @@ func (w Wrapper) ConsumeBackupCollections(
 	return s, progress.deets, progress.toMerge, progress.errs.Failure()
 }
 
+// userAndHost is used as a passing mechanism for values that will be fed into
+// kopia's UserName and Host fields for SourceInfo. It exists to avoid returning
+// two strings from the hostAndUserFromReasons function.
+type userAndHost struct {
+	user string
+	host string
+}
+
+func hostAndUserFromReasons(reasons []identity.Reasoner) (userAndHost, error) {
+	var (
+		tenant   string
+		resource string
+		// reasonMap is a hash set of the concatenation of the service and category.
+		reasonMap = map[string]struct{}{}
+	)
+
+	for i, reason := range reasons {
+		// Use a check on the iteration index instead of empty string so we can
+		// differentiate between the first iteration and a reason with an empty
+		// value (should result in an error if there's another reason with a
+		// non-empty value).
+		if i == 0 {
+			tenant = reason.Tenant()
+		} else if tenant != reason.Tenant() {
+			return userAndHost{}, clues.New("multiple tenant IDs in backup reasons").
+				With(
+					"old_tenant_id", tenant,
+					"new_tenant_id", reason.Tenant())
+		}
+
+		if i == 0 {
+			resource = reason.ProtectedResource()
+		} else if resource != reason.ProtectedResource() {
+			return userAndHost{}, clues.New("multiple protected resource IDs in backup reasons").
+				With(
+					"old_resource_id", resource,
+					"new_resource_id", reason.ProtectedResource())
+		}
+
+		dataType := reason.Service().String() + reason.Category().String()
+		reasonMap[dataType] = struct{}{}
+	}
+
+	allReasons := maps.Keys(reasonMap)
+	slices.Sort(allReasons)
+
+	host := strings.Join(allReasons, "-")
+	user := strings.Join([]string{tenant, resource}, "-")
+
+	if len(user) == 0 || user == "-" {
+		return userAndHost{}, clues.New("empty user value")
+	}
+
+	if len(host) == 0 {
+		return userAndHost{}, clues.New("empty host value")
+	}
+
+	return userAndHost{
+		host: host,
+		user: user,
+	}, nil
+}
+
 func (w Wrapper) makeSnapshotWithRoot(
 	ctx context.Context,
+	backupReasons []identity.Reasoner,
 	prevBases []BackupBase,
 	root fs.Directory,
 	addlTags map[string]string,
@@ -252,11 +300,24 @@ func (w Wrapper) makeSnapshotWithRoot(
 		snapIDs = append(snapIDs, ent.ItemDataSnapshot.ID)
 	}
 
+	// Add some extra tags so we can look things up by reason.
+	allTags := maps.Clone(addlTags)
+	if allTags == nil {
+		// Some platforms seem to return nil if the input is nil.
+		allTags = map[string]string{}
+	}
+
+	for _, r := range backupReasons {
+		for _, k := range tagKeys(r) {
+			allTags[k] = ""
+		}
+	}
+
 	ctx = clues.Add(
 		ctx,
 		"num_assist_snapshots", len(prevBases),
 		"assist_snapshot_ids", snapIDs,
-		"additional_tags", addlTags)
+		"additional_tags", allTags)
 
 	if len(snapIDs) > 0 {
 		logger.Ctx(ctx).Info("using snapshots for kopia-assisted incrementals")
@@ -266,7 +327,7 @@ func (w Wrapper) makeSnapshotWithRoot(
 
 	tags := map[string]string{}
 
-	for k, v := range addlTags {
+	for k, v := range allTags {
 		mk, mv := makeTagKV(k)
 
 		if len(v) == 0 {
@@ -276,7 +337,16 @@ func (w Wrapper) makeSnapshotWithRoot(
 		tags[mk] = v
 	}
 
-	err := repo.WriteSession(
+	// Set the SourceInfo to the tenant ID, resource ID, and the concatenation
+	// of the service/data types being backed up. This will give us unique
+	// values for each set of backups with the assumption that no concurrent
+	// backups for the same set of things is being run on this repo.
+	userHost, err := hostAndUserFromReasons(backupReasons)
+	if err != nil {
+		return nil, clues.StackWC(ctx, err)
+	}
+
+	err = repo.WriteSession(
 		ctx,
 		w.c,
 		repo.WriteSessionOptions{
@@ -288,10 +358,9 @@ func (w Wrapper) makeSnapshotWithRoot(
 		},
 		func(innerCtx context.Context, rw repo.RepositoryWriter) error {
 			si := snapshot.SourceInfo{
-				Host:     corsoHost,
-				UserName: corsoUser,
-				// TODO(ashmrtnz): will this be something useful for snapshot lookups later?
-				Path: root.Name(),
+				Host:     userHost.host,
+				UserName: userHost.user,
+				Path:     root.Name(),
 			}
 
 			trueVal := policy.OptionalBool(true)
@@ -325,6 +394,10 @@ func (w Wrapper) makeSnapshotWithRoot(
 			}
 
 			man.Tags = tags
+			// Add one pin to keep kopia's retention policy from collecting it if it
+			// ends up enabled for some reason. The value in the pin doesn't matter.
+			// We don't need to remove any pins.
+			man.UpdatePins(append(man.Pins, defaultCorsoPin), nil)
 
 			if _, err := snapshot.SaveSnapshot(innerCtx, rw, man); err != nil {
 				err = clues.WrapWC(ctx, err, "saving snapshot")
@@ -592,7 +665,12 @@ func (w Wrapper) RepoMaintenance(
 	ctx context.Context,
 	storer store.Storer,
 	opts repository.Maintenance,
+	errs *fault.Bus,
 ) error {
+	// Check the existing config parameters first so that even if we fail for some
+	// reason below we know we checked the config.
+	w.c.verifyDefaultConfigOptions(ctx, errs)
+
 	kopiaSafety, err := translateSafety(opts.Safety)
 	if err != nil {
 		return clues.WrapWC(ctx, err, "identifying safety level")
@@ -623,8 +701,9 @@ func (w Wrapper) RepoMaintenance(
 		// Even if we fail this we don't want to fail the overall maintenance
 		// operation since there's other useful work we can still do.
 		if err := cleanupOrphanedData(ctx, storer, w.c, buffer, time.Now); err != nil {
-			logger.CtxErr(ctx, err).Info(
-				"cleaning up failed backups, some space may not be freed")
+			errs.AddRecoverable(ctx, clues.Wrap(
+				err,
+				"cleaning up failed backups, some space may not be freed"))
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -225,10 +226,14 @@ func getPermsAndResourceOwnerPerms(
 	case GV2App, GV2Device, GV2Group, GV2User:
 		identity := models.NewIdentity()
 		identity.SetId(&resourceOwner)
-		identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
 		switch gv2t {
 		case GV2User:
+			// user's need to handle email
+			identity := models.NewUser()
+			identity.SetId(&resourceOwner)
+			identity.SetAdditionalData(map[string]any{"email": &resourceOwner})
+
 			sharepointIdentitySet.SetUser(identity)
 		case GV2Group:
 			sharepointIdentitySet.SetGroup(identity)
@@ -241,7 +246,6 @@ func getPermsAndResourceOwnerPerms(
 	case GV2SiteUser, GV2SiteGroup:
 		spIdentity := models.NewSharePointIdentity()
 		spIdentity.SetId(&resourceOwner)
-		spIdentity.SetAdditionalData(map[string]any{"email": &resourceOwner})
 
 		switch gv2t {
 		case GV2SiteUser:
@@ -261,6 +265,11 @@ func getPermsAndResourceOwnerPerms(
 		Roles:      []string{"read"},
 		EntityID:   resourceOwner,
 		EntityType: gv2t,
+	}
+
+	if gv2t == GV2User {
+		// we currently don't parse out emails for others
+		ownersPerm.Email = resourceOwner
 	}
 
 	return perm, ownersPerm
@@ -394,6 +403,318 @@ func (suite *PermissionsUnitTestSuite) TestDrivePermissionsFilter() {
 
 			actual := FilterPermissions(ctx, tc.graphPermissions)
 			assert.ElementsMatch(t, tc.parsedPermissions, actual)
+		})
+	}
+}
+
+func (suite *PermissionsUnitTestSuite) TestEqual() {
+	table := []struct {
+		name     string
+		perm1    Permission
+		perm2    Permission
+		expected bool
+	}{
+		{
+			name: "same id no email",
+			perm1: Permission{
+				Roles:      []string{"read"},
+				EntityID:   "user-id1",
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Roles:      []string{"read"},
+				EntityID:   "user-id1",
+				EntityType: GV2User,
+			},
+			expected: true,
+		},
+		{
+			name: "no id same email",
+			perm1: Permission{
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			expected: true,
+		},
+		{
+			// Can happen if user changes email
+			name: "same id different email",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				Email:      "id1-new@provider.com",
+				EntityType: GV2User,
+			},
+			expected: true,
+		},
+		{
+			name: "different id different email",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				EntityID:   "user-id2",
+				Roles:      []string{"read"},
+				Email:      "id2@provider.com",
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "different id same email",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				EntityID:   "user-id2",
+				Roles:      []string{"read"},
+				Email:      "id1@provider.com",
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "one with id one with email",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Email:      "id2@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "same email one with no id",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Email:      "id1@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Email:      "id1@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			// should not ideally happen, not entirely sure if it
+			// should be false as we could just be missing the id
+			name: "same email one with no id",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Email:      "id1@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Email:      "id1@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "same id different role",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"write"},
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "same email different role",
+			perm1: Permission{
+				Email:      "id1@provider.com",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				Email:      "id1@provider.com",
+				Roles:      []string{"write"},
+				EntityType: GV2User,
+			},
+			expected: false,
+		},
+		{
+			name: "same id different entity type",
+			perm1: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				EntityType: GV2User,
+			},
+			perm2: Permission{
+				EntityID:   "user-id1",
+				Roles:      []string{"read"},
+				EntityType: GV2Group,
+			},
+			expected: false,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			assert.Equal(t, test.expected, test.perm1.Equals(test.perm2), "permissions equality")
+		})
+	}
+}
+
+func (suite *PermissionsUnitTestSuite) TestFilterLinkShares() {
+	table := []struct {
+		name     string
+		perms    func() []models.Permissionable
+		expected [][]Entity
+	}{
+		{
+			name: "with id and email",
+			perms: func() []models.Permissionable {
+				perm1 := models.NewPermission()
+				perm1.SetId(ptr.To("id1"))
+				perm1.SetRoles([]string{"read"})
+
+				spi11 := models.NewUser()
+				spi11.SetId(ptr.To("user-id1"))
+				spi11.SetAdditionalData(map[string]any{"email": ptr.To("id1@provider")})
+
+				spi12 := models.NewUser()
+				spi12.SetId(ptr.To("user-id2"))
+				spi12.SetAdditionalData(map[string]any{"email": ptr.To("id2@provider")})
+
+				gv21 := models.NewSharePointIdentitySet()
+				gv21.SetUser(spi11)
+
+				gv22 := models.NewSharePointIdentitySet()
+				gv22.SetUser(spi12)
+
+				perm1.SetGrantedToIdentitiesV2([]models.SharePointIdentitySetable{gv21, gv22})
+
+				li1 := models.NewSharingLink()
+				li1.SetWebUrl(ptr.To("https://link1"))
+				perm1.SetLink(li1)
+
+				return []models.Permissionable{perm1}
+			},
+			expected: [][]Entity{
+				{
+					{ID: "user-id1", Email: "id1@provider", EntityType: GV2User},
+					{ID: "user-id2", Email: "id2@provider", EntityType: GV2User},
+				},
+			},
+		},
+		{
+			name: "only email",
+			perms: func() []models.Permissionable {
+				perm1 := models.NewPermission()
+				perm1.SetId(ptr.To("id1"))
+				perm1.SetRoles([]string{"read"})
+
+				spi11 := models.NewUser()
+				spi11.SetAdditionalData(map[string]any{"email": ptr.To("id1@provider")})
+
+				spi12 := models.NewUser()
+				spi12.SetAdditionalData(map[string]any{"email": ptr.To("id2@provider")})
+
+				gv21 := models.NewSharePointIdentitySet()
+				gv21.SetUser(spi11)
+
+				gv22 := models.NewSharePointIdentitySet()
+				gv22.SetUser(spi12)
+
+				perm1.SetGrantedToIdentitiesV2([]models.SharePointIdentitySetable{gv21, gv22})
+
+				li1 := models.NewSharingLink()
+				li1.SetWebUrl(ptr.To("https://link1"))
+				perm1.SetLink(li1)
+
+				return []models.Permissionable{perm1}
+			},
+			expected: [][]Entity{
+				{
+					{Email: "id1@provider", EntityType: GV2User},
+					{Email: "id2@provider", EntityType: GV2User},
+				},
+			},
+		},
+		{
+			name: "one with id one with email",
+			perms: func() []models.Permissionable {
+				perm1 := models.NewPermission()
+				perm1.SetId(ptr.To("id1"))
+				perm1.SetRoles([]string{"read"})
+
+				spi11 := models.NewUser()
+				spi11.SetId(ptr.To("user-id1"))
+
+				spi12 := models.NewUser()
+				spi12.SetAdditionalData(map[string]any{"email": ptr.To("id2@provider")})
+
+				gv21 := models.NewSharePointIdentitySet()
+				gv21.SetUser(spi11)
+
+				gv22 := models.NewSharePointIdentitySet()
+				gv22.SetUser(spi12)
+
+				perm1.SetGrantedToIdentitiesV2([]models.SharePointIdentitySetable{gv21, gv22})
+
+				li1 := models.NewSharingLink()
+				li1.SetWebUrl(ptr.To("https://link1"))
+				perm1.SetLink(li1)
+
+				return []models.Permissionable{perm1}
+			},
+			expected: [][]Entity{
+				{
+					{ID: "user-id1", EntityType: GV2User},
+					{Email: "id2@provider", EntityType: GV2User},
+				},
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			actual := FilterLinkShares(ctx, test.perms())
+			assert.Equal(t, len(test.expected), len(actual), "number of link shares")
+
+			for i, expected := range test.expected {
+				assert.ElementsMatch(t, expected, actual[i].Entities, "link share entities")
+			}
 		})
 	}
 }

@@ -23,39 +23,38 @@ type ServiceType int
 //go:generate stringer -type=ServiceType -linecomment
 const (
 	UnknownService            ServiceType = 0
-	ExchangeService           ServiceType = 1 // exchange
-	OneDriveService           ServiceType = 2 // onedrive
-	SharePointService         ServiceType = 3 // sharepoint
-	ExchangeMetadataService   ServiceType = 4 // exchangeMetadata
-	OneDriveMetadataService   ServiceType = 5 // onedriveMetadata
-	SharePointMetadataService ServiceType = 6 // sharepointMetadata
-	GroupsService             ServiceType = 7 // groups
-	GroupsMetadataService     ServiceType = 8 // groupsMetadata
+	ExchangeService           ServiceType = 1  // exchange
+	OneDriveService           ServiceType = 2  // onedrive
+	SharePointService         ServiceType = 3  // sharepoint
+	ExchangeMetadataService   ServiceType = 4  // exchangeMetadata
+	OneDriveMetadataService   ServiceType = 5  // onedriveMetadata
+	SharePointMetadataService ServiceType = 6  // sharepointMetadata
+	GroupsService             ServiceType = 7  // groups
+	GroupsMetadataService     ServiceType = 8  // groupsMetadata
+	TeamsChatsService         ServiceType = 9  // teamsChats
+	TeamsChatsMetadataService ServiceType = 10 // teamsChatsMetadata
 )
 
-func ToServiceType(service string) ServiceType {
-	s := strings.ToLower(service)
+var strToSvc = map[string]ServiceType{
+	strings.ToLower(ExchangeService.String()):           ExchangeService,
+	strings.ToLower(ExchangeMetadataService.String()):   ExchangeMetadataService,
+	strings.ToLower(OneDriveService.String()):           OneDriveService,
+	strings.ToLower(OneDriveMetadataService.String()):   OneDriveMetadataService,
+	strings.ToLower(SharePointService.String()):         SharePointService,
+	strings.ToLower(SharePointMetadataService.String()): SharePointMetadataService,
+	strings.ToLower(GroupsService.String()):             GroupsService,
+	strings.ToLower(GroupsMetadataService.String()):     GroupsMetadataService,
+	strings.ToLower(TeamsChatsService.String()):         TeamsChatsService,
+	strings.ToLower(TeamsChatsMetadataService.String()): TeamsChatsMetadataService,
+}
 
-	switch s {
-	case strings.ToLower(ExchangeService.String()):
-		return ExchangeService
-	case strings.ToLower(OneDriveService.String()):
-		return OneDriveService
-	case strings.ToLower(SharePointService.String()):
-		return SharePointService
-	case strings.ToLower(GroupsService.String()):
-		return GroupsService
-	case strings.ToLower(ExchangeMetadataService.String()):
-		return ExchangeMetadataService
-	case strings.ToLower(OneDriveMetadataService.String()):
-		return OneDriveMetadataService
-	case strings.ToLower(SharePointMetadataService.String()):
-		return SharePointMetadataService
-	case strings.ToLower(GroupsMetadataService.String()):
-		return GroupsMetadataService
-	default:
-		return UnknownService
+func ToServiceType(service string) ServiceType {
+	st, ok := strToSvc[strings.ToLower(service)]
+	if !ok {
+		st = UnknownService
 	}
+
+	return st
 }
 
 var serviceToHuman = map[ServiceType]string{
@@ -63,6 +62,7 @@ var serviceToHuman = map[ServiceType]string{
 	OneDriveService:   "OneDrive",
 	SharePointService: "SharePoint",
 	GroupsService:     "Groups",
+	TeamsChatsService: "Chats",
 }
 
 // HumanString produces a more human-readable string version of the service.
@@ -73,4 +73,24 @@ func (svc ServiceType) HumanString() string {
 	}
 
 	return "Unknown Service"
+}
+
+func (svc ServiceType) ToMetadata() ServiceType {
+	//exhaustive:enforce
+	switch svc {
+	case ExchangeService, ExchangeMetadataService:
+		return ExchangeMetadataService
+	case OneDriveService, OneDriveMetadataService:
+		return OneDriveMetadataService
+	case SharePointService, SharePointMetadataService:
+		return SharePointMetadataService
+	case GroupsService, GroupsMetadataService:
+		return GroupsMetadataService
+	case TeamsChatsService, TeamsChatsMetadataService:
+		return TeamsChatsMetadataService
+	case UnknownService:
+		fallthrough
+	default:
+		return UnknownService
+	}
 }

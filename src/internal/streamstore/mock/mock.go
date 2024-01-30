@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/identity"
 	"github.com/alcionai/corso/src/pkg/fault"
 )
 
@@ -57,7 +58,11 @@ func (ms Streamer) Read(
 	return col.Unmr(io.NopCloser(bytes.NewReader(bs)))
 }
 
-func (ms Streamer) Write(context.Context, *fault.Bus) (string, error) {
+func (ms Streamer) Write(
+	context.Context,
+	[]identity.Reasoner,
+	*fault.Bus,
+) (string, error) {
 	return "", clues.New("not implemented")
 }
 
