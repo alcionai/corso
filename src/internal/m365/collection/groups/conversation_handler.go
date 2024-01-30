@@ -12,6 +12,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	deltaPath "github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -173,6 +174,26 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 //lint:ignore U1000 false linter issue due to generics
 func (bh conversationsBackupHandler) supportsItemMetadata() bool {
 	return true
+}
+
+func (bh conversationsBackupHandler) makeTombstones(
+	dps deltaPath.DeltaPaths,
+) (map[string]string, error) {
+	r := make(map[string]string, len(dps))
+
+	for id, v := range dps {
+		// ID is of format conversationID/threadID. Tombstones are looked up
+		// by conversationID only, so remove the threadID part. This is safe
+		// because every conversation has only one thread.
+		elems := path.Split(id)
+		if len(elems) != 2 {
+			return nil, clues.New("invalid prev path")
+		}
+
+		r[elems[0]] = v.Path
+	}
+
+	return r, nil
 }
 
 func conversationThreadContainer(

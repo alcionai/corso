@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -129,6 +130,12 @@ func (bh channelsBackupHandler) augmentItemInfo(
 func (bh channelsBackupHandler) supportsItemMetadata() bool {
 	// No .data and .meta files for channel messages
 	return false
+}
+
+func (bh channelsBackupHandler) makeTombstones(
+	dps metadata.DeltaPaths,
+) (map[string]string, error) {
+	return makeTombstones(dps), nil
 }
 
 func channelContainer(ch models.Channelable) container[models.Channelable] {
