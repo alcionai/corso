@@ -355,6 +355,9 @@ func selectorAsIface[T any](s Selector) (T, error) {
 	case ServiceGroups:
 		a, err = func() (any, error) { return s.ToGroupsRestore() }()
 		t = a.(T)
+	case ServiceTeamsChats:
+		a, err = func() (any, error) { return s.ToTeamsChatsRestore() }()
+		t = a.(T)
 	default:
 		err = clues.Stack(ErrorUnrecognizedService, clues.New(s.Service.String()))
 	}
