@@ -48,4 +48,3 @@ Below is a list of known Corso issues and limitations:
 
 * Sharepoint list item "attachments" aren't backed up, restored or exported as
   graph APIs doesn't currently provide attachment data for Lists or List Items.
-  
