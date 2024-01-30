@@ -266,7 +266,8 @@ jobs:
           role-session-name: integration-testing
           aws-region: us-east-1
 
-      - name: One Test
+      # run the tests
+      - name: Retention Tests
         env:
           AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
@@ -278,37 +279,13 @@ jobs:
           S3_BUCKET: ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }}
         run: |
           set -euo pipefail
-
-          export GODEBUG=gocachetest=1
-
           go test       \
           -tags testing \
           -failfast     \
           -p 1          \
           -timeout 10m  \
-          -run '^TestRetentionIntegrationSuite/' ./internal/kopia \
+          ./... \
           2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
-
-      # run the tests
-      # - name: Retention Tests
-      #   env:
-      #     AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
-      #     AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
-      #     AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-      #     CORSO_RETENTION_TESTS: true
-      #     CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
-      #     CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
-      #     CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
-      #     S3_BUCKET: ${{ secrets.CI_RETENTION_TESTS_S3_BUCKET }}
-      #   run: |
-      #     set -euo pipefail
-      #     go test       \
-      #     -tags testing \
-      #     -failfast     \
-      #     -p 1          \
-      #     -timeout 10m  \
-      #     ./... \
-      #     2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -356,7 +333,7 @@ jobs:
 
       - run: mkdir -p /tmp/corso-testlog
 
-      - name: all tests
+      - name: Unit Tests
         env:
           # Set these to a bad value so we don't accidentally fall back to
           # something elsewhere.
@@ -373,30 +350,6 @@ jobs:
             -timeout 20m \
             ./... \
             2>&1 | tee -a /tmp/corso-testlog/gotest-unit.log
-
-      - name: peek tmp dir
-        run: ls /tmp
-
-      - name: github workspace dir
-        run: echo ${{ github.workspace }}
-
-      # run the tests
-      # - name: Unit Tests
-      #   env:
-      #     # Set these to a bad value so we don't accidentally fall back to
-      #     # something elsewhere.
-      #     CORSO_M365_TEST_USER_ID: "foo"
-      #     CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
-      #   run: |
-      #     set -euo pipefail
-      #     go test       \
-      #     -tags testing \
-      #     -v            \
-      #     -failfast     \
-      #     -p 1          \
-      #     -timeout 20m  \
-      #     ./... \
-      #     2>&1 | tee ./testlog/gotest-unit.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
