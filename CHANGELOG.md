@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contacts in-place restore failed if the restore destination was empty.
 - Link shares with external users are now backed up and restored as expected
 - Ensure persistent repo config is populated on repo init if repo init failed partway through during the previous init attempt.
+- User-not-found and mailbox-not-found errors no longer collide when checking backup capacity for mailboxes.
 
 ### Changed
 - When running `backup details` on an empty backup returns a more helpful error message.
