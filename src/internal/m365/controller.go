@@ -112,7 +112,7 @@ func (ctrl *Controller) setResourceHandler(
 	var rh *resourceGetter
 
 	switch serviceInOperation {
-	case path.ExchangeService, path.OneDriveService:
+	case path.ExchangeService, path.OneDriveService, path.TeamsChatsService:
 		rh = &resourceGetter{
 			enum:   resource.Users,
 			getter: ctrl.AC.Users(),

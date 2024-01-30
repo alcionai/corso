@@ -12,6 +12,10 @@ type GetLastModifiedDateTimer interface {
 	GetLastModifiedDateTime() *time.Time
 }
 
+type GetLastUpdatedDateTimer interface {
+	GetLastUpdatedDateTime() *time.Time
+}
+
 type GetAdditionalDataer interface {
 	GetAdditionalData() map[string]any
 }

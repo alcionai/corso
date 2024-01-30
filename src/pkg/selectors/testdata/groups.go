@@ -4,7 +4,10 @@ import (
 	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
-const TestChannelName = "Test"
+const (
+	TestChannelName = "Test"
+	TestChatTopic   = "Test"
+)
 
 // GroupsBackupFolderScope is the standard folder scope that should be used
 // in integration backups with groups when interacting with libraries.
