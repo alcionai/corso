@@ -14,9 +14,9 @@
     "write-heading-ids": "docusaurus write-heading-ids"
   },
   "dependencies": {
-    "@docusaurus/core": "3.1.0",
-    "@docusaurus/plugin-google-gtag": "^3.1.0",
-    "@docusaurus/preset-classic": "3.1.0",
+    "@docusaurus/core": "3.1.1",
+    "@docusaurus/plugin-google-gtag": "^3.1.1",
+    "@docusaurus/preset-classic": "3.1.1",
     "@loadable/component": "^5.16.3",
     "@mdx-js/react": "^3.0.0",
     "animate.css": "^4.1.1",
@@ -36,7 +36,7 @@
     "wow.js": "^1.2.2"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "3.1.0",
+    "@docusaurus/module-type-aliases": "3.1.1",
     "@iconify/react": "^4.1.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
