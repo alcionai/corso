@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups"
-	"github.com/alcionai/corso/src/internal/m365/collection/teamschats"
+	teamschats "github.com/alcionai/corso/src/internal/m365/collection/teamchats"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/store"
