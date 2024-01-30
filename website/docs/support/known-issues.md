@@ -44,6 +44,5 @@ Below is a list of known Corso issues and limitations:
 
 * In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
 
-* Sharepoint list item "attachments" aren't backed up, restored or exported.
-  Graph API doesn't currently provide attachment data for Lists or List Items.
-  An [issue](https://github.com/alcionai/corso/issues/5085) has been created to track the progress..
+* Sharepoint list item "attachments" aren't backed up, restored or exported as
+  graph APIs doesn't currently provide attachment data for Lists or List Items.
