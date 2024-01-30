@@ -152,3 +152,108 @@ func (suite *MetadataUnitSuite) TestIsMetadataFile_Directories() {
 		}
 	}
 }
+
+func (suite *MetadataUnitSuite) TestIsMetadataFile() {
+	table := []struct {
+		name       string
+		service    path.ServiceType
+		category   path.CategoryType
+		isMetaFile bool
+		expected   bool
+	}{
+		{
+			name:     "onedrive .data file",
+			service:  path.OneDriveService,
+			category: path.FilesCategory,
+		},
+		{
+			name:     "sharepoint library .data file",
+			service:  path.SharePointService,
+			category: path.LibrariesCategory,
+		},
+		{
+			name:     "group library .data file",
+			service:  path.GroupsService,
+			category: path.LibrariesCategory,
+		},
+		{
+			name:     "group conversations .data file",
+			service:  path.GroupsService,
+			category: path.ConversationPostsCategory,
+		},
+		{
+			name:       "onedrive .meta file",
+			service:    path.OneDriveService,
+			category:   path.FilesCategory,
+			isMetaFile: true,
+			expected:   true,
+		},
+		{
+			name:       "sharepoint library .meta file",
+			service:    path.SharePointService,
+			category:   path.LibrariesCategory,
+			isMetaFile: true,
+			expected:   true,
+		},
+		{
+			name:       "group library .meta file",
+			service:    path.GroupsService,
+			category:   path.LibrariesCategory,
+			isMetaFile: true,
+			expected:   true,
+		},
+		{
+			name:       "group conversations .meta file",
+			service:    path.GroupsService,
+			category:   path.ConversationPostsCategory,
+			isMetaFile: true,
+			expected:   true,
+		},
+		// For services which don't have metadata files, make sure the function
+		// returns false. We don't want .meta suffix (assuming it exists) in
+		// these cases to be interpreted as metadata files.
+		{
+			name:       "exchange service",
+			service:    path.ExchangeService,
+			category:   path.EmailCategory,
+			isMetaFile: true,
+		},
+		{
+			name:       "group channels",
+			service:    path.GroupsService,
+			category:   path.ChannelMessagesCategory,
+			isMetaFile: true,
+		},
+		{
+			name:       "lists",
+			service:    path.SharePointService,
+			category:   path.ListsCategory,
+			isMetaFile: true,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			fileName := "file"
+			if test.isMetaFile {
+				fileName += metadata.MetaFileSuffix
+			} else {
+				fileName += metadata.DataFileSuffix
+			}
+
+			p, err := path.Build(
+				"t",
+				"u",
+				test.service,
+				test.category,
+				true,
+				"some", "path", "for", fileName)
+			require.NoError(t, err, clues.ToCore(err))
+
+			actual := metadata.IsMetadataFile(p)
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}

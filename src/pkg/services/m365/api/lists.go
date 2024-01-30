@@ -20,6 +20,10 @@ import (
 var ErrSkippableListTemplate = clues.New("unable to create lists with skippable templates")
 
 type columnDetails struct {
+	createFieldName    string
+	getFieldName       string
+	isPersonColumn     bool
+	isLookupColumn     bool
 	isMultipleEnabled  bool
 	hasDefaultedToText bool
 }
@@ -300,7 +304,10 @@ func ToListable(orig models.Listable, listName string) (models.Listable, map[str
 	newList.SetParentReference(orig.GetParentReference())
 
 	columns := make([]models.ColumnDefinitionable, 0)
-	columnNames := map[string]*columnDetails{TitleColumnName: {}}
+	columnNames := map[string]*columnDetails{TitleColumnName: {
+		getFieldName:    TitleColumnName,
+		createFieldName: TitleColumnName,
+	}}
 
 	for _, cd := range orig.GetColumns() {
 		var (
@@ -380,7 +387,17 @@ func setColumnType(
 	orig models.ColumnDefinitionable,
 	columnNames map[string]*columnDetails,
 ) {
+	colName := ptr.Val(newColumn.GetName())
 	colDetails := &columnDetails{}
+
+	// for certain columns like 'person', the column name is say 'personName'.
+	// if the list item for that column holds single value,
+	// the field data is fetched as '{"personNameLookupId": "10"}'
+	// if the list item for that column holds multiple values,
+	// the field data is fetched as '{"personName": [{"lookupId": 10}, {"lookupId": 11}]}'.
+	// Hence this function helps us to determine which name to use while accessing stored data
+	colDetails.getFieldName = colName
+	colDetails.createFieldName = colName
 
 	switch {
 	case orig.GetText() != nil:
@@ -404,12 +421,32 @@ func setColumnType(
 	case orig.GetNumber() != nil:
 		newColumn.SetNumber(orig.GetNumber())
 	case orig.GetLookup() != nil:
+		colDetails.isLookupColumn = true
+		isMultipleEnabled := ptr.Val(orig.GetLookup().GetAllowMultipleValues())
+		colDetails.isMultipleEnabled = isMultipleEnabled
+		updatedName := colName + LookupIDFieldNamePart
+		colDetails.createFieldName = updatedName
+
+		if !isMultipleEnabled {
+			colDetails.getFieldName = updatedName
+		}
+
 		newColumn.SetLookup(orig.GetLookup())
 	case orig.GetThumbnail() != nil:
 		newColumn.SetThumbnail(orig.GetThumbnail())
 	case orig.GetTerm() != nil:
 		newColumn.SetTerm(orig.GetTerm())
 	case orig.GetPersonOrGroup() != nil:
+		colDetails.isPersonColumn = true
+		isMultipleEnabled := ptr.Val(orig.GetPersonOrGroup().GetAllowMultipleSelection())
+		colDetails.isMultipleEnabled = isMultipleEnabled
+		updatedName := colName + LookupIDFieldNamePart
+		colDetails.createFieldName = updatedName
+
+		if !isMultipleEnabled {
+			colDetails.getFieldName = updatedName
+		}
+
 		newColumn.SetPersonOrGroup(orig.GetPersonOrGroup())
 	default:
 		colDetails.hasDefaultedToText = true
@@ -417,7 +454,7 @@ func setColumnType(
 		newColumn.SetText(models.NewTextColumn())
 	}
 
-	columnNames[ptr.Val(newColumn.GetName())] = colDetails
+	columnNames[colName] = colDetails
 }
 
 // CloneListItem creates a new `SharePoint.ListItem` and stores the original item's
@@ -474,6 +511,10 @@ func retrieveFieldData(orig models.FieldValueSetable, columnNames map[string]*co
 		additionalData[fieldName] = concatenatedHyperlink
 	}
 
+	if metadataField, fieldName, ok := hasMetadataFields(additionalData); ok {
+		additionalData[fieldName] = concatenateMetadataFields(metadataField)
+	}
+
 	fields.SetAdditionalData(additionalData)
 
 	return fields
@@ -490,22 +531,68 @@ func setAdditionalDataByColumnNames(
 	fieldData := orig.GetAdditionalData()
 	filteredData := make(map[string]any)
 
-	for colName, colDetails := range columnNames {
-		if val, ok := fieldData[colName]; ok {
+	for _, colDetails := range columnNames {
+		if val, ok := fieldData[colDetails.getFieldName]; ok {
 			// for columns like 'choice', even though it has an option to hold single/multiple values,
 			// the columnDefinition property 'allowMultipleValues' is not available.
 			// Hence we determine single/multiple from the actual field data.
-			if isSlice(val) {
+			if !colDetails.isMultipleEnabled && isSlice(val) {
 				colDetails.isMultipleEnabled = true
 			}
 
-			filteredData[colName] = fieldData[colName]
+			filteredData[colDetails.createFieldName] = val
+			populateMultipleValues(val, filteredData, colDetails)
 		}
 
-		specifyODataType(filteredData, colDetails, colName)
+		specifyODataType(filteredData, colDetails, colDetails.createFieldName)
 	}
 
 	return filteredData
+}
+
+func populateMultipleValues(val any, filteredData map[string]any, colDetails *columnDetails) {
+	if !colDetails.isMultipleEnabled {
+		return
+	}
+
+	if !colDetails.isPersonColumn &&
+		!colDetails.isLookupColumn {
+		return
+	}
+
+	multiNestedFields, ok := val.([]any)
+	if !ok || len(multiNestedFields) == 0 {
+		return
+	}
+
+	lookupIDs := make([]float64, 0)
+
+	for _, nestedFields := range multiNestedFields {
+		md, ok := nestedFields.(map[string]any)
+		if !ok || !keys.HasKeys(md, checkFields(colDetails)...) {
+			continue
+		}
+
+		v, ok := md[LookupIDKey].(*float64)
+		if !ok {
+			continue
+		}
+
+		lookupIDs = append(lookupIDs, ptr.Val(v))
+	}
+
+	filteredData[colDetails.createFieldName] = lookupIDs
+}
+
+func checkFields(colDetails *columnDetails) []string {
+	switch {
+	case colDetails.isLookupColumn:
+		return []string{LookupIDKey, LookupValueKey}
+	case colDetails.isPersonColumn:
+		return []string{LookupIDKey, LookupValueKey, PersonEmailKey}
+	default:
+		return []string{}
+	}
 }
 
 // when creating list items with multiple values for a single column
@@ -520,7 +607,15 @@ func specifyODataType(filteredData map[string]any, colDetails *columnDetails, co
 		return
 	}
 
-	if colDetails.isMultipleEnabled {
+	// only specify odata.type for columns holding multiple data
+	if !colDetails.isMultipleEnabled {
+		return
+	}
+
+	switch {
+	case colDetails.isPersonColumn, colDetails.isLookupColumn:
+		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameIntVal
+	default:
 		filteredData[colName+ODataTypeFieldNamePart] = ODataTypeFieldNameStringVal
 	}
 }
@@ -554,6 +649,44 @@ func hasHyperLinkFields(additionalData map[string]any) (map[string]any, string, 
 	}
 
 	return nil, "", false
+}
+
+func hasMetadataFields(additionalData map[string]any) ([]map[string]any, string, bool) {
+	for fieldName, value := range additionalData {
+		switch valType := reflect.TypeOf(value).Kind(); valType {
+		case reflect.Map:
+			metadataFields, areMetadataFields := getMetadataFields(value)
+			if areMetadataFields {
+				return []map[string]any{metadataFields}, fieldName, true
+			}
+
+		case reflect.Slice:
+			mmdfs := make([]map[string]any, 0)
+
+			multiMetadataFields, ok := value.([]any)
+			if !ok {
+				continue
+			}
+
+			for _, mdfs := range multiMetadataFields {
+				metadataFields, areMetadataFields := getMetadataFields(mdfs)
+				if areMetadataFields {
+					mmdfs = append(mmdfs, metadataFields)
+				}
+			}
+
+			if len(mmdfs) > 0 {
+				return mmdfs, fieldName, true
+			}
+		}
+	}
+
+	return nil, "", false
+}
+
+func getMetadataFields(metadataFieldvalue any) (map[string]any, bool) {
+	nestedFields, ok := metadataFieldvalue.(map[string]any)
+	return nestedFields, ok && keys.HasKeys(nestedFields, MetadataLabelKey, MetadataTermGUIDKey, MetadataWssIDKey)
 }
 
 func concatenateAddressFields(addressFields map[string]any) string {
@@ -596,6 +729,23 @@ func concatenateHyperLinkFields(hyperlinkFields map[string]any) string {
 
 	if len(parts) > 0 {
 		return strings.Join(parts, ",")
+	}
+
+	return ""
+}
+
+func concatenateMetadataFields(metadataFieldsArr []map[string]any) string {
+	labels := make([]string, 0)
+
+	for _, md := range metadataFieldsArr {
+		mdVal, ok := md[MetadataLabelKey].(*string)
+		if ok {
+			labels = append(labels, ptr.Val(mdVal))
+		}
+	}
+
+	if len(labels) > 0 {
+		return strings.Join(labels, ",")
 	}
 
 	return ""

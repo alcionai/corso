@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"io"
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
@@ -33,7 +34,9 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 
 type getItemAndAugmentInfoer[C graph.GetIDer, I groupsItemer] interface {
 	getItemer[I]
+	getItemMetadataer[C, I]
 	augmentItemInfoer[C]
+	supportsItemMetadataer[C, I]
 }
 
 type augmentItemInfoer[C graph.GetIDer] interface {
@@ -49,6 +52,17 @@ type getItemer[I groupsItemer] interface {
 		containerIDs path.Elements,
 		itemID string,
 	) (I, *details.GroupsInfo, error)
+}
+
+type getItemMetadataer[C graph.GetIDer, I groupsItemer] interface {
+	getItemMetadata(
+		ctx context.Context,
+		c C,
+	) (io.ReadCloser, int, error)
+}
+
+type supportsItemMetadataer[C graph.GetIDer, I groupsItemer] interface {
+	supportsItemMetadata() bool
 }
 
 // gets all containers for the resource

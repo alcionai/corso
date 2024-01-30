@@ -30,7 +30,6 @@ type SharePointOpts struct {
 	ListModifiedBefore string
 	ListCreatedBefore  string
 	ListCreatedAfter   string
-	AllowListsRestore  bool
 
 	PageFolder []string
 	Page       []string
@@ -82,7 +81,6 @@ func MakeSharePointOpts(cmd *cobra.Command) SharePointOpts {
 		ListModifiedBefore: flags.ListModifiedBeforeFV,
 		ListCreatedAfter:   flags.ListCreatedAfterFV,
 		ListCreatedBefore:  flags.ListCreatedBeforeFV,
-		AllowListsRestore:  flags.AllowListsRestoreFV,
 
 		Page:       flags.PageFV,
 		PageFolder: flags.PageFolderFV,
@@ -106,7 +104,9 @@ func SharePointAllowedCategories() map[string]struct{} {
 
 func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
 	if len(cats) == 0 {
-		sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		// [TODO](hitesh) to enable lists without being invoked explicitly via --data flag
+		// sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
 	}
 
 	for _, d := range cats {

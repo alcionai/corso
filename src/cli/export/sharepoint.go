@@ -45,7 +45,27 @@ corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 # Export all files in the "Documents" library to the current directory.
 corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --library Documents --folder "Display Templates/Style Sheets" .`
+    --library Documents --folder "Display Templates/Style Sheets" .
+
+# Export lists by their name(s)
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list "list-name-1,list-name-2" .
+
+# Export lists created after a given time
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-after 2024-01-01T12:23:34 .
+
+# Export lists created before a given time
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-before 2024-01-01T12:23:34 .
+
+# Export lists modified before a given time
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-before 2024-01-01T12:23:34 .
+
+# Export lists modified after a given time
+corso export sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-after 2024-01-01T12:23:34 .`
 )
 
 // `corso export sharepoint [<flag>...] <destination>`

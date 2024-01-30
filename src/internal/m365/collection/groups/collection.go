@@ -23,12 +23,15 @@ import (
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 var (
 	_ data.BackupCollection = &prefetchCollection[graph.GetIDer, groupsItemer]{}
 	_ data.BackupCollection = &lazyFetchCollection[graph.GetIDer, groupsItemer]{}
 )
+
+var errMetadataFilesNotSupported = clues.New("metadata files not supported")
 
 const (
 	collectionChannelBufferSize = 1000
@@ -176,7 +179,15 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.stream <- data.NewDeletedItem(id)
+			// This is a no-op for conversations, as there is no way to detect
+			// deleted items. It might be added in future if graph supports it,
+			// so make sure we put up both .data and .meta files for deletions.
+			if col.getAndAugment.supportsItemMetadata() {
+				col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
+				col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
+			} else {
+				col.stream <- data.NewDeletedItem(id)
+			}
 
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)
@@ -199,6 +210,18 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 		go func(id string) {
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
+
+			ictx := clues.Add(
+				ctx,
+				"item_id", id,
+				"parent_path", path.LoggableDir(col.LocationPath().String()))
+
+			// Conversation posts carry a .data suffix, while channel messages
+			// don't have any suffix. Metadata files are only supported for conversations.
+			dataFile := id
+			if col.getAndAugment.supportsItemMetadata() {
+				dataFile += metadata.DataFileSuffix
+			}
 
 			writer := kjson.NewJsonSerializationWriter()
 			defer writer.Close()
@@ -234,24 +257,48 @@ func (col *prefetchCollection[C, I]) streamItems(ctx context.Context, errs *faul
 
 			info.ParentPath = col.LocationPath().String()
 
-			storeItem, err := data.NewPrefetchedItemWithInfo(
+			dataItem, err := data.NewPrefetchedItemWithInfo(
 				io.NopCloser(bytes.NewReader(itemData)),
-				id,
+				dataFile,
 				details.ItemInfo{Groups: info})
 			if err != nil {
-				err := clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
+				err := clues.StackWC(ictx, err).Label(fault.LabelForceNoBackupCreation)
+				el.AddRecoverable(ictx, err)
 
 				return
 			}
 
-			col.stream <- storeItem
+			// Handle metadata before data so that if metadata file fails,
+			// we are not left with an orphaned data file. No op for channel
+			// messages.
+			if col.getAndAugment.supportsItemMetadata() {
+				metaFile := id + metadata.MetaFileSuffix
+
+				// Use modTime from item info as it's the latest.
+				metaItem, err := downloadItemMeta[C, I](
+					ictx,
+					col.getAndAugment,
+					col.contains,
+					metaFile,
+					info.Modified,
+					el)
+				if err != nil {
+					return
+				}
+
+				col.stream <- metaItem
+			}
+
+			// Add data file to collection only if the metadata file(if any) was
+			// successfully added. This also helps to maintain consistency between
+			// prefetch & lazy fetch collection behaviors.
+			col.stream <- dataItem
 
 			atomic.AddInt64(&streamedItems, 1)
 			atomic.AddInt64(&totalBytes, info.Size)
 
 			if col.Counter.Inc(count.StreamItemsAdded)%1000 == 0 {
-				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
+				logger.Ctx(ictx).Infow("item stream progress", "stats", col.Counter.Values())
 			}
 
 			col.Counter.Add(count.StreamBytesAdded, info.Size)
@@ -341,7 +388,16 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			defer wg.Done()
 			defer func() { <-semaphoreCh }()
 
-			col.stream <- data.NewDeletedItem(id)
+			// This is a no-op for conversations, as there is no way to detect
+			// deleted items in a conversation. It might be added in the future
+			// if graph supports it, so make sure we put up both .data and .meta
+			// files for deletions.
+			if col.getAndAugment.supportsItemMetadata() {
+				col.stream <- data.NewDeletedItem(id + metadata.DataFileSuffix)
+				col.stream <- data.NewDeletedItem(id + metadata.MetaFileSuffix)
+			} else {
+				col.stream <- data.NewDeletedItem(id)
+			}
 
 			atomic.AddInt64(&streamedItems, 1)
 			col.Counter.Inc(count.StreamItemsRemoved)
@@ -370,6 +426,37 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 				"item_id", id,
 				"parent_path", path.LoggableDir(col.LocationPath().String()))
 
+			// Channel message files don't carry .data suffix, post files do.
+			dataFile := id
+
+			// Handle metadata before data so that if metadata file fails,
+			// we are not left with an orphaned data file.
+			//
+			// If the data download fails for some reason other than deleted in
+			// flight, we will still end up persisting a .meta file. This is
+			// fine since the next backup will overwrite it.
+			//
+			// If item is deleted in flight, we will end up with an orphaned
+			// .meta file. The only impact here is storage bloat, which
+			// is minimal.
+			if col.getAndAugment.supportsItemMetadata() {
+				dataFile += metadata.DataFileSuffix
+				metaFile := id + metadata.MetaFileSuffix
+
+				metaItem, err := downloadItemMeta[C, I](
+					ictx,
+					col.getAndAugment,
+					col.contains,
+					metaFile,
+					modTime,
+					el)
+				if err != nil {
+					return
+				}
+
+				col.stream <- metaItem
+			}
+
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
 				&lazyItemGetter[C, I]{
@@ -381,7 +468,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 					contains:      col.contains,
 					parentPath:    col.LocationPath().String(),
 				},
-				id,
+				dataFile,
 				modTime,
 				col.Counter,
 				el)
@@ -462,4 +549,37 @@ func (lig *lazyItemGetter[C, I]) GetData(
 		&details.ItemInfo{Groups: info},
 		false,
 		nil
+}
+
+func downloadItemMeta[C graph.GetIDer, I groupsItemer](
+	ctx context.Context,
+	gim getItemMetadataer[C, I],
+	c container[C],
+	metaFile string,
+	modTime time.Time,
+	errs *fault.Bus,
+) (data.Item, error) {
+	itemMeta, _, err := gim.getItemMetadata(
+		ctx,
+		c.container)
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
+
+		return nil, err
+	}
+
+	// Skip adding progress reader for metadata files. It doesn't add
+	// much value.
+	storeItem, err := data.NewPrefetchedItem(
+		itemMeta,
+		metaFile,
+		// Use the same last modified time as post's.
+		modTime)
+	if err != nil {
+		errs.AddRecoverable(ctx, clues.StackWC(ctx, err))
+
+		return nil, err
+	}
+
+	return storeItem, nil
 }

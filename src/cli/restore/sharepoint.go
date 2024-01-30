@@ -6,7 +6,6 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/cli/utils"
 	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/selectors"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.
@@ -51,7 +50,27 @@ corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 
 # Restore all files in the "Documents" library.
 corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --library Documents --folder "Display Templates/Style Sheets" `
+    --library Documents --folder "Display Templates/Style Sheets" 
+
+# Restore lists by their name(s)
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list "list-name-1,list-name-2"
+
+# Restore lists created after a given time
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-after 2024-01-01T12:23:34
+
+# Restore lists created before a given time
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-before 2024-01-01T12:23:34
+
+# Restore lists modified before a given time
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-before 2024-01-01T12:23:34
+
+# Restore lists modified after a given time
+corso restore sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-after 2024-01-01T12:23:34`
 )
 
 // `corso restore sharepoint [<flag>...]`
@@ -86,11 +105,6 @@ func restoreSharePointCmd(cmd *cobra.Command, args []string) error {
 
 	sel := utils.IncludeSharePointRestoreDataSelectors(ctx, opts)
 	utils.FilterSharePointRestoreInfoSelectors(sel, opts)
-
-	if !opts.AllowListsRestore {
-		// Exclude lists from restore since they are not supported yet.
-		sel.Exclude(sel.Lists(selectors.Any()))
-	}
 
 	return runRestore(
 		ctx,
