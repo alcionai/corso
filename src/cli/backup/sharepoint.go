@@ -37,7 +37,11 @@ corso backup create sharepoint --site https://example.com/hr
 corso backup create sharepoint --site https://example.com/hr,https://example.com/team
 
 # Backup all SharePoint data for all Sites
-corso backup create sharepoint --site '*'`
+corso backup create sharepoint --site '*'
+
+# Backup all SharePoint list data for a Site
+corso backup create sharepoint --site https://example.com/hr --data lists
+`
 
 	sharePointServiceCommandDeleteExamples = `# Delete SharePoint backup with ID 1234abcd-12ab-cd34-56de-1234abcd \
 and 1234abcd-12ab-cd34-56de-1234abce
@@ -57,7 +61,26 @@ corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
 # Explore all files within the document library "Work Documents"
 corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
     --library "Work Documents"
-`
+
+# Explore lists by their name(s)
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list "list-name-1,list-name-2"
+
+# Explore lists created after a given time
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-after 2024-01-01T12:23:34
+
+# Explore lists created before a given time
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-created-before 2024-01-01T12:23:34
+
+# Explore lists modified before a given time
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-before 2024-01-01T12:23:34
+
+# Explore lists modified after a given time
+corso backup details sharepoint --backup 1234abcd-12ab-cd34-56de-1234abcd \
+    --list-modified-after 2024-01-01T12:23:34`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.

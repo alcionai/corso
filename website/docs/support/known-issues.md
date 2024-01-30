@@ -45,3 +45,6 @@ Below is a list of known Corso issues and limitations:
 * In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
 
 * External users with access through shared links won't receive these links as they're not sent via email during restore.
+
+* Sharepoint list item "attachments" aren't backed up, restored or exported as
+  graph APIs doesn't currently provide attachment data for Lists or List Items.
