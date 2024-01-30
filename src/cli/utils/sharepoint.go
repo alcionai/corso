@@ -104,7 +104,9 @@ func SharePointAllowedCategories() map[string]struct{} {
 
 func AddCategories(sel *selectors.SharePointBackup, cats []string) *selectors.SharePointBackup {
 	if len(cats) == 0 {
-		sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		// [TODO](hitesh) to enable lists without being invoked explicitly via --data flag
+		// sel.Include(sel.LibraryFolders(selectors.Any()), sel.Lists(selectors.Any()))
+		sel.Include(sel.LibraryFolders(selectors.Any()))
 	}
 
 	for _, d := range cats {
