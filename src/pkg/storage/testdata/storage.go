@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -31,6 +32,10 @@ var AWSStorageCredEnvs = []string{
 func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 
+	dir := t.TempDir()
+
+	fmt.Println("----------------->", dir)
+
 	cfg, err := tconfig.ReadTestConfig()
 	require.NoError(t, err, "configuring storage from test file", clues.ToCore(err))
 
@@ -45,7 +50,7 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 		},
 		storage.CommonConfig{
 			Corso:       GetAndInsertCorso(""),
-			KopiaCfgDir: t.TempDir(),
+			KopiaCfgDir: dir,
 		})
 	require.NoErrorf(t, err, "creating storage: %+v", clues.ToCore(err))
 
