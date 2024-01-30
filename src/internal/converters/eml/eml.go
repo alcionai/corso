@@ -347,8 +347,8 @@ func FromJSONPostToEML(
 	// Reply-To email address is not available for posts. Note that this is different
 	// from inReplyTo field.
 
-	if data.GetReceivedDateTime() != nil {
-		email.SetDate(ptr.Val(data.GetReceivedDateTime()).Format(dateFormat))
+	if data.GetCreatedDateTime() != nil {
+		email.SetDate(ptr.Val(data.GetCreatedDateTime()).Format(dateFormat))
 	}
 
 	if data.GetBody() != nil {

@@ -355,7 +355,7 @@ func (suite *EMLUnitSuite) TestConvert_postable_to_eml() {
 	require.NoError(t, err, "reading created eml")
 
 	assert.Equal(t, postMetadata.Topic, eml.GetHeader("Subject"))
-	assert.Equal(t, post.GetReceivedDateTime().Format(time.RFC1123Z), eml.GetHeader("Date"))
+	assert.Equal(t, post.GetCreatedDateTime().Format(time.RFC1123Z), eml.GetHeader("Date"))
 
 	assert.Equal(t, formatAddress(post.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
 
