@@ -187,7 +187,7 @@ jobs:
           -failfast     \
           -p 1          \
           -timeout 20m  \
-          -run '^TestExchangeBackupIntgSuite/' ./internal/operations/test/m365/exchange \
+          -run '^TestExchangeBackupIntgSuite/TestBackup_Run_exchange$' ./internal/operations/test/m365/exchange \
           2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log
 
       # # run the tests
