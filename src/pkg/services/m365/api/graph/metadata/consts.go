@@ -1,6 +1,8 @@
 package metadata
 
-import "strings"
+import (
+	"strings"
+)
 
 const (
 	MetaFileSuffix    = ".meta"

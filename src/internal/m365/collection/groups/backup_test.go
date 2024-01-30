@@ -2,6 +2,7 @@ package groups
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -58,6 +59,11 @@ func (bh mockBackupHandler) augmentItemInfo(
 	models.Channelable,
 ) {
 	// no-op
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (bh mockBackupHandler) supportsItemMetadata() bool {
+	return false
 }
 
 func (bh mockBackupHandler) canMakeDeltaQueries() bool {
@@ -134,6 +140,13 @@ func (bh mockBackupHandler) getItem(
 	itemID string,
 ) (models.ChatMessageable, *details.GroupsInfo, error) {
 	return bh.messages[itemID], bh.info[itemID], bh.getMessageErr[itemID]
+}
+
+func (bh mockBackupHandler) getItemMetadata(
+	_ context.Context,
+	_ models.Channelable,
+) (io.ReadCloser, int, error) {
+	return nil, 0, errMetadataFilesNotSupported
 }
 
 // ---------------------------------------------------------------------------

@@ -1,12 +1,16 @@
 package groups
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
@@ -133,6 +137,24 @@ func (bh conversationsBackupHandler) getItem(
 }
 
 //lint:ignore U1000 false linter issue due to generics
+func (bh conversationsBackupHandler) getItemMetadata(
+	ctx context.Context,
+	c models.Conversationable,
+) (io.ReadCloser, int, error) {
+	meta := metadata.ConversationPostMetadata{
+		Recipients: []string{bh.resourceEmail},
+		Topic:      ptr.Val(c.GetTopic()),
+	}
+
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return nil, 0, clues.WrapWC(ctx, err, "serializing post metadata")
+	}
+
+	return io.NopCloser(bytes.NewReader(metaJSON)), len(metaJSON), nil
+}
+
+//lint:ignore U1000 false linter issue due to generics
 func (bh conversationsBackupHandler) augmentItemInfo(
 	dgi *details.GroupsInfo,
 	c models.Conversationable,
@@ -146,6 +168,11 @@ func (bh conversationsBackupHandler) augmentItemInfo(
 	// can use it during export & restore.
 	dgi.Post.Recipients = []string{bh.resourceEmail}
 	dgi.Post.Topic = ptr.Val(c.GetTopic())
+}
+
+//lint:ignore U1000 false linter issue due to generics
+func (bh conversationsBackupHandler) supportsItemMetadata() bool {
+	return true
 }
 
 func conversationThreadContainer(
