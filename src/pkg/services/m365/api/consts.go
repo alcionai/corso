@@ -62,6 +62,10 @@ const (
 
 	PersonEmailKey = "Email"
 
+	MetadataLabelKey    = "Label"
+	MetadataTermGUIDKey = "TermGuid"
+	MetadataWssIDKey    = "WssId"
+
 	LinkTitleFieldNamePart  = "LinkTitle"
 	ChildCountFieldNamePart = "ChildCount"
 	LookupIDFieldNamePart   = "LookupId"
