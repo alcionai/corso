@@ -620,7 +620,18 @@ func (bh mockConversationsBH) getItemMetadata(
 func (bh mockConversationsBH) makeTombstones(
 	dps metadata.DeltaPaths,
 ) (map[string]string, error) {
-	return makeTombstones(dps), nil
+	r := make(map[string]string, len(dps))
+
+	for id, v := range dps {
+		elems := path.Split(id)
+		if len(elems) != 2 {
+			return nil, clues.New("invalid prev path")
+		}
+
+		r[elems[0]] = v.Path
+	}
+
+	return r, nil
 }
 
 func (suite *BackupUnitSuite) TestPopulateCollections_Conversations() {
