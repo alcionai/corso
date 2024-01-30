@@ -27,9 +27,3 @@ func GroupsBackupConversationScope(sel *selectors.GroupsBackup) []selectors.Grou
 	// there's no way to easily specify a test conversation by name.
 	return sel.Conversation(selectors.Any())
 }
-
-// TeamsChatsBackupChatScope is the standard folder scope that should be used
-// in integration backups with teams chats when interacting with chats.
-func TeamsChatsBackupChatScope(sel *selectors.TeamsChatsBackup) []selectors.TeamsChatsScope {
-	return sel.Chats([]string{TestChatTopic})
-}

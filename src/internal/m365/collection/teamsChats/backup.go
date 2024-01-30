@@ -137,7 +137,6 @@ func populateCollection[I chatsItemer](
 	}
 
 	cl.Add(count.ItemsAdded, int64(len(includedItems)))
-	cl.Add(count.ItemsRemoved, 0)
 
 	p, err := bh.canonicalPath()
 	if err != nil {
