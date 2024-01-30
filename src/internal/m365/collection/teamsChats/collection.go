@@ -184,7 +184,7 @@ func (col *prefetchCollection[I]) streamItems(ctx context.Context, errs *fault.B
 				col.protectedResource,
 				id)
 			if err != nil {
-				err = clues.Wrap(err, "getting channel message data").Label(fault.LabelForceNoBackupCreation)
+				err = clues.Wrap(err, "getting item data").Label(fault.LabelForceNoBackupCreation)
 				el.AddRecoverable(ctx, err)
 
 				return
@@ -193,7 +193,7 @@ func (col *prefetchCollection[I]) streamItems(ctx context.Context, errs *fault.B
 			col.getAndAugment.augmentItemInfo(info, col.contains.container)
 
 			if err := writer.WriteObjectValue("", item); err != nil {
-				err = clues.Wrap(err, "writing channel message to serializer").Label(fault.LabelForceNoBackupCreation)
+				err = clues.Wrap(err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
 				el.AddRecoverable(ctx, err)
 
 				return
@@ -201,7 +201,7 @@ func (col *prefetchCollection[I]) streamItems(ctx context.Context, errs *fault.B
 
 			itemData, err := writer.GetSerializedContent()
 			if err != nil {
-				err = clues.Wrap(err, "serializing channel message").Label(fault.LabelForceNoBackupCreation)
+				err = clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation)
 				el.AddRecoverable(ctx, err)
 
 				return
