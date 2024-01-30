@@ -180,6 +180,7 @@ jobs:
           CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
           CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
           S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+          TEST_DIR: /tmp/corso-trusted-testlog
         run: |
           set -euo pipefail
           go test       \
@@ -218,7 +219,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-test-log
-          path: /tmp/*
+          path: /tmp/corso-trusted-testlog/*
           if-no-files-found: error
           retention-days: 14
 

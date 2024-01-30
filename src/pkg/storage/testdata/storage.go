@@ -33,6 +33,9 @@ func NewPrefixedS3Storage(t tester.TestT) storage.Storage {
 	now := tester.LogTimeOfTest(t)
 
 	dir := t.TempDir()
+	if givenDir := os.Getenv("TEST_DIR"); len(givenDir) > 0 {
+		dir = givenDir
+	}
 
 	fmt.Println("----------------->", dir)
 
