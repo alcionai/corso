@@ -45,6 +45,8 @@ type produceBackupCollectionser interface {
 	) (
 		collections []data.BackupCollection,
 		excludeItems *prefixmatcher.StringSetMatcher,
+		// canUsePreviousBacukp can be always returned true for impelementations
+		// that always return a tombstone collection when the metadata read fails
 		canUsePreviousBackup bool,
 		err error,
 	)
