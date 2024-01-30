@@ -16,6 +16,10 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
+const (
+	resourceEmail = "test@example.com"
+)
+
 type ConversationHandlerUnitSuite struct {
 	tester.Suite
 }
@@ -29,7 +33,7 @@ func (suite *ConversationHandlerUnitSuite) TestGetItemMetadata() {
 	var (
 		t  = suite.T()
 		bh = conversationsBackupHandler{
-			resourceEmail: "test@example.com",
+			resourceEmail: resourceEmail,
 		}
 
 		topic = "test topic"
@@ -57,6 +61,6 @@ func (suite *ConversationHandlerUnitSuite) TestGetItemMetadata() {
 	err = json.Unmarshal(m, &meta)
 	assert.NoError(t, err, "deserializing metadata")
 
-	assert.Equal(t, []string{"test@example.com"}, meta.Recipients, "incorrect recipients")
+	assert.Equal(t, []string{resourceEmail}, meta.Recipients, "incorrect recipients")
 	assert.Equal(t, ptr.Val(conv.GetTopic()), meta.Topic, "incorrect topic")
 }

@@ -387,9 +387,7 @@ func (col *lazyFetchCollection[C, I]) streamItems(ctx context.Context, errs *fau
 			//
 			// If item is deleted in flight, we will end up with an orphaned
 			// .meta file. The only impact here is storage bloat, which
-			// is minimal. Other impact could be if we do an in-order restore
-			// using a tree built from .meta files. We may have some .meta
-			// files without corresponding .data files.
+			// is minimal.
 			itemMeta, _, err := col.getAndAugment.getItemMetadata(
 				ictx,
 				col.contains.container)
