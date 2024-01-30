@@ -14,7 +14,6 @@ const (
 	// Corso Flags
 	PassphraseFN      = "passphrase"
 	NewPassphraseFN   = "new-passphrase"
-	SucceedIfExistsFN = "succeed-if-exists"
 )
 
 var (
@@ -25,7 +24,6 @@ var (
 	AWSSessionTokenFV    string
 	PassphraseFV         string
 	NewPhasephraseFV     string
-	SucceedIfExistsFV    bool
 )
 
 // AddMultipleBackupIDsFlag adds the --backups flag.

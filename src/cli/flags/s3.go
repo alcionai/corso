@@ -38,11 +38,6 @@ func AddS3BucketFlags(cmd *cobra.Command) {
 	fs.StringVar(&EndpointFV, EndpointFN, "", "S3 service endpoint.")
 	fs.BoolVar(&DoNotUseTLSFV, DoNotUseTLSFN, false, "Disable TLS (HTTPS)")
 	fs.BoolVar(&DoNotVerifyTLSFV, DoNotVerifyTLSFN, false, "Disable TLS (HTTPS) certificate verification.")
-
-	// In general, we don't want to expose this flag to users and have them mistake it
-	// for a broad-scale idempotency solution.  We can un-hide it later the need arises.
-	fs.BoolVar(&SucceedIfExistsFV, SucceedIfExistsFN, false, "Exit with success if the repo has already been initialized.")
-	cobra.CheckErr(fs.MarkHidden("succeed-if-exists"))
 }
 
 func S3FlagOverrides(cmd *cobra.Command) map[string]string {

@@ -132,10 +132,6 @@ func initS3Cmd(cmd *cobra.Command, args []string) error {
 	ric := repository.InitConfig{RetentionOpts: retentionOpts}
 
 	if err = r.Initialize(ctx, ric); err != nil {
-		if flags.SucceedIfExistsFV && errors.Is(err, repository.ErrorRepoAlreadyExists) {
-			return nil
-		}
-
 		return Only(ctx, clues.Stack(ErrInitializingRepo, err))
 	}
 
