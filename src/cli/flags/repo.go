@@ -12,8 +12,8 @@ const (
 	AWSSessionTokenFN    = "aws-session-token"
 
 	// Corso Flags
-	PassphraseFN      = "passphrase"
-	NewPassphraseFN   = "new-passphrase"
+	PassphraseFN    = "passphrase"
+	NewPassphraseFN = "new-passphrase"
 )
 
 var (
