@@ -79,7 +79,7 @@ type includeItemer[I chatsItemer] interface {
 // the given builder.  The tenantID and protectedResourceID are assumed
 // to be stored in the handler already.
 type canonicalPather interface {
-	canonicalPath() (path.Path, error)
+	CanonicalPath() (path.Path, error)
 }
 
 // ---------------------------------------------------------------------------

@@ -133,14 +133,13 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 				"g",
 				nil,
 				container[models.Chatable]{},
-				nil,
-				false)
+				nil)
 
 			assert.Equal(t, test.expect, c.State(), "collection state")
 			assert.Equal(t, test.curr, c.FullPath(), "full path")
 			assert.Equal(t, test.prev, c.PreviousPath(), "prev path")
 
-			prefetch, ok := c.(*prefetchCollection[models.Chatable])
+			prefetch, ok := c.(*lazyFetchCollection[models.Chatable])
 			require.True(t, ok, "collection type")
 
 			assert.Equal(t, test.loc, prefetch.LocationPath(), "location path")
@@ -168,79 +167,6 @@ func (m getAndAugmentChat) getItem(
 //lint:ignore U1000 false linter issue due to generics
 func (getAndAugmentChat) augmentItemInfo(*details.TeamsChatsInfo, models.Chatable) {
 	// no-op
-}
-
-func (suite *CollectionUnitSuite) TestPrefetchCollection_streamItems() {
-	var (
-		t             = suite.T()
-		statusUpdater = func(*support.ControllerOperationStatus) {}
-	)
-
-	fullPath, err := path.Build("t", "pr", path.TeamsChatsService, path.ChatsCategory, false, "fnords", "smarf")
-	require.NoError(t, err, clues.ToCore(err))
-
-	locPath, err := path.Build("t", "pr", path.TeamsChatsService, path.ChatsCategory, false, "fnords", "smarf")
-	require.NoError(t, err, clues.ToCore(err))
-
-	table := []struct {
-		name  string
-		items []models.Chatable
-	}{
-		{
-			name: "no items",
-		},
-		{
-			name:  "items",
-			items: testdata.StubChats("fisher", "flannigan", "fitzbog"),
-		},
-	}
-	for _, test := range table {
-		suite.Run(test.name, func() {
-			var (
-				t         = suite.T()
-				errs      = fault.New(true)
-				itemCount int
-			)
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			col := &prefetchCollection[models.Chatable]{
-				BaseCollection: data.NewBaseCollection(
-					fullPath,
-					nil,
-					locPath.ToBuilder(),
-					control.DefaultOptions(),
-					false,
-					count.New()),
-				items:         test.items,
-				contains:      container[models.Chatable]{},
-				getAndAugment: getAndAugmentChat{},
-				stream:        make(chan data.Item),
-				statusUpdater: statusUpdater,
-			}
-
-			go col.streamItems(ctx, errs)
-
-			for item := range col.stream {
-				itemCount++
-
-				ok := slices.ContainsFunc(test.items, func(mc models.Chatable) bool {
-					return ptr.Val(mc.GetId()) == item.ID()
-				})
-
-				require.True(t, ok, "item must be either added or removed: %q", item.ID())
-				assert.False(t, item.Deleted(), "additions should not be marked as deleted")
-			}
-
-			assert.NoError(t, errs.Failure())
-			assert.Equal(
-				t,
-				len(test.items),
-				itemCount,
-				"should see all expected items")
-		})
-	}
 }
 
 func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {

@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -26,10 +25,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
-var (
-	_ data.BackupCollection = &prefetchCollection[chatsItemer]{}
-	_ data.BackupCollection = &lazyFetchCollection[chatsItemer]{}
-)
+var _ data.BackupCollection = &lazyFetchCollection[chatsItemer]{}
 
 const (
 	collectionChannelBufferSize = 1000
@@ -63,24 +59,6 @@ func updateStatus(
 	statusUpdater(status)
 }
 
-// -----------------------------------------------------------------------------
-// prefetchCollection
-// -----------------------------------------------------------------------------
-
-type prefetchCollection[I chatsItemer] struct {
-	data.BaseCollection
-	protectedResource string
-	stream            chan data.Item
-
-	contains container[I]
-
-	items []I
-
-	getAndAugment getItemAndAugmentInfoer[I]
-
-	statusUpdater support.StatusUpdater
-}
-
 // State of the collection is set as an observation of the current
 // and previous paths.  If the curr path is nil, the state is assumed
 // to be deleted.  If the prev path is nil, it is assumed newly created.
@@ -93,21 +71,8 @@ func NewCollection[I chatsItemer](
 	items []I,
 	contains container[I],
 	statusUpdater support.StatusUpdater,
-	useLazyReader bool,
 ) data.BackupCollection {
-	if useLazyReader {
-		return &lazyFetchCollection[I]{
-			BaseCollection:    baseCol,
-			items:             items,
-			contains:          contains,
-			getAndAugment:     getAndAugment,
-			statusUpdater:     statusUpdater,
-			stream:            make(chan data.Item, collectionChannelBufferSize),
-			protectedResource: protectedResource,
-		}
-	}
-
-	return &prefetchCollection[I]{
+	return &lazyFetchCollection[I]{
 		BaseCollection:    baseCol,
 		items:             items,
 		contains:          contains,
@@ -116,128 +81,6 @@ func NewCollection[I chatsItemer](
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
 	}
-}
-
-func (col *prefetchCollection[I]) Items(ctx context.Context, errs *fault.Bus) <-chan data.Item {
-	go col.streamItems(ctx, errs)
-	return col.stream
-}
-
-func (col *prefetchCollection[I]) streamItems(ctx context.Context, errs *fault.Bus) {
-	var (
-		streamedItems   int64
-		totalBytes      int64
-		wg              sync.WaitGroup
-		progressMessage chan<- struct{}
-		el              = errs.Local()
-	)
-
-	ctx = clues.Add(ctx, "category", col.Category().String())
-
-	defer func() {
-		close(col.stream)
-		logger.Ctx(ctx).Infow(
-			"finished stream backup collection items",
-			"stats", col.Counter.Values())
-
-		updateStatus(
-			ctx,
-			col.statusUpdater,
-			len(col.items),
-			streamedItems,
-			totalBytes,
-			col.FullPath().Folder(false),
-			errs.Failure())
-	}()
-
-	if len(col.items) > 0 {
-		progressMessage = observe.CollectionProgress(
-			ctx,
-			col.Category().HumanString(),
-			col.LocationPath().Elements())
-		defer close(progressMessage)
-	}
-
-	semaphoreCh := make(chan struct{}, col.Opts().Parallelism.ItemFetch)
-	defer close(semaphoreCh)
-
-	// add any new items
-	for _, item := range col.items {
-		if el.Failure() != nil {
-			break
-		}
-
-		wg.Add(1)
-		semaphoreCh <- struct{}{}
-
-		itemID := ptr.Val(item.GetId())
-
-		go func(id string) {
-			defer wg.Done()
-			defer func() { <-semaphoreCh }()
-
-			writer := kjson.NewJsonSerializationWriter()
-			defer writer.Close()
-
-			item, info, err := col.getAndAugment.getItem(
-				ctx,
-				col.protectedResource,
-				id)
-			if err != nil {
-				err = clues.Wrap(err, "getting item data").Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
-
-				return
-			}
-
-			col.getAndAugment.augmentItemInfo(info, col.contains.container)
-
-			if err := writer.WriteObjectValue("", item); err != nil {
-				err = clues.Wrap(err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
-
-				return
-			}
-
-			itemData, err := writer.GetSerializedContent()
-			if err != nil {
-				err = clues.Wrap(err, "serializing item").Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
-
-				return
-			}
-
-			info.ParentPath = col.LocationPath().String()
-
-			storeItem, err := data.NewPrefetchedItemWithInfo(
-				io.NopCloser(bytes.NewReader(itemData)),
-				id,
-				details.ItemInfo{TeamsChats: info})
-			if err != nil {
-				err := clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
-				el.AddRecoverable(ctx, err)
-
-				return
-			}
-
-			col.stream <- storeItem
-
-			atomic.AddInt64(&streamedItems, 1)
-			atomic.AddInt64(&totalBytes, int64(info.Chat.MessageCount))
-
-			if col.Counter.Inc(count.StreamItemsAdded)%1000 == 0 {
-				logger.Ctx(ctx).Infow("item stream progress", "stats", col.Counter.Values())
-			}
-
-			col.Counter.Add(count.StreamBytesAdded, int64(info.Chat.MessageCount))
-
-			if progressMessage != nil {
-				progressMessage <- struct{}{}
-			}
-		}(itemID)
-	}
-
-	wg.Wait()
 }
 
 // -----------------------------------------------------------------------------
