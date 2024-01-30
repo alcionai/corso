@@ -127,6 +127,8 @@ var (
 // error categorization
 // ---------------------------------------------------------------------------
 
+var ErrUserNotFound = clues.New("user not found")
+
 func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	if err == nil {
 		return nil
@@ -141,7 +143,10 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	case isErrApplicationThrottled(ode, err):
 		err = clues.Stack(core.ErrApplicationThrottled, err)
 	case isErrUserNotFound(ode, err):
-		err = clues.Stack(core.ErrNotFound, err)
+		// stack both userNotFound and notFound to ensure some graph api
+		// internals can distinguish between the two cases (where possible).
+		// layers above the api should still handle only the core notFound.
+		err = clues.Stack(ErrUserNotFound, core.ErrNotFound, err)
 	case isErrResourceLocked(ode, err):
 		err = clues.Stack(core.ErrResourceNotAccessible, err)
 	case isErrInsufficientAuthorization(ode, err):

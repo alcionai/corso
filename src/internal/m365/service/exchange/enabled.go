@@ -23,7 +23,8 @@ func IsServiceEnabled(
 ) (bool, error) {
 	_, err := gmi.GetMailInbox(ctx, resource)
 	if err != nil {
-		if err := api.EvaluateMailboxError(err); err != nil {
+		ignorable := api.IsMailboxErrorIgnorable(err)
+		if !ignorable {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
 			return false, clues.Stack(err)
 		}
@@ -54,10 +55,10 @@ func GetMailboxInfo(
 	// First check whether the user is able to access their inbox.
 	inbox, err := gmb.GetMailInbox(ctx, userID)
 	if err != nil {
-		if err := api.EvaluateMailboxError(clues.Stack(err)); err != nil {
+		ignorable := api.IsMailboxErrorIgnorable(clues.Stack(err))
+		if !ignorable {
 			logger.CtxErr(ctx, err).Error("getting user's mail folder")
-
-			return mi, err
+			return mi, clues.Stack(err)
 		}
 
 		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
