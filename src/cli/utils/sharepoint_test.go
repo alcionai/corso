@@ -420,7 +420,7 @@ func (suite *SharePointUtilsSuite) TestAddSharepointCategories() {
 		{
 			name:           "none",
 			cats:           []string{},
-			expectScopeLen: 2,
+			expectScopeLen: 1,
 		},
 		{
 			name:           "libraries",
