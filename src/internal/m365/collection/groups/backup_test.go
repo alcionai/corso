@@ -808,7 +808,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_ConversationsIncremental()
 		allScope      = selectors.NewGroupsBackup(nil).Conversation(selectors.Any())[0]
 	)
 
-	convPath, err := path.Build("t", "g", path.GroupsService, path.ConversationPostsCategory, false, "conv0")
+	convPath, err := path.Build("t", "g", path.GroupsService, path.ConversationPostsCategory, false, "conv0", "thread0")
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
 	table := []struct {
@@ -843,7 +843,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_ConversationsIncremental()
 				postIDs:       []string{"msg"},
 			},
 			deltaPaths: metadata.DeltaPaths{
-				"conv0": {
+				"conv0/thread0": {
 					Path: convPath.String(),
 				},
 			},
@@ -860,7 +860,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_ConversationsIncremental()
 				thread:        testdata.StubConversationThreads("t0")[0],
 			},
 			deltaPaths: metadata.DeltaPaths{
-				"conv0": {
+				"conv0/thread0": {
 					Path: convPath.String(),
 				},
 			},
@@ -876,7 +876,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_ConversationsIncremental()
 				conversations: testdata.StubConversations(),
 			},
 			deltaPaths: metadata.DeltaPaths{
-				"conv0": {
+				"conv0/thread0": {
 					Path: convPath.String(),
 				},
 			},
@@ -894,7 +894,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections_ConversationsIncremental()
 				postIDs:       []string{"msg"},
 			},
 			deltaPaths: metadata.DeltaPaths{
-				"conv0": {
+				"conv0/thread0": {
 					Path: convPath.String(),
 				},
 			},
