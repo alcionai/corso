@@ -534,4 +534,4 @@ jobs:
         uses: ./.github/actions/teams-message
         with:
           msg: "[FAILED] Sanity Tests"
-          teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
+          #teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
