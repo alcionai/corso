@@ -11,7 +11,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/readers"
-	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/logger"
@@ -34,6 +33,7 @@ var downloadURLKeys = []string{
 func downloadItem(
 	ctx context.Context,
 	ag api.Getter,
+	driveID string,
 	item *custom.DriveItem,
 ) (io.ReadCloser, error) {
 	if item == nil {
@@ -47,17 +47,14 @@ func downloadItem(
 	)
 
 	if isFile {
-		var (
-			url string
-			ad  = item.GetAdditionalData()
-		)
+		url := "https://graph.microsoft.com/v1.0/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
 
-		for _, key := range downloadURLKeys {
-			if v, err := str.AnyValueToString(key, ad); err == nil {
-				url = v
-				break
-			}
-		}
+		// for _, key := range downloadURLKeys {
+		// 	if v, err := str.AnyValueToString(key, ad); err == nil {
+		// 		url = v
+		// 		break
+		// 	}
+		// }
 
 		rc, err = downloadFile(ctx, ag, url)
 		if err != nil {
