@@ -2,7 +2,6 @@ package its
 
 import (
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -91,20 +90,8 @@ type m365IntgTestSetup struct {
 	TertiaryUser  IDs
 }
 
-var (
-	singleton *m365IntgTestSetup
-	mu        sync.Mutex
-)
-
 // GetM365 returns the populated its.m365 singleton.
 func GetM365(t *testing.T) m365IntgTestSetup {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if singleton != nil {
-		return *singleton
-	}
-
 	var err error
 
 	setup := m365IntgTestSetup{}
@@ -173,8 +160,6 @@ func GetM365(t *testing.T) m365IntgTestSetup {
 	require.Equal(t, "Test", ptr.Val(channel.GetDisplayName()))
 
 	setup.Group.TestContainerID = ptr.Val(channel.GetId())
-
-	singleton = &setup
 
 	return setup
 }
