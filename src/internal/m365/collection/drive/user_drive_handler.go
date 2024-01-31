@@ -172,6 +172,13 @@ func (h userDriveBackupHandler) GetItem(
 	return h.ac.GetItem(ctx, driveID, itemID)
 }
 
+func (h userDriveBackupHandler) GetItemContent(
+	ctx context.Context,
+	driveID, itemID string,
+) ([]byte, error) {
+	return h.ac.GetItemContent(ctx, driveID, itemID)
+}
+
 func (h userDriveBackupHandler) IsAllPass() bool {
 	return h.scope.IsAny(selectors.OneDriveFolder)
 }

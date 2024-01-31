@@ -83,6 +83,11 @@ type GetItemer interface {
 		ctx context.Context,
 		driveID, itemID string,
 	) (models.DriveItemable, error)
+
+	GetItemContent(
+		ctx context.Context,
+		driveID, itemID string,
+	) ([]byte, error)
 }
 
 type EnumerateDriveItemsDeltaer interface {

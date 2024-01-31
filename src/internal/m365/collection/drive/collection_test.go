@@ -733,7 +733,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "expired url redownloads",
-			mgi:       getsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil, ContentErr: assert.AnError},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -744,6 +744,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		{
 			name:      "immediate error",
 			itemInfo:  details.ItemInfo{},
+			mgi:       getsItem{ContentErr: assert.AnError},
 			getErr:    []error{assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
@@ -753,14 +754,14 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 			name:      "re-fetching the item fails",
 			itemInfo:  details.ItemInfo{},
 			getErr:    []error{errUnauth},
-			mgi:       getsItem{Item: nil, Err: assert.AnError},
+			mgi:       getsItem{Item: nil, Err: assert.AnError, ContentErr: assert.AnError},
 			expectErr: require.Error,
 			expect:    require.Nil,
 			muc:       m,
 		},
 		{
 			name:      "expired url fails redownload",
-			mgi:       getsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil, ContentErr: assert.AnError},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, nil},
 			getErr:    []error{errUnauth, assert.AnError},
@@ -770,7 +771,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "url refreshed from cache",
-			mgi:       getsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil, ContentErr: assert.AnError},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -788,7 +789,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "url refreshed from cache but item deleted",
-			mgi:       getsItem{Item: itemWID, Err: core.ErrNotFound},
+			mgi:       getsItem{Item: itemWID, Err: core.ErrNotFound, ContentErr: assert.AnError},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, nil, nil},
 			getErr:    []error{errUnauth, core.ErrNotFound, core.ErrNotFound},
@@ -806,7 +807,7 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 		},
 		{
 			name:      "fallback to item fetch on any cache error",
-			mgi:       getsItem{Item: itemWID, Err: nil},
+			mgi:       getsItem{Item: itemWID, Err: nil, ContentErr: assert.AnError},
 			itemInfo:  details.ItemInfo{},
 			respBody:  []io.ReadCloser{nil, iorc},
 			getErr:    []error{errUnauth, nil},
@@ -817,6 +818,14 @@ func (suite *GetDriveItemUnitTestSuite) TestDownloadContent() {
 					return itemProps{}, assert.AnError
 				},
 			},
+		},
+		{
+			name:      "fetches item content via direct API call",
+			mgi:       getsItem{Item: itemWID, Err: nil, ContentErr: nil},
+			itemInfo:  details.ItemInfo{},
+			respBody:  []io.ReadCloser{nil, iorc},
+			expectErr: require.NoError,
+			expect:    require.NotNil,
 		},
 	}
 	for _, test := range table {

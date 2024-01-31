@@ -136,6 +136,22 @@ func (c Drives) GetItem(
 	return di, nil
 }
 
+func (c Drives) GetItemContent(
+	ctx context.Context,
+	driveID, itemID string,
+) ([]byte, error) {
+
+	dic, err := c.Stable.
+		Client().
+		Drives().
+		ByDriveId(driveID).
+		Items().
+		ByDriveItemId(itemID).Content().Get(ctx, nil)
+
+	return dic, graph.Wrap(ctx, err, "getting item content").OrNil()
+
+}
+
 func (c Drives) NewItemContentUpload(
 	ctx context.Context,
 	driveID, itemID string,

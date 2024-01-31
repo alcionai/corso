@@ -1,6 +1,7 @@
 package drive
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -365,6 +366,14 @@ func downloadContent(
 ) (io.ReadCloser, error) {
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
+
+	// attempt to fetch item content directly via API
+	// before falling back to fetch content in chunks
+	contentBytes, err := iaag.GetItemContent(ctx, driveID, ptr.Val(item.GetId()))
+	if err == nil {
+		reader := bytes.NewReader(contentBytes)
+		return io.NopCloser(reader), nil
+	}
 
 	content, err := downloadItem(ctx, iaag, item)
 	if err == nil {

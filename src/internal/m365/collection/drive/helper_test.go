@@ -869,6 +869,10 @@ func (h mockBackupHandler[T]) GetItem(ctx context.Context, _, _ string) (models.
 	return h.GI.GetItem(ctx, "", "")
 }
 
+func (h mockBackupHandler[T]) GetItemContent(ctx context.Context, _, _ string) ([]byte, error) {
+	return h.GI.GetItemContent(ctx, "", "")
+}
+
 func (h mockBackupHandler[T]) GetItemPermission(
 	ctx context.Context,
 	_, _ string,
@@ -976,8 +980,9 @@ func (h mockBackupHandler[T]) GetRootFolder(context.Context, string) (models.Dri
 // ---------------------------------------------------------------------------
 
 type getsItem struct {
-	Item models.DriveItemable
-	Err  error
+	Item       models.DriveItemable
+	Err        error
+	ContentErr error
 }
 
 func (m getsItem) GetItem(
@@ -985,6 +990,17 @@ func (m getsItem) GetItem(
 	_, _ string,
 ) (models.DriveItemable, error) {
 	return m.Item, m.Err
+}
+
+func (m getsItem) GetItemContent(
+	_ context.Context,
+	_, _ string,
+) ([]byte, error) {
+	if m.ContentErr != nil {
+		return nil, m.ContentErr
+	}
+
+	return []byte("fnords"), nil
 }
 
 // ---------------------------------------------------------------------------

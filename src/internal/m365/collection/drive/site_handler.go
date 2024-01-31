@@ -167,6 +167,13 @@ func (h siteBackupHandler) GetItem(
 	return h.ac.GetItem(ctx, driveID, itemID)
 }
 
+func (h siteBackupHandler) GetItemContent(
+	ctx context.Context,
+	driveID, itemID string,
+) ([]byte, error) {
+	return h.ac.GetItemContent(ctx, driveID, itemID)
+}
+
 func (h siteBackupHandler) IsAllPass() bool {
 	return h.scope.IsAny(selectors.SharePointLibraryFolder)
 }

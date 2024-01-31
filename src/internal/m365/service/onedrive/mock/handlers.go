@@ -225,6 +225,10 @@ func (h BackupHandler[T]) GetItem(ctx context.Context, _, _ string) (models.Driv
 	return h.GI.GetItem(ctx, "", "")
 }
 
+func (h BackupHandler[T]) GetItemContent(ctx context.Context, _, _ string) ([]byte, error) {
+	return h.GI.GetItemContent(ctx, "", "")
+}
+
 func (h BackupHandler[T]) GetItemPermission(
 	ctx context.Context,
 	_, _ string,
@@ -341,6 +345,13 @@ func (m GetsItem) GetItem(
 	_, _ string,
 ) (models.DriveItemable, error) {
 	return m.Item, m.Err
+}
+
+func (m GetsItem) GetItemContent(
+	_ context.Context,
+	_, _ string,
+) ([]byte, error) {
+	return nil, m.Err
 }
 
 // ---------------------------------------------------------------------------
