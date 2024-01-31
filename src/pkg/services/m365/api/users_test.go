@@ -79,7 +79,7 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 		},
 		{
 			name:   "user not found - corso sentinel",
-			err:    graph.ErrUserNotFound,
+			err:    graph.ErrResourceNotFound,
 			expect: assert.False,
 		},
 		{

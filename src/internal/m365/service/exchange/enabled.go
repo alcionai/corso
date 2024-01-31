@@ -29,7 +29,7 @@ func IsServiceEnabled(
 			return false, clues.Stack(err)
 		}
 
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
+		logger.CtxErr(ctx, err).Info("resource owner does not have a mailbox enabled")
 
 		return false, nil
 	}
@@ -61,7 +61,7 @@ func GetMailboxInfo(
 			return mi, clues.Stack(err)
 		}
 
-		logger.Ctx(ctx).Info("resource owner does not have a mailbox enabled")
+		logger.CtxErr(ctx, err).Info("resource owner does not have a mailbox enabled")
 
 		mi.ErrGetMailBoxSetting = append(
 			mi.ErrGetMailBoxSetting,

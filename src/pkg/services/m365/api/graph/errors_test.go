@@ -549,7 +549,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			ode := parseODataErr(test.err)
-			test.expect(suite.T(), isErrUserNotFound(ode, test.err))
+			test.expect(suite.T(), isErrResourceNotFound(ode, test.err))
 		})
 	}
 }
@@ -1176,7 +1176,7 @@ func (suite *GraphErrorsUnitSuite) TestStackWithCoreErr() {
 		{
 			name:   "user not found",
 			err:    graphTD.ODataErrWithMsg(string(ResourceNotFound), "User not found"),
-			expect: []error{ErrUserNotFound, core.ErrNotFound},
+			expect: []error{ErrResourceNotFound, core.ErrNotFound},
 		},
 		{
 			name:   "resource locked",
