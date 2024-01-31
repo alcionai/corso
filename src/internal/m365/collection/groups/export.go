@@ -5,19 +5,24 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/converters/eml"
 	"github.com/alcionai/corso/src/internal/data"
+	groupMeta "github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/export"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/metrics"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
 )
 
 func NewExportCollection(
@@ -26,7 +31,19 @@ func NewExportCollection(
 	backupVersion int,
 	cec control.ExportConfig,
 	stats *metrics.ExportStats,
+	cat path.CategoryType,
 ) export.Collectioner {
+	var streamItems export.ItemStreamer
+
+	switch cat {
+	case path.ChannelMessagesCategory:
+		streamItems = streamChannelMessages
+	case path.ConversationPostsCategory:
+		streamItems = streamConversationPosts
+	default:
+		return nil
+	}
+
 	return export.BaseCollection{
 		BaseDir:           baseDir,
 		BackingCollection: backingCollections,
@@ -37,8 +54,12 @@ func NewExportCollection(
 	}
 }
 
-// streamItems streams the items in the backingCollection into the export stream chan
-func streamItems(
+//-------------------------------------------------------------
+// Channel Messages
+//-------------------------------------------------------------
+
+// streamChannelMessages streams the items in the backingCollection into the export stream chan
+func streamChannelMessages(
 	ctx context.Context,
 	drc []data.RestoreCollection,
 	backupVersion int,
@@ -197,4 +218,146 @@ func makeMinimumChannelMesasge(item models.ChatMessageable) minimumChannelMessag
 		LastModifiedDateTime: ptr.Val(item.GetLastModifiedDateTime()),
 		Subject:              ptr.Val(item.GetSubject()),
 	}
+}
+
+//-------------------------------------------------------------
+// Conversation Posts
+//-------------------------------------------------------------
+
+// streamConversationPosts adds the post items into the export stream channel.
+func streamConversationPosts(
+	ctx context.Context,
+	drc []data.RestoreCollection,
+	backupVersion int,
+	cec control.ExportConfig,
+	ch chan<- export.Item,
+	stats *metrics.ExportStats,
+) {
+	defer close(ch)
+
+	errs := fault.New(false)
+
+	for _, rc := range drc {
+		for item := range rc.Items(ctx, errs) {
+			ictx := clues.Add(
+				ctx,
+				"path_short_ref", rc.FullPath().ShortRef(),
+				"stream_item_id", item.ID())
+
+			// Trim .data suffix from itemID. Also, we don't expect .meta files
+			// here since details are not persisted for metadata files.
+			trimmedID := strings.TrimSuffix(item.ID(), metadata.DataFileSuffix)
+			exportName := trimmedID + ".eml"
+
+			postMetadata, err := fetchAndReadMetadata(ictx, trimmedID, rc)
+			if err != nil {
+				ch <- export.Item{
+					ID:    item.ID(),
+					Error: err,
+				}
+
+				continue
+			}
+
+			reader := item.ToReader()
+			content, err := io.ReadAll(reader)
+
+			reader.Close()
+
+			if err != nil {
+				ch <- export.Item{
+					ID:    item.ID(),
+					Error: err,
+				}
+
+				continue
+			}
+
+			// Convert JSON to eml.
+			email, err := eml.FromJSONPostToEML(ictx, content, postMetadata)
+			if err != nil {
+				err = clues.Wrap(err, "converting JSON to eml")
+
+				logger.CtxErr(ictx, err).Info("processing collection item")
+
+				ch <- export.Item{
+					ID:    item.ID(),
+					Error: err,
+				}
+
+				continue
+			}
+
+			emlReader := io.NopCloser(bytes.NewReader([]byte(email)))
+
+			stats.UpdateResourceCount(path.ConversationPostsCategory)
+			body := metrics.ReaderWithStats(emlReader, path.ConversationPostsCategory, stats)
+
+			ch <- export.Item{
+				ID:   item.ID(),
+				Name: exportName,
+				Body: body,
+			}
+		}
+
+		items, recovered := errs.ItemsAndRecovered()
+
+		// Return all the items that we failed to source from the persistence layer
+		for _, item := range items {
+			ch <- export.Item{
+				ID:    item.ID,
+				Error: &item,
+			}
+		}
+
+		for _, err := range recovered {
+			ch <- export.Item{
+				Error: err,
+			}
+		}
+	}
+}
+
+func fetchAndReadMetadata(
+	ctx context.Context,
+	itemID string,
+	fin data.FetchItemByNamer,
+) (groupMeta.ConversationPostMetadata, error) {
+	metaName := itemID + metadata.MetaFileSuffix
+
+	ctx = clues.Add(ctx, "meta_file_name", metaName)
+
+	meta, err := fin.FetchItemByName(ctx, metaName)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{},
+			clues.WrapWC(ctx, err, "fetching metadata")
+	}
+
+	metaReader := meta.ToReader()
+	defer metaReader.Close()
+
+	metaFormatted, err := readMetadata(metaReader)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{},
+			clues.WrapWC(ctx, err, "deserializing metadata")
+	}
+
+	return metaFormatted, nil
+}
+
+// getMetadata reads and parses the metadata info for an item
+func readMetadata(metaRC io.ReadCloser) (groupMeta.ConversationPostMetadata, error) {
+	var meta groupMeta.ConversationPostMetadata
+
+	metaraw, err := io.ReadAll(metaRC)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{}, err
+	}
+
+	err = json.Unmarshal(metaraw, &meta)
+	if err != nil {
+		return groupMeta.ConversationPostMetadata{}, err
+	}
+
+	return meta, nil
 }
