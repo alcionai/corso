@@ -259,13 +259,12 @@ func (suite *ExportUnitSuite) TestStreamConversationPosts() {
 
 			test.expectErr(t, err, clues.ToCore(err))
 
-			assert.Equal(t, test.expectItem.ID, itm.ID, "item ID")
-			assert.Equal(t, test.expectItem.Name, itm.Name, "item name")
-
 			if err != nil {
 				return
 			}
 
+			assert.Equal(t, test.expectItem.ID, itm.ID, "item ID")
+			assert.Equal(t, test.expectItem.Name, itm.Name, "item name")
 			assert.NotNil(t, itm.Body, "body")
 
 			_, err = io.ReadAll(itm.Body)
