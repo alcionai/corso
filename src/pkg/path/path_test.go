@@ -721,3 +721,7 @@ func (suite *PathUnitSuite) TestArePathsEquivalent() {
 		})
 	}
 }
+
+func (suite *PathUnitSuite) SomeTest() {
+
+}
