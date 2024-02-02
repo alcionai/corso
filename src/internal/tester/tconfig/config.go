@@ -1,7 +1,6 @@
 package tconfig
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,7 +78,6 @@ func NewTestViper() (*viper.Viper, error) {
 	vpr := viper.New()
 
 	configFilePath := os.Getenv(EnvCorsoTestConfigFilePath)
-	fmt.Println("-----------> read CORSO_TEST_CONFIG_FILE", configFilePath)
 	if len(configFilePath) == 0 {
 		return vpr, nil
 	}
@@ -121,24 +119,6 @@ func ReadTestConfig() (map[string]string, error) {
 			return nil, clues.Wrap(err, "reading config file: "+viper.ConfigFileUsed())
 		}
 	}
-
-	fmt.Println("----------> read S3_BUCKET", os.Getenv("S3_BUCKET"))
-	fmt.Println("----------> read AZURE_TENANT_ID", os.Getenv(account.AzureTenantID))
-	fmt.Println("----------> read CORSO_M365_TEST_USER_ID", os.Getenv(EnvCorsoM365TestUserID))
-	fmt.Println("----------> read CORSO_SECONDARY_M365_TEST_USER_ID", os.Getenv(EnvCorsoSecondaryM365TestUserID))
-	fmt.Println("----------> read CORSO_TERTIARY_M365_TEST_USER_ID", os.Getenv(EnvCorsoTertiaryM365TestUserID))
-	fmt.Println("----------> read CORSO_M365_LOAD_TEST_USER_ID", os.Getenv(EnvCorsoM365LoadTestUserID))
-	fmt.Println("----------> read CORSO_M365_LOAD_TEST_ORG_USERS", os.Getenv(EnvCorsoM365LoadTestOrgUsers))
-	fmt.Println("----------> read CORSO_M365_TEST_SITE_ID", os.Getenv(EnvCorsoM365TestSiteID))
-	fmt.Println("----------> read CORSO_M365_TEST_TEAM_ID", os.Getenv(EnvCorsoM365TestTeamID))
-	fmt.Println("----------> read CORSO_M365_TEST_TEAM_SITE_ID", os.Getenv(EnvCorsoM365TestTeamSiteID))
-	fmt.Println("----------> read CORSO_SECONDARY_M365_TEST_TEAM_ID", os.Getenv(EnvCorsoSecondaryM365TestTeamID))
-	fmt.Println("----------> read CORSO_M365_TEST_GROUP_ID", os.Getenv(EnvCorsoM365TestGroupID))
-	fmt.Println("----------> read CORSO_SECONDARY_M365_TEST_GROUP_ID", os.Getenv(EnvCorsoSecondaryM365TestGroupID))
-	fmt.Println("----------> read CORSO_M365_TEST_SITE_URL", os.Getenv(EnvCorsoM365TestSiteURL))
-	fmt.Println("----------> read CORSO_SECONDARY_M365_TEST_SITE_ID", os.Getenv(EnvCorsoSecondaryM365TestSiteID))
-	fmt.Println("----------> read CORSO_M365_TEST_UNLICENSED_USER", os.Getenv(EnvCorsoUnlicensedM365TestUserID))
-	fmt.Println("----------> read CORSO_M365_TEST_TEAM_EMAIL", os.Getenv(EnvCorsoM365TestTeamEmail))
 
 	testEnv := map[string]string{}
 	fallbackTo(testEnv, TestCfgStorageProvider, vpr.GetString(TestCfgStorageProvider))
