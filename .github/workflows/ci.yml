@@ -52,7 +52,7 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    uses: alcionai/corso/.github/workflows/accSelector.yaml@ci-cache-enable
 
   SetEnv:
     environment: Testing
