@@ -23,7 +23,7 @@ jobs:
         id: roundrobin
         run: |
           # slot=$((GITHUB_RUN_NUMBER % 4))
-          slot=1
+          slot=2
           echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
 
           case $slot in
