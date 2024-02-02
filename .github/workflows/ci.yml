@@ -186,8 +186,9 @@ jobs:
           -tags testing \
           -failfast     \
           -p 1          \
+          -v \
           -timeout 20m  \
-          -run '^TestDataCollectionIntgSuite/TestExchangeDataCollection$' ./internal/m365 \
+          -run '^TestExchangeBackupIntgSuite/TestBackup_Run_exchange$' ./internal/operations/test/m365/exchange \
           2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log
 
       - name: peek
