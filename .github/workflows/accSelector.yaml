@@ -22,28 +22,27 @@ jobs:
       - name: Figure out which client id to use
         id: roundrobin
         run: |
-          slot=$((GITHUB_RUN_NUMBER % 4))
-          echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
+          # slot=$((GITHUB_RUN_NUMBER % 4))
+          # echo "CLIENT_APP_SLOT=$slot" >> $GITHUB_OUTPUT
 
-          # case $slot in
+          echo "CLIENT_APP_SLOT=0" >> $GITHUB_OUTPUT
 
-          #   0)
-          #     echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
-          #     echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
-          #     ;;
-          #   1)
-          #     echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
-          #     echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
-          #     ;;
-          #   2)
-          #     echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
-          #     echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
-          #     ;;
-          #   3)
-          #     echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
-          #     echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
-          #     ;;
-          # esac
+          case $slot in
 
-          echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
-          echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
+            0)
+              echo "CLIENT_ID_ENV=CLIENT_ID" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET" >> $GITHUB_OUTPUT
+              ;;
+            1)
+              echo "CLIENT_ID_ENV=CLIENT_ID_2" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_2" >> $GITHUB_OUTPUT
+              ;;
+            2)
+              echo "CLIENT_ID_ENV=CLIENT_ID_3" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_3" >> $GITHUB_OUTPUT
+              ;;
+            3)
+              echo "CLIENT_ID_ENV=CLIENT_ID_4" >> $GITHUB_OUTPUT
+              echo "CLIENT_SECRET_ENV=CLIENT_SECRET_4" >> $GITHUB_OUTPUT
+              ;;
+          esac
