@@ -89,9 +89,9 @@ func (suite *S3E2ESuite) TestInitS3Cmd() {
 			err = cmd.ExecuteContext(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			// a second initialization should result in an error
+			// noop
 			err = cmd.ExecuteContext(ctx)
-			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }
@@ -116,8 +116,7 @@ func (suite *S3E2ESuite) TestInitMultipleTimes() {
 			"repo", "init", "s3",
 			"--"+flags.ConfigFileFN, configFP,
 			"--bucket", cfg.Bucket,
-			"--prefix", cfg.Prefix,
-			"--succeed-if-exists")
+			"--prefix", cfg.Prefix)
 		cli.BuildCommandTree(cmd)
 
 		// run the command
