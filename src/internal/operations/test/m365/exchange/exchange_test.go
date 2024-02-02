@@ -48,7 +48,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &ExchangeBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
+			[][]string{tconfig.M365AcctCredEnvs}), // , storeTD.AWSStorageCredEnvs
 	})
 }
 
