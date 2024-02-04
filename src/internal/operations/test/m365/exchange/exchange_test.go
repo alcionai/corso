@@ -48,7 +48,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 	suite.Run(t, &ExchangeBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
-			[][]string{tconfig.M365AcctCredEnvs}), // , storeTD.AWSStorageCredEnvs
+			[][]string{tconfig.M365AcctCredEnvs, storeTD.AWSStorageCredEnvs}),
 	})
 }
 
@@ -114,21 +114,22 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		suite.Run(test.name, func() {
 			t := suite.T()
 
-			assert.NotEmpty(t, test.name)
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-			// ctx, flush := tester.NewContext(t)
-			// defer flush()
+			var (
+				mb      = evmock.NewBus()
+				counter = count.New()
+				sel     = test.selector().Selector
+				opts    = control.DefaultOptions()
+				whatSet = deeTD.CategoryFromRepoRef
+			)
 
-			// var (
-			// 	mb      = evmock.NewBus()
-			// 	counter = count.New()
-			// 	sel     = test.selector().Selector
-			// 	opts    = control.DefaultOptions()
-			// 	whatSet = deeTD.CategoryFromRepoRef
-			// )
+			bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
+			defer bod.Close(t, ctx)
 
-			// bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-			// defer bod.Close(t, ctx)
+			assert.NotEmpty(t, bo)
+			assert.NotEmpty(t, whatSet)
 
 			// sel = bod.Sel
 

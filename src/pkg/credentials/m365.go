@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/alcionai/clues"
@@ -24,6 +25,9 @@ func GetM365() M365 {
 	// var AzureClientID, AzureClientSecret string
 	AzureClientID := os.Getenv(AzureClientID)
 	AzureClientSecret := os.Getenv(AzureClientSecret)
+
+	fmt.Println("---------------> AZURE_CLIENT_ID", AzureClientID)
+	fmt.Println("---------------> AZURE_CLIENT_SECRET", AzureClientSecret)
 
 	return M365{
 		AzureClientID:     AzureClientID,

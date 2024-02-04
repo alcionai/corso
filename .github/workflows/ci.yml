@@ -52,7 +52,18 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@ci-cache-enable
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
+    steps:
+      - name: sets all client id and secrets
+        id: roundrobin
+        run: |
+          echo "CLIENT_ID_ENV=CLIENT_ID,CLIENT_ID_2,CLIENT_ID_3,CLIENT_ID_4" >> $GITHUB_OUTPUT
+          echo "CLIENT_SECRET_ENV=CLIENT_SECRET,CLIENT_SECRET_2,CLIENT_SECRET_3,CLIENT_SECRET_4" >> $GITHUB_OUTPUT
 
   SetEnv:
     environment: Testing
