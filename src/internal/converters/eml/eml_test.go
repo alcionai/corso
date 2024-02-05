@@ -398,3 +398,48 @@ func (suite *EMLUnitSuite) TestConvert_postable_to_eml() {
 
 	assert.Equal(t, source, target)
 }
+
+// Tests an ics within an eml within another eml
+func (suite *EMLUnitSuite) TestConvert_message_in_messageble_to_eml() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	body := []byte(testdata.EmailWithinEmail)
+
+	out, err := FromJSON(ctx, body)
+	assert.NoError(t, err, "converting to eml")
+
+	msg, err := api.BytesToMessageable(body)
+	require.NoError(t, err, "creating message")
+
+	eml, err := enmime.ReadEnvelope(strings.NewReader(out))
+	require.NoError(t, err, "reading created eml")
+
+	assert.Equal(t, ptr.Val(msg.GetSubject()), eml.GetHeader("Subject"))
+	assert.Equal(t, msg.GetSentDateTime().Format(time.RFC1123Z), eml.GetHeader("Date"))
+
+	assert.Equal(t, formatAddress(msg.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
+
+	attachments := eml.Attachments
+	assert.Equal(t, 1, len(attachments), "attachment count in parent email")
+
+	ieml, err := enmime.ReadEnvelope(strings.NewReader(string(attachments[0].Content)))
+	require.NoError(t, err, "reading created eml")
+
+	itm, err := msg.GetAttachments()[0].GetBackingStore().Get("item")
+	require.NoError(t, err, "getting item from message")
+
+	imsg := itm.(*models.Message)
+	assert.Equal(t, ptr.Val(imsg.GetSubject()), ieml.GetHeader("Subject"))
+	assert.Equal(t, imsg.GetSentDateTime().Format(time.RFC1123Z), ieml.GetHeader("Date"))
+
+	assert.Equal(t, formatAddress(imsg.GetFrom().GetEmailAddress()), ieml.GetHeader("From"))
+
+	iattachments := ieml.Attachments
+	assert.Equal(t, 1, len(iattachments), "attachment count in child email")
+
+	// Known from testdata
+	assert.Contains(t, string(iattachments[0].Content), "X-LIC-LOCATION:Africa/Abidjan")
+}
