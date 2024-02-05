@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/model"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -386,9 +387,10 @@ func NewIntegrationTesterSetup(t *testing.T) IntgTesterSetup {
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
 
-	// a := tconfig.NewM365Account(t)
-	// creds, err := a.M365Config()
-	// require.NoError(t, err, clues.ToCore(err))
+	a := tconfig.NewM365Account(t)
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, creds)
 
 	// counter := count.New()
 

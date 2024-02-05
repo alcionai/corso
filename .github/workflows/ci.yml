@@ -146,8 +146,8 @@ jobs:
         working-directory: src
     env:
       # Resolve the name of the secret that contains the Azure client ID/secret
-      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
-      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
+      AZURE_CLIENT_ID_NAME: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
+      AZURE_CLIENT_SECRET_NAME: ${{ secrets[CLIENT_SECRET] }},${{ secrets[CLIENT_SECRET_2] }},${{ secrets[CLIENT_SECRET_3] }},${{ secrets[CLIENT_SECRET_4] }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
       CORSO_LOG_FILE: /tmp/corso-trusted-testlog/run-ci.log
       LOG_GRAPH_REQUESTS: true
@@ -183,7 +183,7 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+          AZURE_CLIENT_ID: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
