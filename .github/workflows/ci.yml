@@ -177,8 +177,8 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
-          AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+          AZURE_CLIENT_ID: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[CLIENT_SECRET] }},${{ secrets[CLIENT_SECRET_2] }},${{ secrets[CLIENT_SECRET_3] }},${{ secrets[CLIENT_SECRET_4] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
@@ -259,8 +259,8 @@ jobs:
       # run the tests
       - name: Retention Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
-          AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+          AZURE_CLIENT_ID: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
+          AZURE_CLIENT_SECRET: ${{ secrets[CLIENT_SECRET] }},${{ secrets[CLIENT_SECRET_2] }},${{ secrets[CLIENT_SECRET_3] }},${{ secrets[CLIENT_SECRET_4] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_RETENTION_TESTS: true
           CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}

@@ -1,7 +1,9 @@
 package credentials
 
 import (
+	"math/rand"
 	"os"
+	"strings"
 
 	"github.com/alcionai/clues"
 )
@@ -24,6 +26,18 @@ func GetM365() M365 {
 	// var AzureClientID, AzureClientSecret string
 	AzureClientID := os.Getenv(AzureClientID)
 	AzureClientSecret := os.Getenv(AzureClientSecret)
+
+	randomNumber := rand.Intn(4) + 1
+
+	if strings.Contains(AzureClientID, ",") {
+		AzureClientIDs := strings.Split(AzureClientID, ",")
+		AzureClientID = AzureClientIDs[randomNumber]
+	}
+
+	if strings.Contains(AzureClientID, ",") {
+		AzureClientSecrets := strings.Split(AzureClientSecret, ",")
+		AzureClientSecret = AzureClientSecrets[randomNumber]
+	}
 
 	return M365{
 		AzureClientID:     AzureClientID,
