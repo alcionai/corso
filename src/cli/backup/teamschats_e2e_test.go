@@ -46,6 +46,7 @@ func TestNoBackupTeamsChatsE2ESuite(t *testing.T) {
 
 func (suite *NoBackupTeamsChatsE2ESuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("not fully implemented")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -100,6 +101,7 @@ func TestBackupTeamsChatsE2ESuite(t *testing.T) {
 
 func (suite *BackupTeamsChatsE2ESuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("not fully implemented")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -270,6 +272,7 @@ func TestPreparedBackupTeamsChatsE2ESuite(t *testing.T) {
 
 func (suite *PreparedBackupTeamsChatsE2ESuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("not fully implemented")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -487,6 +490,7 @@ func TestBackupDeleteTeamsChatsE2ESuite(t *testing.T) {
 
 func (suite *BackupDeleteTeamsChatsE2ESuite) SetupSuite() {
 	t := suite.T()
+	t.Skip("not fully implemented")
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()

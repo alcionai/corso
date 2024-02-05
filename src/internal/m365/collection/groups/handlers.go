@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/backup/metadata"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -30,6 +31,7 @@ type backupHandler[C graph.GetIDer, I groupsItemer] interface {
 	includeContainerer[C]
 	canonicalPather
 	canMakeDeltaQuerieser
+	makeTombstoneser
 }
 
 type getItemAndAugmentInfoer[C graph.GetIDer, I groupsItemer] interface {
@@ -105,6 +107,13 @@ type canonicalPather interface {
 // delta query when enumerating its items.
 type canMakeDeltaQuerieser interface {
 	canMakeDeltaQueries() bool
+}
+
+// produces a set of id:path pairs from the deltapaths map.
+// Each entry in the set will, if not removed, produce a collection
+// that will delete the tombstone by path.
+type makeTombstoneser interface {
+	makeTombstones(dps metadata.DeltaPaths) (map[string]string, error)
 }
 
 // ---------------------------------------------------------------------------

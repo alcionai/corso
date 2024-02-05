@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
 	"github.com/alcionai/corso/src/internal/tester"
+	deltaPath "github.com/alcionai/corso/src/pkg/backup/metadata"
 )
 
 const (
@@ -63,4 +64,73 @@ func (suite *ConversationHandlerUnitSuite) TestGetItemMetadata() {
 
 	assert.Equal(t, []string{resourceEmail}, meta.Recipients, "incorrect recipients")
 	assert.Equal(t, ptr.Val(conv.GetTopic()), meta.Topic, "incorrect topic")
+}
+
+func (suite *ConversationHandlerUnitSuite) TestMakeTombstones() {
+	table := []struct {
+		name        string
+		dps         deltaPath.DeltaPaths
+		expected    map[string]string
+		expectedErr require.ErrorAssertionFunc
+	}{
+		{
+			name: "valid",
+			dps: deltaPath.DeltaPaths{
+				"c1/t1": deltaPath.DeltaPath{
+					Path: "p1",
+				},
+				"c2/t2": deltaPath.DeltaPath{
+					Path: "p2",
+				},
+			},
+			expected: map[string]string{
+				"c1": "p1",
+				"c2": "p2",
+			},
+			expectedErr: require.NoError,
+		},
+		{
+			name: "invalid prev path",
+			dps: deltaPath.DeltaPaths{
+				"c1": deltaPath.DeltaPath{
+					Path: "p1",
+				},
+			},
+			expected:    nil,
+			expectedErr: require.Error,
+		},
+		{
+			name: "invalid prev path 2",
+			dps: deltaPath.DeltaPaths{
+				"c1/t1/a1": deltaPath.DeltaPath{
+					Path: "p1",
+				},
+			},
+			expected:    nil,
+			expectedErr: require.Error,
+		},
+		{
+			name: "multiple threads exist for a conversation",
+			dps: deltaPath.DeltaPaths{
+				"c1/t1": deltaPath.DeltaPath{
+					Path: "p1",
+				},
+				"c1/t2": deltaPath.DeltaPath{
+					Path: "p2",
+				},
+			},
+			expected:    nil,
+			expectedErr: require.Error,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			bh := conversationsBackupHandler{}
+
+			result, err := bh.makeTombstones(test.dps)
+			test.expectedErr(t, err)
+			assert.Equal(t, test.expected, result)
+		})
+	}
 }
