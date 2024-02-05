@@ -193,6 +193,16 @@ func (bh conversationsBackupHandler) makeTombstones(
 		r[elems[0]] = v.Path
 	}
 
+	// We are assuming a 1:1 mapping between conversations and threads. While
+	// this is true today, graph behavior may change in future. Throw an error
+	// if the assumption is violated.
+	//
+	// We cannot catch this error with tests because creating conversations
+	// requires delegated access.
+	if len(dps) != len(r) {
+		return nil, clues.New("multiple threads exist for a conversation")
+	}
+
 	return r, nil
 }
 

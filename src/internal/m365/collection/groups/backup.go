@@ -113,7 +113,7 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 	// the process have been deleted.
 	tombstones, err := bh.makeTombstones(dps)
 	if err != nil {
-		return nil, clues.Stack(err)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
