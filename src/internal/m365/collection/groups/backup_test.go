@@ -149,6 +149,13 @@ func (bh mockBackupHandler) getItemMetadata(
 	return nil, 0, errMetadataFilesNotSupported
 }
 
+//lint:ignore U1000 false linter issue due to generics
+func (bh mockBackupHandler) makeTombstones(
+	dps metadata.DeltaPaths,
+) (map[string]string, error) {
+	return makeTombstones(dps), nil
+}
+
 // ---------------------------------------------------------------------------
 // Unit Suite
 // ---------------------------------------------------------------------------

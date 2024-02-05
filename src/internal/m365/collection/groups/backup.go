@@ -105,12 +105,16 @@ func populateCollections[C graph.GetIDer, I groupsItemer](
 		// channel ID -> delta url or folder path lookups
 		deltaURLs = map[string]string{}
 		currPaths = map[string]string{}
-		// copy of previousPaths.  every channel present in the slice param
-		// gets removed from this map; the remaining channels at the end of
-		// the process have been deleted.
-		tombstones = makeTombstones(dps)
-		el         = errs.Local()
+		el        = errs.Local()
 	)
+
+	// Copy of previousPaths. Every container present in the slice param
+	// gets removed from this map; the remaining containers at the end of
+	// the process have been deleted.
+	tombstones, err := bh.makeTombstones(dps)
+	if err != nil {
+		return nil, clues.StackWC(ctx, err)
+	}
 
 	logger.Ctx(ctx).Infow("filling collections", "len_deltapaths", len(dps))
 
