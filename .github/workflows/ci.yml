@@ -139,17 +139,28 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-ci.log
+      CORSO_LOG_FILE: /tmp/corso-trusted-testlog/run-ci.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
+      
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-trusted-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-trusted-
 
-      - run: mkdir testlog
+      - run: mkdir -p /tmp/corso-trusted-testlog
 
       # Install gotestfmt
       - name: Set up gotestfmt
@@ -184,15 +195,15 @@ jobs:
           -p 1          \
           -timeout 20m  \
           ./... \
-          2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
+          2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ci-test-log
-          path: src/testlog/*
+          path: /tmp/corso-trusted-testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -210,17 +221,28 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-ci-retention.log
+      CORSO_LOG_FILE: /tmp/corso-retention-testlog/run-ci-retention.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
+      
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-retention-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-retention-
 
-      - run: mkdir testlog
+      - run: mkdir -p /tmp/corso-retention-testlog
 
       # Install gotestfmt
       - name: Set up gotestfmt
@@ -255,15 +277,15 @@ jobs:
           -p 1          \
           -timeout 10m  \
           ./... \
-          2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
+          2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ci-retention-test-log
-          path: src/testlog/*
+          path: /tmp/corso-trusted-testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -277,17 +299,28 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
+      CORSO_LOG_FILE: /tmp/corso-unit-testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
+      
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-unit-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-unit-
 
-      - run: mkdir testlog
+      - run: mkdir -p /tmp/corso-unit-testlog
 
       # Install gotestfmt
       - name: Set up gotestfmt
@@ -310,15 +343,15 @@ jobs:
           -p 1          \
           -timeout 20m  \
           ./... \
-          2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+          2>&1 | tee /tmp/corso-unit-testlog/gotest-unit.log | gotestfmt -hide successful-tests
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-log
-          path: src/testlog/*
+          path: /tmp/corso-unit-testlog/*
           if-no-files-found: error
           retention-days: 14
 
