@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -31,6 +32,19 @@ func GetM365() M365 {
 	fmt.Println("---------------> AZURE_CLIENT_SECRET", AzureClientSecret)
 	fmt.Println("---------------> check", strings.Contains(AzureClientID, ","))
 	fmt.Println("---------------> check", strings.Contains(AzureClientSecret, ","))
+
+	randomNumber := rand.Intn(4) + 1
+	fmt.Println("---------> random", randomNumber)
+
+	if strings.Contains(AzureClientID, ",") {
+		AzureClientIDs := strings.Split(AzureClientID, ",")
+		AzureClientID = AzureClientIDs[randomNumber]
+	}
+
+	if strings.Contains(AzureClientID, ",") {
+		AzureClientSecrets := strings.Split(AzureClientSecret, ",")
+		AzureClientSecret = AzureClientSecrets[randomNumber]
+	}
 
 	return M365{
 		AzureClientID:     AzureClientID,
