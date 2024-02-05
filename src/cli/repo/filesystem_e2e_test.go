@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/alcionai/clues"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -82,9 +81,9 @@ func (suite *FilesystemE2ESuite) TestInitFilesystemCmd() {
 			err = cmd.ExecuteContext(ctx)
 			require.NoError(t, err, clues.ToCore(err))
 
-			// a second initialization should result in an error
+			// noop
 			err = cmd.ExecuteContext(ctx)
-			assert.ErrorIs(t, err, repository.ErrorRepoAlreadyExists, clues.ToCore(err))
+			require.NoError(t, err, clues.ToCore(err))
 		})
 	}
 }

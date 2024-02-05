@@ -238,3 +238,86 @@ func (suite *ExportUnitSuite) TestExportRestoreCollections_libraries() {
 	expectedStats.UpdateResourceCount(path.FilesCategory)
 	assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
 }
+
+func (suite *ExportUnitSuite) TestExportRestoreCollections_ConversationPosts() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	var (
+		itemID        = "itemID"
+		containerName = "convID"
+		content       = groupMock.PostWithAttachments
+		body          = io.NopCloser(bytes.NewBufferString(content))
+		exportCfg     = control.ExportConfig{}
+		expectedPath  = path.ConversationPostsCategory.HumanString() + "/" + containerName
+		expectedItems = []export.Item{
+			{
+				ID:   itemID + ".data",
+				Name: itemID + ".eml",
+				// Body: body, not checked
+			},
+		}
+	)
+
+	p, err := path.Build("t", "pr", path.GroupsService, path.ConversationPostsCategory, false, containerName)
+	assert.NoError(t, err, "build path")
+
+	dcs := []data.RestoreCollection{
+		data.FetchRestoreCollection{
+			Collection: dataMock.Collection{
+				Path: p,
+				ItemData: []data.Item{
+					&dataMock.Item{
+						ItemID: itemID + ".data",
+						Reader: body,
+					},
+				},
+			},
+			FetchItemByNamer: finD{
+				id:  itemID + ".meta",
+				key: "topic", name: itemID + ".meta",
+			},
+		},
+	}
+
+	stats := metrics.NewExportStats()
+
+	ecs, err := NewGroupsHandler(api.Client{}, nil).
+		ProduceExportCollections(
+			ctx,
+			int(version.Backup),
+			exportCfg,
+			dcs,
+			stats,
+			fault.New(true))
+	assert.NoError(t, err, "export collections error")
+	assert.Len(t, ecs, 1, "num of collections")
+
+	assert.Equal(t, expectedPath, ecs[0].BasePath(), "base dir")
+
+	fitems := []export.Item{}
+
+	size := 0
+
+	for item := range ecs[0].Items(ctx) {
+		b, err := io.ReadAll(item.Body)
+		assert.NoError(t, err, clues.ToCore(err))
+
+		// count up size for tests
+		size += len(b)
+
+		// have to nil out body, otherwise assert fails due to
+		// pointer memory location differences
+		item.Body = nil
+		fitems = append(fitems, item)
+	}
+
+	assert.Equal(t, expectedItems, fitems, "items")
+
+	expectedStats := metrics.NewExportStats()
+	expectedStats.UpdateBytes(path.ConversationPostsCategory, int64(size))
+	expectedStats.UpdateResourceCount(path.ConversationPostsCategory)
+	assert.Equal(t, expectedStats.GetStats(), stats.GetStats(), "stats")
+}

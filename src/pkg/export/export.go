@@ -24,7 +24,7 @@ type Collectioner interface {
 	Items(context.Context) <-chan Item
 }
 
-type itemStreamer func(
+type ItemStreamer func(
 	ctx context.Context,
 	backingColls []data.RestoreCollection,
 	backupVersion int,
@@ -46,7 +46,7 @@ type BaseCollection struct {
 
 	Cfg control.ExportConfig
 
-	Stream itemStreamer
+	Stream ItemStreamer
 
 	Stats *metrics.ExportStats
 }
