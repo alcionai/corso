@@ -266,7 +266,7 @@ func (c Lists) PatchList(
 		ByListId(listID).
 		Patch(ctx, list, nil)
 
-	return patchedList, graph.Wrap(ctx, err, "patching list").OrNil()
+	return patchedList, clues.Wrap(err, "patching list").OrNil()
 }
 
 func BytesToListable(bytes []byte) (models.Listable, error) {

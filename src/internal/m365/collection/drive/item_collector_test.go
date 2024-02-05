@@ -153,7 +153,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				{
 					Values:   nil,
 					NextLink: nil,
-					Err:      graph.Stack(ctx, mySiteURLNotFound),
+					Err:      clues.StackWC(ctx, mySiteURLNotFound),
 				},
 			},
 			expectedErr:     assert.NoError,
@@ -165,7 +165,7 @@ func (suite *ItemCollectorUnitSuite) TestDrives() {
 				{
 					Values:   nil,
 					NextLink: nil,
-					Err:      graph.Stack(ctx, mySiteNotFound),
+					Err:      clues.StackWC(ctx, mySiteNotFound),
 				},
 			},
 			expectedErr:     assert.NoError,

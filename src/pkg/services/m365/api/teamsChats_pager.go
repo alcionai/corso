@@ -34,7 +34,7 @@ func (p *chatMessagePageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.StackWC(ctx, err).OrNil()
 }
 
 func (p *chatMessagePageCtrl) ValidModTimes() bool {
@@ -82,7 +82,7 @@ func (c Chats) GetChatMessages(
 	pager := c.NewChatMessagePager(chatID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ChatMessageable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.StackWC(ctx, err).OrNil()
 }
 
 // GetChatMessageIDs fetches a delta of all messages in the chat.
@@ -125,7 +125,7 @@ func (p *chatPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Chatable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.StackWC(ctx, err).OrNil()
 }
 
 func (p *chatPageCtrl) ValidModTimes() bool {
