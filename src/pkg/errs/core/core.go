@@ -66,6 +66,12 @@ var (
 	// about what it sounds like: we tried to look for a backup by ID, but the
 	// storage layer couldn't find anything for that ID.
 	ErrBackupNotFound = &Err{msg: "backup not found"}
+	// basically "internal server error". But not internal issues. We only return this
+	// when a downstream service (ex: graph api) responds with a 5xx style error.
+	// Note: producers may not funnel all 5xx errors in this umbrella, because
+	// different cases (ex: `StatusHTTPVersionNotSupported`) may need more specific
+	// attention and handling than standard gateway outages or service issues.
+	ErrDownstreamServerError = &Err{msg: "server error in downstream service"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
 	// happens when we look up something using an identifier other than a canonical ID
