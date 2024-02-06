@@ -35,8 +35,11 @@ const (
 	groupsServiceCommandCreateExamples = `# Backup all Groups and Teams data for the Marketing group
 corso backup create groups --group Marketing
 
-# Backup only Teams conversations messages
+# Backup only Teams channel messages
 corso backup create groups --group Marketing --data messages
+
+# Backup only group mailbox posts
+corso backup create groups --group Marketing --data conversations
 
 # Backup all Groups and Teams data for all groups
 corso backup create groups --group '*'`
@@ -50,7 +53,10 @@ corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd
 
 # Explore Marketing messages posted after the start of 2022
 corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --last-message-reply-after 2022-01-01T00:00:00`
+    --last-message-reply-after 2022-01-01T00:00:00
+
+# Explore group mailbox posts with conversation subject "hello world"
+corso backup details groups --backup 1234abcd-12ab-cd34-56de-1234abcd --conversation "hello world"`
 )
 
 // called by backup.go to map subcommands to provider-specific handling.

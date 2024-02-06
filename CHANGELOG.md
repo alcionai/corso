@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update repo init configuration to reduce the total number of GET requests sent
   to the object store when using corso. This affects repos that have many
   backups created in them per day the most.
-- Group mailbox emails can now be exported as `.eml` files.
 - Feature Preview: Corso now supports backup, export & restore of SharePoint lists. Lists backup can be initiated using `corso backup create sharepoint --site <site-url> --data lists`.
+- Group mailbox(aka conversations) backup and export support is now officially available. Group mailbox posts can be exported as `.eml` files.
 
 ### Fixed
 - Retry transient 400 "invalidRequest" errors during onedrive & sharepoint backup.
@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - External users with access through shared links will not receive these links as they are not sent via email during restore.
 - Graph API has limited support for certain column types such as `location`, `hyperlink/picture`, and `metadata`. Restoring SharePoint list items containing these columns will result in differences compared to the original items.
 - SharePoint list item attachments are not available due to graph API limitations.
+- Group mailbox restore is not supported due to limited Graph API support for creating mailbox items.
+- Due to Graph API limitations, any group mailbox items present in subfolders other than Inbox aren't backed up.
 
 ## [v0.18.0] (beta) - 2024-01-02
 
