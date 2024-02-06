@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 	"unicode"
@@ -279,6 +280,12 @@ func isASCII(s string) bool {
 	return true
 }
 
+// Checks if a given string is a valid email address
+func isEmail(em string) bool {
+	_, err := mail.ParseAddress(em)
+	return err == nil
+}
+
 func updateEventProperties(ctx context.Context, event models.Eventable, iCalEvent *ics.VEvent) error {
 	// CREATED - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.1
 	created := event.GetCreatedDateTime()
@@ -481,8 +488,21 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 			}
 		}
 
+		// It is possible that we get non email items like the below
+		// one which is an internal representation of the user in the
+		// Exchange system. While we can technically output this as an
+		// attendee, it is not useful plus other downstream tools like
+		// ones to use PST can choke on this.
+		// /o=ExchangeLabs/ou=ExchangeAdministrative Group(FY...LT)/cn=Recipients/cn=883...4a-John Doe
 		addr := ptr.Val(attendee.GetEmailAddress().GetAddress())
-		iCalEvent.AddAttendee(addr, props...)
+		if isEmail(addr) {
+			iCalEvent.AddAttendee(addr, props...)
+		} else {
+			logger.Ctx(ctx).
+				With("attendee_email", addr).
+				With("attendee_name", name).
+				Info("skipping non email attendee from ics export")
+		}
 	}
 
 	// LOCATION - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.1.7
