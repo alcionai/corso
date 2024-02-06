@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -31,9 +31,7 @@ import (
 
 type ItemIntegrationSuite struct {
 	tester.Suite
-	user        string
-	userDriveID string
-	service     *oneDriveService
+	m365 its.M365IntgTestSetup
 }
 
 func TestItemIntegrationSuite(t *testing.T) {
@@ -45,25 +43,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ItemIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	suite.service = loadTestService(t)
-	suite.user = tconfig.SecondaryM365UserID(t)
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	pager := suite.service.ac.Drives().NewUserDrivePager(suite.user, nil)
-
-	odDrives, err := api.GetAllDrives(ctx, pager)
-	require.NoError(t, err, clues.ToCore(err))
-	// Test Requirement 1: Need a drive
-	require.Greaterf(t, len(odDrives), 0, "user %s does not have a drive", suite.user)
-
-	// Pick the first drive
-	suite.userDriveID = ptr.Val(odDrives[0].GetId())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func getOneDriveItem(
@@ -104,25 +84,29 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	defer flush()
 
 	sc := selectors.
-		NewOneDriveBackup([]string{suite.user}).
+		NewOneDriveBackup([]string{suite.m365.User.ID}).
 		AllData()[0]
 
-	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
+	driveItem := getOneDriveItem(
+		ctx,
+		t,
+		suite.m365.AC,
+		suite.m365.User.DriveID)
 	// Test Requirement 2: Need a file
 	require.NotEmpty(
 		t,
 		driveItem,
-		"no file item found for user %s drive %s",
-		suite.user,
-		suite.userDriveID)
+		"no file item found for user %q drive %q",
+		suite.m365.User.ID,
+		suite.m365.User.DriveID)
 
 	bh := &userDriveBackupHandler{
 		baseUserDriveHandler: baseUserDriveHandler{
 			qp: graph.QueryParams{
-				ProtectedResource: idname.NewProvider(suite.user, suite.user),
-				TenantID:          suite.service.credentials.AzureTenantID,
+				ProtectedResource: suite.m365.User.Provider,
+				TenantID:          suite.m365.TenantID,
 			},
-			ac: suite.service.ac.Drives(),
+			ac: suite.m365.AC.Drives(),
 		},
 		scope: sc,
 	}
@@ -146,13 +130,13 @@ func (suite *ItemIntegrationSuite) TestIsURLExpired() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	driveItem := getOneDriveItem(ctx, t, suite.service.ac, suite.userDriveID)
+	driveItem := getOneDriveItem(ctx, t, suite.m365.AC, suite.m365.User.DriveID)
 	require.NotEmpty(
 		t,
 		driveItem,
-		"no file item found for user %s drive %s",
-		suite.user,
-		suite.userDriveID)
+		"no file item found for user %q drive %q",
+		suite.m365.User.ID,
+		suite.m365.User.DriveID)
 
 	var url string
 
@@ -177,7 +161,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	}{
 		{
 			name:    "",
-			driveID: suite.userDriveID,
+			driveID: suite.m365.User.DriveID,
 		},
 		// {
 		// 	name:   "sharePoint",
@@ -187,12 +171,12 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-			rh := NewUserDriveRestoreHandler(suite.service.ac)
+			rh := NewUserDriveRestoreHandler(suite.m365.AC)
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
+			root, err := suite.m365.AC.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			newFolderName := testdata.DefaultRestoreConfig("folder").Location
@@ -221,7 +205,7 @@ func (suite *ItemIntegrationSuite) TestItemWriter() {
 
 			// HACK: Leveraging this to test getFolder behavior for a file. `getFolder()` on the
 			// newly created item should fail because it's a file not a folder
-			_, err = suite.service.ac.Drives().GetFolderByName(
+			_, err = suite.m365.AC.Drives().GetFolderByName(
 				ctx,
 				test.driveID,
 				ptr.Val(newFolder.GetId()),
@@ -265,7 +249,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 	}{
 		{
 			name:    "oneDrive",
-			driveID: suite.userDriveID,
+			driveID: suite.m365.User.DriveID,
 		},
 		// {
 		// 	name:   "sharePoint",
@@ -279,11 +263,11 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			root, err := suite.service.ac.Drives().GetRootFolder(ctx, test.driveID)
+			root, err := suite.m365.AC.Drives().GetRootFolder(ctx, test.driveID)
 			require.NoError(t, err, clues.ToCore(err))
 
 			// Lookup a folder that doesn't exist
-			_, err = suite.service.ac.Drives().GetFolderByName(
+			_, err = suite.m365.AC.Drives().GetFolderByName(
 				ctx,
 				test.driveID,
 				ptr.Val(root.GetId()),
@@ -291,7 +275,7 @@ func (suite *ItemIntegrationSuite) TestDriveGetFolder() {
 			require.ErrorIs(t, err, api.ErrFolderNotFound, clues.ToCore(err))
 
 			// Lookup a folder that does exist
-			_, err = suite.service.ac.Drives().GetFolderByName(
+			_, err = suite.m365.AC.Drives().GetFolderByName(
 				ctx,
 				test.driveID,
 				ptr.Val(root.GetId()),

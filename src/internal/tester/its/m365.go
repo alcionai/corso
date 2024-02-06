@@ -66,6 +66,7 @@ type IDs struct {
 	Provider          idname.Provider
 	ID                string
 	Email             string
+	DisplayName       string
 	DriveID           string
 	DriveRootFolderID string
 	TestContainerID   string
@@ -175,6 +176,7 @@ func fillUser(
 	ids.ID = ptr.Val(user.GetId())
 	ids.Email = ptr.Val(user.GetUserPrincipalName())
 	ids.Provider = idname.NewProvider(ids.ID, ids.Email)
+	ids.DisplayName = ptr.Val(user.GetDisplayName())
 
 	drive, err := ac.Users().GetDefaultDrive(ctx, ids.ID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -202,6 +204,7 @@ func fillSite(
 	ids.ID = ptr.Val(site.GetId())
 	ids.WebURL = ptr.Val(site.GetWebUrl())
 	ids.Provider = idname.NewProvider(ids.ID, ids.WebURL)
+	ids.DisplayName = ptr.Val(site.GetDisplayName())
 
 	drive, err := ac.Sites().GetDefaultDrive(ctx, ids.ID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -229,6 +232,7 @@ func fillTeam(
 	ids.ID = ptr.Val(team.GetId())
 	ids.Email = ptr.Val(team.GetMail())
 	ids.Provider = idname.NewProvider(ids.ID, ids.Email)
+	ids.DisplayName = ptr.Val(team.GetDisplayName())
 
 	channel, err := ac.Channels().
 		GetChannelByName(

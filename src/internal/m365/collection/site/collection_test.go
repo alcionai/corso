@@ -20,6 +20,7 @@ import (
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -113,34 +114,17 @@ func (suite *SharePointCollectionUnitSuite) TestPrefetchCollection_state() {
 	}
 }
 
-type SharePointCollectionSuite struct {
+type SharePointCollIntgSuite struct {
 	tester.Suite
-	siteID string
-	creds  account.M365Config
-	ac     api.Client
+	m365 its.M365IntgTestSetup
 }
 
-func (suite *SharePointCollectionSuite) SetupSuite() {
-	t := suite.T()
-
-	suite.siteID = tconfig.M365SiteID(t)
-	a := tconfig.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = m365
-
-	ac, err := api.NewClient(
-		m365,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac = ac
+func (suite *SharePointCollIntgSuite) SetupSuite() {
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func TestSharePointCollectionSuite(t *testing.T) {
-	suite.Run(t, &SharePointCollectionSuite{
+	suite.Run(t, &SharePointCollIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
@@ -149,15 +133,13 @@ func TestSharePointCollectionSuite(t *testing.T) {
 
 // TestListCollection tests basic functionality to create
 // SharePoint collection and to use the data stream channel.
-func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
+func (suite *SharePointCollIntgSuite) TestPrefetchCollection_Items() {
 	var (
-		tenant   = "some"
-		user     = "user"
 		prevRoot = "prev"
 		dirRoot  = "directory"
 	)
 
-	sel := selectors.NewSharePointBackup([]string{"site"})
+	sel := selectors.NewSharePointBackup([]string{suite.m365.Site.ID})
 
 	tables := []struct {
 		name, itemName string
@@ -183,8 +165,8 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 			getter:    &mock.ListHandler{},
 			getDir: func(t *testing.T, root string) path.Path {
 				dir, err := path.Build(
-					tenant,
-					user,
+					suite.m365.TenantID,
+					suite.m365.User.ID,
 					path.SharePointService,
 					path.ListsCategory,
 					false,
@@ -232,8 +214,8 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 			getter:   nil,
 			getDir: func(t *testing.T, root string) path.Path {
 				dir, err := path.Build(
-					tenant,
-					user,
+					suite.m365.TenantID,
+					suite.m365.User.ID,
 					path.SharePointService,
 					path.PagesCategory,
 					false,
@@ -270,7 +252,7 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 				test.getDir(t, test.curr),
 				test.getDir(t, test.prev),
 				test.locPb,
-				suite.ac,
+				suite.m365.AC,
 				test.scope,
 				nil,
 				control.DefaultOptions(),
@@ -306,7 +288,7 @@ func (suite *SharePointCollectionSuite) TestPrefetchCollection_Items() {
 	}
 }
 
-func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
+func (suite *SharePointCollIntgSuite) TestLazyCollection_Items() {
 	var (
 		t             = suite.T()
 		errs          = fault.New(true)
@@ -417,7 +399,7 @@ func (suite *SharePointCollectionSuite) TestLazyCollection_Items() {
 	}
 }
 
-func (suite *SharePointCollectionSuite) TestLazyItem() {
+func (suite *SharePointCollIntgSuite) TestLazyItem() {
 	var (
 		t   = suite.T()
 		now = time.Now()
@@ -461,7 +443,7 @@ func (suite *SharePointCollectionSuite) TestLazyItem() {
 	assert.Equal(t, now, info.Modified())
 }
 
-func (suite *SharePointCollectionSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
+func (suite *SharePointCollIntgSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlight() {
 	var (
 		t   = suite.T()
 		now = time.Now()

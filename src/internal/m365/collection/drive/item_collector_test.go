@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
+	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -231,6 +232,18 @@ func (suite *OneDriveIntgSuite) SetupSuite() {
 	require.NoError(t, err, clues.ToCore(err))
 }
 
+type stubStatusUpdater struct {
+	status support.ControllerOperationStatus
+}
+
+func (ssu *stubStatusUpdater) updateStatus(status *support.ControllerOperationStatus) {
+	if status == nil {
+		return
+	}
+
+	ssu.status = support.MergeStatus(ssu.status, *status)
+}
+
 func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 	creds, err := tconfig.NewM365Account(suite.T()).M365Config()
 	require.NoError(suite.T(), err, clues.ToCore(err))
@@ -256,10 +269,10 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 			defer flush()
 
 			var (
-				service = loadTestService(t)
-				scope   = selectors.
+				scope = selectors.
 					NewOneDriveBackup([]string{test.user}).
 					AllData()[0]
+				statusUpdater = stubStatusUpdater{}
 			)
 
 			colls := NewCollections(
@@ -275,7 +288,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				},
 				creds.AzureTenantID,
 				idname.NewProvider(test.user, test.user),
-				service.updateStatus,
+				statusUpdater.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
 				},

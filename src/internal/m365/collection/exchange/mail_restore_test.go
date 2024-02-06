@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -72,7 +73,7 @@ func (m *mailRestoreMock) PostLargeAttachment(
 
 type MailRestoreIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestMailRestoreIntgSuite(t *testing.T) {
@@ -84,16 +85,16 @@ func TestMailRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *MailRestoreIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *MailRestoreIntgSuite) TestCreateContainerDestination() {
 	runCreateDestinationTest(
 		suite.T(),
-		newMailRestoreHandler(suite.its.ac),
+		newMailRestoreHandler(suite.m365.AC),
 		path.EmailCategory,
-		suite.its.creds.AzureTenantID,
-		suite.its.userID,
+		suite.m365.TenantID,
+		suite.m365.User.ID,
 		testdata.DefaultRestoreConfig("").Location,
 		[]string{"Griffindor", "Croix"},
 		[]string{"Griffindor", "Felicius"})
@@ -234,7 +235,7 @@ func (suite *MailRestoreIntgSuite) TestRestoreMail() {
 				ctx,
 				test.apiMock,
 				body,
-				suite.its.userID,
+				suite.m365.User.ID,
 				"destination",
 				test.collisionMap,
 				test.onCollision,
