@@ -68,8 +68,12 @@ type IDs struct {
 	DisplayName       string
 	DriveID           string
 	DriveRootFolderID string
-	TestContainerID   string
 	WebURL            string
+	// TestContainerID is used to store the ID of the primary container under
+	// test.  Normally this will be empty, but in certain services or data
+	// categories, especially those where we don't have canonical containers
+	// to isolate for testing, we may specify a TestContainer here instead.
+	TestContainerID string
 	// a "RootSite" is used by resources that own one or more sites.
 	// ex: groups and teams.  Each of those resources should designate
 	// a "root" site (aka: the "default" site).  That site gets embedded
