@@ -1038,6 +1038,12 @@ func (suite *GraphErrorsUnitSuite) TestToErrByRespCode() {
 			expectIs:      core.ErrInsufficientAuthorization,
 		},
 		{
+			name:          "429",
+			err:           graphTD.ODataErrWithStatus(http.StatusTooManyRequests, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrApplicationThrottled,
+		},
+		{
 			name:          "500",
 			err:           graphTD.ODataErrWithStatus(http.StatusInternalServerError, "err"),
 			expectNoStack: false,

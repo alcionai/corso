@@ -117,6 +117,7 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	}
 
 	ode := parseODataErr(err)
+	labels := []string{}
 
 	switch {
 	case isErrBadJWTToken(ode, err):
@@ -135,29 +136,33 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrNotFound, err)
 	default:
 		err = toErrByRespCode(ode, err)
+		labels = append(labels, core.LabelRootCauseUnknown)
 	}
 
-	return stackWithDepth(ctx, err, 1+traceDepth)
+	stacked := stackWithDepth(ctx, err, 1+traceDepth)
+
+	// labeling here because we want the context from stackWithDepth first
+	for _, label := range labels {
+		stacked = stacked.Label(label)
+	}
+
+	return stacked
 }
 
 // unexported categorizers, for use with stackWithCoreErr
 
 // for categorizing errors by their response code and no other response propery
 func toErrByRespCode(ode oDataErr, err error) error {
-	fiveXX := []int{}
-	for i := 0; i < 5; i++ {
-		fiveXX = append(fiveXX, 500+i)
-	}
-
 	switch {
 	case ode.hasResponseCode(http.StatusNotFound):
 		return clues.Stack(core.ErrNotFound, err)
 	case ode.hasResponseCode(http.StatusUnauthorized, http.StatusForbidden):
 		return clues.Stack(core.ErrInsufficientAuthorization, err)
-	case ode.hasResponseCode(fiveXX...):
-		return clues.Stack(core.ErrDownstreamServerError, err)
 	case ode.hasResponseCode(http.StatusTooManyRequests):
 		return clues.Stack(core.ErrApplicationThrottled, err)
+	// catch any 5xx error
+	case ode.hasResponseCode(5):
+		return clues.Stack(core.ErrDownstreamServerError, err)
 	default:
 		return err
 	}
@@ -592,8 +597,14 @@ func (ode oDataErr) hasResponseCode(httpResponseCode ...int) bool {
 		return false
 	}
 
+	orsc := ode.Resp.StatusCode
+
 	for _, hrc := range httpResponseCode {
-		if ode.Resp.StatusCode == hrc {
+		if orsc == hrc {
+			return true
+		}
+
+		if hrc < 10 && orsc/100 == hrc {
 			return true
 		}
 	}
