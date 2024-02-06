@@ -56,7 +56,7 @@ func (p *contactsFoldersPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ContactFolderable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *contactsFoldersPageCtrl) SetNextLink(nextLink string) {
@@ -76,7 +76,7 @@ func (c Contacts) EnumerateContainers(
 		userID,
 		baseContainerID))
 
-	return containers, graph.Stack(ctx, err).OrNil()
+	return containers, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ func (p *contactsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *contactsPageCtrl) SetNextLink(nextLink string) {
@@ -142,7 +142,7 @@ func (c Contacts) GetItemsInContainerByCollisionKey(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+		return nil, clues.Wrap(err, "enumerating contacts")
 	}
 
 	m := map[string]string{}
@@ -163,7 +163,7 @@ func (c Contacts) GetItemIDsInContainer(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+		return nil, clues.Wrap(err, "enumerating contacts")
 	}
 
 	m := map[string]struct{}{}
@@ -236,7 +236,7 @@ func (p *contactDeltaPager) GetPage(
 	ctx context.Context,
 ) (pagers.DeltaLinkValuer[models.Contactable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *contactDeltaPager) SetNextLink(nextLink string) {

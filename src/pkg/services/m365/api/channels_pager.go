@@ -33,7 +33,7 @@ func (p *channelMessagePageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *channelMessagePageCtrl) ValidModTimes() bool {
@@ -84,7 +84,7 @@ func (c Channels) GetChannelMessages(
 	pager := c.NewChannelMessagePager(teamID, channelID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ChatMessageable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ func (p *channelMessageDeltaPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.DeltaLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *channelMessageDeltaPageCtrl) Reset(context.Context) {
@@ -220,7 +220,7 @@ func (p *channelMessageRepliesPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ChatMessageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *channelMessageRepliesPageCtrl) GetOdataNextLink() *string {
@@ -290,7 +290,7 @@ func (p *channelPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Channelable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *channelPageCtrl) ValidModTimes() bool {

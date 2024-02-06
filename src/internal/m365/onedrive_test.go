@@ -25,7 +25,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 var (
@@ -67,7 +66,7 @@ func mustGetDefaultDriveID(
 	}
 
 	if err != nil {
-		err = graph.Wrap(ctx, err, "retrieving drive")
+		err = clues.Wrap(err, "retrieving drive")
 	}
 
 	require.NoError(t, err, clues.ToCore(err))

@@ -78,9 +78,11 @@ func getGroups(
 	errs *fault.Bus,
 	service graph.Servicer,
 ) ([]models.Groupable, error) {
-	resp, err := service.Client().Groups().Get(ctx, nil)
+	resp, err := service.Client().
+		Groups().
+		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting all groups")
+		return nil, clues.Wrap(err, "getting all groups")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator[models.Groupable](
@@ -88,7 +90,7 @@ func getGroups(
 		service.Adapter(),
 		models.CreateGroupCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating groups iterator")
+		return nil, clues.WrapWC(ctx, err, "creating groups iterator")
 	}
 
 	var (
@@ -103,7 +105,7 @@ func getGroups(
 
 		err := validateGroup(item)
 		if err != nil {
-			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating groups"))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "validating groups"))
 		} else {
 			results = append(results, item)
 		}
@@ -112,7 +114,7 @@ func getGroups(
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, graph.Wrap(ctx, err, "iterating all groups")
+		return nil, clues.Wrap(err, "iterating all groups")
 	}
 
 	return results, el.Failure()
@@ -132,12 +134,12 @@ func (c Groups) GetTeamByID(
 ) (models.Teamable, error) {
 	ctx = clues.Add(ctx, "resource_identifier", identifier)
 
-	t, err := c.Stable.Client().Teams().ByTeamId(identifier).Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "finding team by ID")
-	}
+	t, err := c.Stable.
+		Client().
+		Teams().
+		ByTeamId(identifier).Get(ctx, nil)
 
-	return t, err
+	return t, clues.Wrap(err, "finding team by ID").OrNil()
 }
 
 // GetID can look up a group by either its canonical id (a uuid)
@@ -206,9 +208,12 @@ func (c Groups) GetByID(
 		},
 	}
 
-	resp, err := c.Stable.Client().Groups().Get(ctx, opts)
+	resp, err := c.Stable.
+		Client().
+		Groups().
+		Get(ctx, opts)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "finding group by display name")
+		return nil, clues.Wrap(err, "finding group by display name")
 	}
 
 	return getGroupFromResponse(ctx, resp)
@@ -264,7 +269,7 @@ func (c Groups) GetAllSites(
 
 	service, err := c.Service(c.counter)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	for _, ch := range channels {
@@ -325,7 +330,7 @@ func (c Groups) GetRootSite(
 ) (models.Siteable, error) {
 	service, err := c.Service(c.counter)
 	if err != nil {
-		return nil, err
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	resp, err := service.
@@ -335,11 +340,8 @@ func (c Groups) GetRootSite(
 		Sites().
 		BySiteId("root").
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

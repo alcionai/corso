@@ -323,6 +323,9 @@ func IsErrSharingDisabled(err error) bool {
 
 // Wrap is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
+// You probably don't need this, because all calls to the graph client
+// automatically Stack these details.  You probably want clues.Wrap.
+// This is primarily exported for test helpers.
 func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 	if e == nil {
 		return nil
@@ -346,6 +349,9 @@ func Wrap(ctx context.Context, e error, msg string) *clues.Err {
 
 // Stack is a helper function that extracts ODataError metadata from
 // the error.  If the error is not an ODataError type, returns the error.
+// You probably don't need this, because all calls to the graph client
+// automatically Stack these details.  You probably want clues.Stack.
+// This is primarily exported for test helpers.
 func Stack(ctx context.Context, e error) *clues.Err {
 	return stackWithDepth(ctx, e, 1)
 }

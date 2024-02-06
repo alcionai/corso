@@ -103,7 +103,6 @@ func restoreListItem(
 	}
 
 	// Restore to List base to M365 back store
-
 	dii.SharePoint = api.ListToSPInfo(restoredList)
 
 	return dii, nil

@@ -53,7 +53,7 @@ func (p *mailFoldersPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.MailFolderable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *mailFoldersPageCtrl) SetNextLink(nextLink string) {
@@ -70,7 +70,7 @@ func (c Mail) EnumerateContainers(
 	userID, _ string, // baseContainerID not needed here
 ) ([]models.MailFolderable, error) {
 	containers, err := pagers.BatchEnumerateItems(ctx, c.NewMailFoldersPager(userID))
-	return containers, graph.Stack(ctx, err).OrNil()
+	return containers, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ func (p *mailsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Messageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *mailsPageCtrl) SetNextLink(nextLink string) {
@@ -136,7 +136,7 @@ func (c Mail) GetItemsInContainerByCollisionKey(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating mails")
+		return nil, clues.Wrap(err, "enumerating mails")
 	}
 
 	m := map[string]string{}
@@ -156,11 +156,8 @@ func (c Mail) GetItemsInContainer(
 	pager := c.NewMailPager(userID, containerID)
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating mails")
-	}
 
-	return items, nil
+	return items, clues.Wrap(err, "enumerating mails").OrNil()
 }
 
 func (c Mail) GetItemIDsInContainer(
@@ -172,7 +169,7 @@ func (c Mail) GetItemIDsInContainer(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating mails")
+		return nil, clues.Wrap(err, "enumerating mails")
 	}
 
 	m := map[string]struct{}{}
@@ -245,7 +242,7 @@ func (p *mailDeltaPager) GetPage(
 	ctx context.Context,
 ) (pagers.DeltaLinkValuer[models.Messageable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *mailDeltaPager) SetNextLink(nextLink string) {

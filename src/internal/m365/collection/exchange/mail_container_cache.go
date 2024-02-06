@@ -128,9 +128,8 @@ func (mc *mailContainerCache) Populate(
 
 		err := mc.addFolder(&cacheFolder)
 		if err != nil {
-			errs.AddRecoverable(
-				ctx,
-				graph.Stack(ctx, err).Label(fault.LabelForceNoBackupCreation))
+			err = clues.StackWC(ctx, err).Label(fault.LabelForceNoBackupCreation)
+			errs.AddRecoverable(ctx, err)
 		}
 	}
 

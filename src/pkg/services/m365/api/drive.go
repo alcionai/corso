@@ -55,15 +55,15 @@ func (c Drives) GetFolderByName(
 	foundItem, err := builder.Get(ctx, nil)
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
-			return nil, graph.Stack(ctx, clues.Stack(ErrFolderNotFound, err))
+			err = clues.Stack(ErrFolderNotFound, err)
 		}
 
-		return nil, graph.Wrap(ctx, err, "getting folder")
+		return nil, clues.Wrap(err, "getting folder")
 	}
 
 	// Check if the item found is a folder, fail the call if not
 	if foundItem.GetFolder() == nil {
-		return nil, graph.Wrap(ctx, ErrFolderNotFound, "item is not a folder")
+		return nil, clues.WrapWC(ctx, ErrFolderNotFound, "item is not a folder")
 	}
 
 	return foundItem, nil
@@ -80,7 +80,7 @@ func (c Drives) GetRootFolder(
 		Root().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting drive root")
+		return nil, clues.Wrap(err, "getting drive root")
 	}
 
 	return root, nil
@@ -100,7 +100,7 @@ func (c Drives) GetFolderChildren(
 		Children().
 		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting folder children")
+		return nil, clues.Wrap(err, "getting folder children")
 	}
 
 	return response.GetValue(), nil
@@ -129,11 +129,8 @@ func (c Drives) GetItem(
 		Items().
 		ByDriveItemId(itemID).
 		Get(ctx, options)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting item")
-	}
 
-	return di, nil
+	return di, clues.Wrap(err, "getting item").OrNil()
 }
 
 func (c Drives) NewItemContentUpload(
@@ -150,11 +147,8 @@ func (c Drives) NewItemContentUpload(
 		ByDriveItemId(itemID).
 		CreateUploadSession().
 		Post(ctx, session, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "uploading drive item")
-	}
 
-	return r, nil
+	return r, clues.Wrap(err, "uploading drive item").OrNil()
 }
 
 //nolint:lll
@@ -191,7 +185,7 @@ func (c Drives) PostItemInContainer(
 
 	newItem, err := builder.Post(ctx, newItem, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating item in folder")
+		return nil, clues.Wrap(err, "creating item in folder")
 	}
 
 	return newItem, nil
@@ -209,11 +203,8 @@ func (c Drives) PatchItem(
 		Items().
 		ByDriveItemId(itemID).
 		Patch(ctx, item, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "patching drive item")
-	}
 
-	return nil
+	return clues.Wrap(err, "patching drive item").OrNil()
 }
 
 func (c Drives) PutItemContent(
@@ -229,11 +220,8 @@ func (c Drives) PutItemContent(
 		ByDriveItemId(itemID).
 		Content().
 		Put(ctx, content, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "uploading drive item content")
-	}
 
-	return nil
+	return clues.Wrap(err, "uploading drive item content").OrNil()
 }
 
 // deletes require unique http clients
@@ -246,7 +234,7 @@ func (c Drives) DeleteItem(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
-		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
+		return clues.WrapWC(ctx, err, "creating adapter to delete item permission")
 	}
 
 	err = srv.
@@ -256,11 +244,8 @@ func (c Drives) DeleteItem(
 		Items().
 		ByDriveItemId(itemID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting item").With("item_id", itemID)
-	}
 
-	return nil
+	return clues.Wrap(err, "deleting item").With("item_id", itemID).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +265,7 @@ func (c Drives) GetItemPermission(
 		Permissions().
 		Get(ctx, nil)
 
-	return perm, graph.Wrap(ctx, err, "getting item permissions").OrNil()
+	return perm, clues.Wrap(err, "getting item permissions").OrNil()
 }
 
 func (c Drives) PostItemPermissionUpdate(
@@ -298,11 +283,8 @@ func (c Drives) PostItemPermissionUpdate(
 		ByDriveItemId(itemID).
 		Invite().
 		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "posting permissions")
-	}
 
-	return itm, nil
+	return itm, clues.Wrap(err, "posting permissions").OrNil()
 }
 
 func (c Drives) DeleteItemPermission(
@@ -313,7 +295,7 @@ func (c Drives) DeleteItemPermission(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
-		return graph.Wrap(ctx, err, "creating adapter to delete item permission")
+		return clues.WrapWC(ctx, err, "creating adapter to delete item permission")
 	}
 
 	err = srv.
@@ -325,11 +307,8 @@ func (c Drives) DeleteItemPermission(
 		Permissions().
 		ByPermissionId(permissionID).
 		Delete(graph.ConsumeNTokens(ctx, graph.PermissionsLC), nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting drive item permission")
-	}
 
-	return nil
+	return clues.Wrap(err, "deleting drive item permission").OrNil()
 }
 
 func (c Drives) PostItemLinkShareUpdate(
@@ -346,11 +325,8 @@ func (c Drives) PostItemLinkShareUpdate(
 	builder := drives.NewItemItemsItemCreateLinkRequestBuilder(rawURL, c.Stable.Adapter())
 
 	itm, err := builder.Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating link share")
-	}
 
-	return itm, nil
+	return itm, clues.Wrap(err, "creating link share").OrNil()
 }
 
 // ---------------------------------------------------------------------------

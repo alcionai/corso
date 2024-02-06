@@ -18,7 +18,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
 	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type DriveAPIIntgSuite struct {
@@ -303,7 +302,7 @@ func (suite *DriveAPIIntgSuite) TestDrives_PostItemInContainer_replaceFolderRegr
 		ByDriveItemId(ptr.Val(resultFolder.GetId())).
 		Children().
 		Get(ctx, nil)
-	err = graph.Stack(ctx, err).OrNil()
+	err = clues.Stack(err).OrNil()
 	require.NoError(t, err, clues.ToCore(err))
 
 	resultFiles := resultFileColl.GetValue()

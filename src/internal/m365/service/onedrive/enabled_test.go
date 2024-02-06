@@ -54,6 +54,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "mysite not found",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteNotFound))
+				// needs graph.Stack, not clues.Stack
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -65,6 +66,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "mysite URL not found",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteURLNotFound))
+				// needs graph.Stack, not clues.Stack
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -76,6 +78,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "no sharepoint license",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.NoSPLicense))
+				// needs graph.Stack, not clues.Stack
 				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
@@ -87,7 +90,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "user not found",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
+				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {
@@ -98,7 +101,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "resource locked",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg(string(graph.NotAllowed), "resource")
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
+				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {
@@ -109,7 +112,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "arbitrary error",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", "message")
-				return mockDGDD{nil, graph.Stack(ctx, odErr)}
+				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {

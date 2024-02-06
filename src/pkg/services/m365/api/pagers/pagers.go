@@ -221,7 +221,7 @@ func EnumerateItems[T any](
 		// get the next page of data, check for standard errors
 		page, err := pager.GetPage(ctx)
 		if err != nil {
-			npr.err = graph.Stack(ctx, err)
+			npr.err = clues.Stack(err)
 			return
 		}
 
@@ -471,7 +471,7 @@ func batchWithMaxItemCount[T any](
 		pageAdded, pageRemoved, err := getAddedAndRemoved(page, filters...)
 		if err != nil {
 			resultsPager.Cancel()
-			return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+			return nil, nil, DeltaUpdate{}, clues.StackWC(ctx, err)
 		}
 
 		removed = append(removed, pageRemoved...)
@@ -490,7 +490,7 @@ func batchWithMaxItemCount[T any](
 
 	du, err := resultsPager.Results()
 	if err != nil {
-		return nil, nil, DeltaUpdate{}, graph.Stack(ctx, err)
+		return nil, nil, DeltaUpdate{}, clues.StackWC(ctx, err)
 	}
 
 	// We processed all the results from the pager.
@@ -535,9 +535,9 @@ func GetAddedAndRemovedItemIDs[T any](
 			return AddedAndRemoved{
 				DU:            DeltaUpdate{Reset: true},
 				ValidModTimes: deltaPager.ValidModTimes(),
-			}, graph.Stack(ctx, err)
+			}, clues.Stack(err)
 		} else if err == nil {
-			return aar, graph.Stack(ctx, err).OrNil()
+			return aar, clues.Stack(err).OrNil()
 		}
 	}
 
@@ -560,7 +560,7 @@ func GetAddedAndRemovedItemIDs[T any](
 		ValidModTimes: pager.ValidModTimes(),
 	}
 
-	return aar, graph.Stack(ctx, err).OrNil()
+	return aar, clues.Stack(err).OrNil()
 }
 
 type getIDAndModDateTimer interface {

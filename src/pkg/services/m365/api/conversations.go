@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -62,7 +61,7 @@ func (c Conversations) GetConversationPost(
 		ByPostId(postID).
 		Get(ctx, config)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, nil, clues.Stack(err)
 	}
 
 	preview, contentLen, err := getConversationPostContentPreview(post)
@@ -96,7 +95,7 @@ func (c Conversations) GetConversationPost(
 
 	post.SetAttachments(attachments)
 
-	return post, conversationPostInfo(post, contentLen, preview), graph.Stack(ctx, err).OrNil()
+	return post, conversationPostInfo(post, contentLen, preview), clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +180,7 @@ func (c Conversations) getAttachments(
 		ByPostId(postID).
 		Get(ctx, cfg)
 	if err != nil {
-		return nil, 0, graph.Stack(ctx, err)
+		return nil, 0, clues.Stack(err)
 	}
 
 	attachments := post.GetAttachments()
