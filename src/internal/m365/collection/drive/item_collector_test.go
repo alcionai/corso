@@ -272,7 +272,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				scope = selectors.
 					NewOneDriveBackup([]string{test.user}).
 					AllData()[0]
-				ssu = stubStatusUpdater{}
+				statusUpdater = stubStatusUpdater{}
 			)
 
 			colls := NewCollections(
@@ -288,7 +288,7 @@ func (suite *OneDriveIntgSuite) TestOneDriveNewCollections() {
 				},
 				creds.AzureTenantID,
 				idname.NewProvider(test.user, test.user),
-				ssu.updateStatus,
+				statusUpdater.updateStatus,
 				control.Options{
 					ToggleFeatures: control.Toggles{},
 				},

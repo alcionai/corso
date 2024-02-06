@@ -43,13 +43,7 @@ func TestItemIntegrationSuite(t *testing.T) {
 }
 
 func (suite *ItemIntegrationSuite) SetupSuite() {
-	t := suite.T()
-	suite.m365 = its.GetM365(t)
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	graph.InitializeConcurrencyLimiter(ctx, true, 4)
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func getOneDriveItem(
