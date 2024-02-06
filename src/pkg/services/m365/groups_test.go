@@ -35,7 +35,6 @@ func TestGroupsIntgSuite(t *testing.T) {
 
 func (suite *GroupsIntgSuite) SetupSuite() {
 	t := suite.T()
-	var err error
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
@@ -43,6 +42,8 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 	suite.m365 = its.GetM365(t)
 
 	// will init the concurrency limiter
+	var err error
+
 	suite.cli, err = NewM365Client(ctx, suite.m365.Acct)
 	require.NoError(t, err, clues.ToCore(err))
 }
