@@ -50,7 +50,13 @@ corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd
 
 # Export all files and folders in folder "Documents/Finance Reports" that were created before 2020 to /my-exports
 corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd \
-    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00`
+    --folder "Documents/Finance Reports" --file-created-before 2020-01-01T00:00:00
+	
+# Export all posts from a conversation with topic "hello world" from group mailbox's last backup to /my-exports
+corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --conversation "hello world"
+
+# Export post with ID 98765abcdef from a conversation from group mailbox's last backup to /my-exports
+corso export groups my-exports --backup 1234abcd-12ab-cd34-56de-1234abcd --conversation "hello world" --post 98765abcdef`
 )
 
 // `corso export groups [<flag>...] <destination>`

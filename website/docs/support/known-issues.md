@@ -26,17 +26,17 @@ Below is a list of known Corso issues and limitations:
 
 * Link shares with password protection can't be restored.
 
-* Teams conversation replies are only backed up if the parent message is available at the time of backup.
+* Teams message replies are only backed up if the parent message is available at the time of backup.
 
 * Groups SharePoint files don't support Export. This limitation will be addressed in a follow-up release
 
-* Teams messages don't support Restore due to limited Graph API support for message creation.
+* Teams messages don't support restore due to limited Graph API support for message creation.
 
 * Groups and Teams support is available in an early-access status, and may be subject to breaking changes.
 
 * Restoring the data into a different Group from the one it was backed up from isn't currently supported.
 
-* Backing up a group mailbox item may fail if it has a large number of attachments (500+).
+* Backing up a group mailbox(aka conversations) item may fail if it has a large number of attachments (500+).
 
 * Exchange in-place restore may restore items in well-known folders to different
   folders if the user has well-known folder names change based on locale and has
@@ -48,3 +48,7 @@ Below is a list of known Corso issues and limitations:
 
 * Sharepoint list item "attachments" aren't backed up, restored or exported as
   graph APIs doesn't currently provide attachment data for Lists or List Items.
+
+* Group mailboxes(aka conversations) don't support restore due to limited Graph API support for creating mailbox items. EML export is supported.
+
+* Due to Graph API limitations, any group mailbox items present in subfolders other than Inbox are not backed up.
