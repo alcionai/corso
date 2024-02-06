@@ -18,6 +18,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -34,9 +35,7 @@ import (
 
 type URLCacheIntegrationSuite struct {
 	tester.Suite
-	ac      api.Client
-	user    string
-	driveID string
+	m365 its.M365IntgTestSetup
 }
 
 func TestURLCacheIntegrationSuite(t *testing.T) {
@@ -49,29 +48,12 @@ func TestURLCacheIntegrationSuite(t *testing.T) {
 
 func (suite *URLCacheIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.user = tconfig.SecondaryM365UserID(t)
-
-	acct := tconfig.NewM365Account(t)
-
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	drive, err := suite.ac.Users().GetDefaultDrive(ctx, suite.user)
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.driveID = ptr.Val(drive.GetId())
 }
 
 // Basic test for urlCache. Create some files in onedrive, then access them via
@@ -79,22 +61,18 @@ func (suite *URLCacheIntegrationSuite) SetupSuite() {
 func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	var (
 		t             = suite.T()
-		ac            = suite.ac.Drives()
-		driveID       = suite.driveID
+		ac            = suite.m365.AC.Drives()
+		driveID       = suite.m365.User.DriveID
 		newFolderName = testdata.DefaultRestoreConfig("folder").Location
 	)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	// Create a new test folder
-	root, err := ac.GetRootFolder(ctx, driveID)
-	require.NoError(t, err, clues.ToCore(err))
-
 	newFolder, err := ac.PostItemInContainer(
 		ctx,
 		driveID,
-		ptr.Val(root.GetId()),
+		suite.m365.User.DriveRootFolderID,
 		api.NewDriveItem(newFolderName, true),
 		control.Copy)
 	require.NoError(t, err, clues.ToCore(err))
@@ -105,7 +83,7 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 	// Get the previous delta to feed into url cache
 	pager := ac.EnumerateDriveItemsDelta(
 		ctx,
-		suite.driveID,
+		driveID,
 		"",
 		api.CallConfig{
 			Select: api.URLCacheDriveItemProps(),
@@ -142,10 +120,10 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 
 	// Create a new URL cache with a long TTL
 	uc, err := newURLCache(
-		suite.driveID,
+		driveID,
 		du.URL,
 		1*time.Hour,
-		suite.ac.Drives(),
+		ac,
 		count.New(),
 		fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))

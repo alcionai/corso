@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
 	inMock "github.com/alcionai/corso/src/internal/common/idname/mock"
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
@@ -18,6 +17,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -29,7 +29,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
@@ -241,9 +240,7 @@ func (suite *BackupUnitSuite) TestPopulateCollections() {
 
 type BackupIntgSuite struct {
 	tester.Suite
-	resource string
-	tenantID string
-	ac       api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupIntgSuite(t *testing.T) {
@@ -256,37 +253,22 @@ func TestBackupIntgSuite(t *testing.T) {
 
 func (suite *BackupIntgSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.resource = tconfig.M365TeamID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
 }
 
 func (suite *BackupIntgSuite) TestCreateCollections() {
 	var (
-		tenant            = tconfig.M365TenantID(suite.T())
-		protectedResource = tconfig.M365TeamID(suite.T())
-		resources         = []string{protectedResource}
-		qp                = graph.QueryParams{
-			ProtectedResource: idname.NewProvider(protectedResource, protectedResource),
-			TenantID:          tenant,
+		resources = []string{suite.m365.Group.ID}
+		qp        = graph.QueryParams{
+			ProtectedResource: suite.m365.Group.Provider,
+			TenantID:          suite.m365.TenantID,
 		}
-		handler = NewUsersChatsBackupHandler(qp, suite.ac.Chats())
+		handler = NewUsersChatsBackupHandler(qp, suite.m365.AC.Chats())
 	)
 
 	tests := []struct {
@@ -312,13 +294,13 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 
 			ctrlOpts := control.DefaultOptions()
 
-			sel := selectors.NewTeamsChatsBackup([]string{protectedResource})
+			sel := selectors.NewTeamsChatsBackup([]string{suite.m365.Group.ID})
 			sel.Include(selTD.TeamsChatsBackupChatScope(sel))
 
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           ctrlOpts,
-				ProtectedResource: inMock.NewProvider(protectedResource, protectedResource),
+				ProtectedResource: suite.m365.Group.Provider,
 				Selector:          sel.Selector,
 			}
 
@@ -326,7 +308,7 @@ func (suite *BackupIntgSuite) TestCreateCollections() {
 				ctx,
 				bpc,
 				handler,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				func(status *support.ControllerOperationStatus) {},
 				false,

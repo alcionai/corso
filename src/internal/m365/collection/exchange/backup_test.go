@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -472,10 +473,7 @@ func newStatusUpdater(t *testing.T, wg *sync.WaitGroup) func(status *support.Con
 
 type BackupIntgSuite struct {
 	tester.Suite
-	user     string
-	site     string
-	tenantID string
-	ac       api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupIntgSuite(t *testing.T) {
@@ -488,35 +486,18 @@ func TestBackupIntgSuite(t *testing.T) {
 
 func (suite *BackupIntgSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.user = tconfig.M365UserID(t)
-	suite.site = tconfig.M365SiteID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
-
-	tester.LogTimeOfTest(t)
 }
 
 func (suite *BackupIntgSuite) TestMailFetch() {
 	var (
-		userID   = tconfig.M365UserID(suite.T())
-		users    = []string{userID}
-		handlers = BackupHandlers(suite.ac)
+		users    = []string{suite.m365.User.ID}
+		handlers = BackupHandlers(suite.m365.AC)
 	)
 
 	tests := []struct {
@@ -560,14 +541,14 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           ctrlOpts,
-				ProtectedResource: inMock.NewProvider(userID, userID),
+				ProtectedResource: suite.m365.User.Provider,
 			}
 
 			collections, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
@@ -602,9 +583,8 @@ func (suite *BackupIntgSuite) TestMailFetch() {
 
 func (suite *BackupIntgSuite) TestDelta() {
 	var (
-		userID   = tconfig.M365UserID(suite.T())
-		users    = []string{userID}
-		handlers = BackupHandlers(suite.ac)
+		users    = []string{suite.m365.User.ID}
+		handlers = BackupHandlers(suite.m365.AC)
 	)
 
 	tests := []struct {
@@ -640,7 +620,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           control.DefaultOptions(),
-				ProtectedResource: inMock.NewProvider(userID, userID),
+				ProtectedResource: suite.m365.User.Provider,
 			}
 
 			// get collections without providing any delta history (ie: full backup)
@@ -648,7 +628,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				ctx,
 				bpc,
 				handlers,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				metadata.DeltaPaths{},
 				func(status *support.ControllerOperationStatus) {},
@@ -681,7 +661,7 @@ func (suite *BackupIntgSuite) TestDelta() {
 				ctx,
 				bpc,
 				handlers,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				dps,
 				func(status *support.ControllerOperationStatus) {},
@@ -703,8 +683,8 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 
 	var (
 		wg       sync.WaitGroup
-		users    = []string{suite.user}
-		handlers = BackupHandlers(suite.ac)
+		users    = []string{suite.m365.User.ID}
+		handlers = BackupHandlers(suite.m365.AC)
 	)
 
 	sel := selectors.NewExchangeBackup(users)
@@ -713,7 +693,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+		ProtectedResource: suite.m365.User.Provider,
 		Selector:          sel.Selector,
 	}
 
@@ -721,7 +701,7 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 		ctx,
 		bpc,
 		handlers,
-		suite.tenantID,
+		suite.m365.TenantID,
 		sel.Scopes()[0],
 		metadata.DeltaPaths{},
 		newStatusUpdater(t, &wg),
@@ -773,8 +753,8 @@ func (suite *BackupIntgSuite) TestMailSerializationRegression() {
 // a regression test to ensure that downloaded items can be uploaded.
 func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 	var (
-		users    = []string{suite.user}
-		handlers = BackupHandlers(suite.ac)
+		users    = []string{suite.m365.User.ID}
+		handlers = BackupHandlers(suite.m365.AC)
 	)
 
 	tests := []struct {
@@ -801,14 +781,14 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           control.DefaultOptions(),
-				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+				ProtectedResource: suite.m365.User.Provider,
 			}
 
 			edcs, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),
@@ -875,8 +855,8 @@ func (suite *BackupIntgSuite) TestContactSerializationRegression() {
 // to be able to successfully query, download and restore event objects
 func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 	var (
-		users    = []string{suite.user}
-		handlers = BackupHandlers(suite.ac)
+		users    = []string{suite.m365.User.ID}
+		handlers = BackupHandlers(suite.m365.AC)
 	)
 
 	tests := []struct {
@@ -911,14 +891,14 @@ func (suite *BackupIntgSuite) TestEventsSerializationRegression() {
 			bpc := inject.BackupProducerConfig{
 				LastBackupVersion: version.NoBackup,
 				Options:           control.DefaultOptions(),
-				ProtectedResource: inMock.NewProvider(suite.user, suite.user),
+				ProtectedResource: suite.m365.User.Provider,
 			}
 
 			collections, err := CreateCollections(
 				ctx,
 				bpc,
 				handlers,
-				suite.tenantID,
+				suite.m365.TenantID,
 				test.scope,
 				metadata.DeltaPaths{},
 				newStatusUpdater(t, &wg),

@@ -9,14 +9,12 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/data"
 	"github.com/alcionai/corso/src/internal/data/mock"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -64,9 +62,7 @@ func (suite *GroupsUnitSuite) TestConsumeRestoreCollections_noErrorOnGroups() {
 
 type groupsIntegrationSuite struct {
 	tester.Suite
-	resource string
-	tenantID string
-	ac       api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsIntegrationSuite(t *testing.T) {
@@ -79,25 +75,12 @@ func TestGroupsIntegrationSuite(t *testing.T) {
 
 func (suite *groupsIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.resource = tconfig.M365TeamID(t)
-
-	acct := tconfig.NewM365Account(t)
-	creds, err := acct.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.tenantID = creds.AzureTenantID
 }
 
 // test for getSiteName
@@ -107,12 +90,9 @@ func (suite *groupsIntegrationSuite) TestGetSiteName() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	rootSite, err := suite.ac.Groups().GetRootSite(ctx, suite.resource)
-	require.NoError(t, err, clues.ToCore(err))
-
 	// Generate a fake site ID that appears valid to graph API but doesn't actually exist.
 	// This "could" be flaky, but highly unlikely
-	unavailableSiteID := []rune(ptr.Val(rootSite.GetId()))
+	unavailableSiteID := []rune(suite.m365.Group.RootSite.ID)
 	firstIDChar := slices.Index(unavailableSiteID, ',') + 1
 
 	if unavailableSiteID[firstIDChar] != '2' {
@@ -131,9 +111,9 @@ func (suite *groupsIntegrationSuite) TestGetSiteName() {
 	}{
 		{
 			name:              "valid",
-			siteID:            ptr.Val(rootSite.GetId()),
-			webURL:            ptr.Val(rootSite.GetWebUrl()),
-			siteName:          *rootSite.GetDisplayName(),
+			siteID:            suite.m365.Group.RootSite.ID,
+			webURL:            suite.m365.Group.RootSite.WebURL,
+			siteName:          suite.m365.Group.RootSite.DisplayName,
 			webURLToSiteNames: map[string]string{},
 			expectErr:         assert.NoError,
 		},
@@ -163,7 +143,7 @@ func (suite *groupsIntegrationSuite) TestGetSiteName() {
 				ctx,
 				test.siteID,
 				test.webURL,
-				suite.ac.Sites(),
+				suite.m365.AC.Sites(),
 				test.webURLToSiteNames)
 			require.NoError(t, err, clues.ToCore(err))
 

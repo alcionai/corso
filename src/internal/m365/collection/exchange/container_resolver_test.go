@@ -16,10 +16,8 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -1019,49 +1017,37 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	assert.Equal(t, m.expectedLocation, l.String(), "location path")
 }
 
-type ContainerResolverSuite struct {
+type ContainerResolverIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
+	m365 its.M365IntgTestSetup
 }
 
-func TestContainerResolverIntegrationSuite(t *testing.T) {
-	suite.Run(t, &ContainerResolverSuite{
+func TestContainerResolverIntgSuite(t *testing.T) {
+	suite.Run(t, &ContainerResolverIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *ContainerResolverSuite) SetupSuite() {
-	t := suite.T()
-
-	a := tconfig.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.credentials = m365
+func (suite *ContainerResolverIntgSuite) SetupSuite() {
+	suite.m365 = its.GetM365(suite.T())
 }
 
-func (suite *ContainerResolverSuite) TestPopulate() {
-	ac, err := api.NewClient(
-		suite.credentials,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(suite.T(), err, clues.ToCore(err))
-
+func (suite *ContainerResolverIntgSuite) TestPopulate() {
 	eventFunc := func(t *testing.T) graph.ContainerResolver {
 		return &eventContainerCache{
 			userID: tconfig.M365UserID(t),
-			enumer: ac.Events(),
-			getter: ac.Events(),
+			enumer: suite.m365.AC.Events(),
+			getter: suite.m365.AC.Events(),
 		}
 	}
 
 	contactFunc := func(t *testing.T) graph.ContainerResolver {
 		return &contactContainerCache{
 			userID: tconfig.M365UserID(t),
-			enumer: ac.Contacts(),
-			getter: ac.Contacts(),
+			enumer: suite.m365.AC.Contacts(),
+			getter: suite.m365.AC.Contacts(),
 		}
 	}
 
