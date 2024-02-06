@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/account"
@@ -66,8 +67,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 		canUsePreviousBackup bool
 	}{
 		{
-			name:                 "one list",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, nil),
+			name: "one list",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one"),
+				suite.creds.AzureTenantID,
+				siteID,
+				nil),
 			expectErr:            require.NoError,
 			expectColls:          2,
 			expectNewColls:       1,
@@ -75,8 +80,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 			canUsePreviousBackup: true,
 		},
 		{
-			name:                 "many lists",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one", "two"), suite.creds.AzureTenantID, siteID, nil),
+			name: "many lists",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one", "two"),
+				suite.creds.AzureTenantID,
+				siteID,
+				nil),
 			expectErr:            require.NoError,
 			expectColls:          3,
 			expectNewColls:       2,
@@ -84,8 +93,12 @@ func (suite *SharePointBackupUnitSuite) TestCollectLists() {
 			canUsePreviousBackup: true,
 		},
 		{
-			name:                 "with error",
-			mock:                 siteMock.NewListHandler(siteMock.StubLists("one"), suite.creds.AzureTenantID, siteID, errors.New("some error")),
+			name: "with error",
+			mock: siteMock.NewListHandler(
+				siteMock.StubLists("one"),
+				suite.creds.AzureTenantID,
+				siteID,
+				errors.New("some error")),
 			expectErr:            require.Error,
 			expectColls:          0,
 			expectNewColls:       0,
@@ -328,59 +341,49 @@ func (suite *SharePointBackupUnitSuite) TestPopulateListsCollections_incremental
 	}
 }
 
-type SharePointSuite struct {
+type SharePointBackupIntgSuite struct {
 	tester.Suite
+	m365 its.M365IntgTestSetup
 }
 
 func TestSharePointSuite(t *testing.T) {
-	suite.Run(t, &SharePointSuite{
+	suite.Run(t, &SharePointBackupIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *SharePointSuite) SetupSuite() {
-	ctx, flush := tester.NewContext(suite.T())
+func (suite *SharePointBackupIntgSuite) SetupSuite() {
+	t := suite.T()
+	suite.m365 = its.GetM365(t)
+
+	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, false, 4)
 }
 
-func (suite *SharePointSuite) TestCollectPages() {
+func (suite *SharePointBackupIntgSuite) TestCollectPages() {
 	t := suite.T()
+	counter := count.New()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		siteID  = tconfig.M365SiteID(t)
-		a       = tconfig.NewM365Account(t)
-		counter = count.New()
-	)
-
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	ac, err := api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		counter)
-	require.NoError(t, err, clues.ToCore(err))
-
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: mock.NewProvider(siteID, siteID),
+		ProtectedResource: suite.m365.Site.Provider,
 	}
 
-	sel := selectors.NewSharePointBackup([]string{siteID})
+	sel := selectors.NewSharePointBackup([]string{suite.m365.Site.ID})
 
 	col, err := CollectPages(
 		ctx,
 		bpc,
-		creds,
-		ac,
+		suite.m365.Creds,
+		suite.m365.AC,
 		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
 		counter,
@@ -389,47 +392,32 @@ func (suite *SharePointSuite) TestCollectPages() {
 	assert.NotEmpty(t, col)
 }
 
-func (suite *SharePointSuite) TestCollectLists() {
+func (suite *SharePointBackupIntgSuite) TestCollectLists() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	var (
-		siteID  = tconfig.M365SiteID(t)
-		a       = tconfig.NewM365Account(t)
-		counter = count.New()
-	)
-
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	ac, err := api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		counter)
-	require.NoError(t, err, clues.ToCore(err))
-
 	bpc := inject.BackupProducerConfig{
 		LastBackupVersion: version.NoBackup,
 		Options:           control.DefaultOptions(),
-		ProtectedResource: mock.NewProvider(siteID, siteID),
+		ProtectedResource: suite.m365.Site.Provider,
 	}
 
-	sel := selectors.NewSharePointBackup([]string{siteID})
+	sel := selectors.NewSharePointBackup([]string{suite.m365.Site.ID})
 	qp := graph.QueryParams{
 		ProtectedResource: bpc.ProtectedResource,
-		TenantID:          creds.AzureTenantID,
+		TenantID:          suite.m365.TenantID,
 	}
 
-	bh := NewListsBackupHandler(qp, ac.Lists())
+	bh := NewListsBackupHandler(qp, suite.m365.AC.Lists())
 
 	col, _, err := CollectLists(
 		ctx,
 		bh,
 		bpc,
-		ac,
-		creds.AzureTenantID,
+		suite.m365.AC,
+		suite.m365.Creds.AzureTenantID,
 		sel.Lists(selectors.Any())[0],
 		(&MockGraphService{}).UpdateStatus,
 		count.New(),
@@ -449,7 +437,7 @@ func (suite *SharePointSuite) TestCollectLists() {
 	assert.True(t, metadataFound)
 }
 
-func (suite *SharePointSuite) TestParseListsMetadataCollections() {
+func (suite *SharePointBackupIntgSuite) TestParseListsMetadataCollections() {
 	type fileValues struct {
 		fileName string
 		value    string
@@ -584,7 +572,7 @@ func (f failingColl) FetchItemByName(context.Context, string) (data.Item, error)
 	return nil, nil
 }
 
-func (suite *SharePointSuite) TestParseListsMetadataCollections_ReadFailure() {
+func (suite *SharePointBackupIntgSuite) TestParseListsMetadataCollections_ReadFailure() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)

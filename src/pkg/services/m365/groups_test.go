@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/errs"
 	"github.com/alcionai/corso/src/pkg/errs/core"
@@ -20,7 +21,8 @@ import (
 
 type GroupsIntgSuite struct {
 	tester.Suite
-	cli client
+	cli  client
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsIntgSuite(t *testing.T) {
@@ -37,12 +39,12 @@ func (suite *GroupsIntgSuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	acct := tconfig.NewM365Account(t)
-
-	var err error
+	suite.m365 = its.GetM365(t)
 
 	// will init the concurrency limiter
-	suite.cli, err = NewM365Client(ctx, acct)
+	var err error
+
+	suite.cli, err = NewM365Client(ctx, suite.m365.Acct)
 	require.NoError(t, err, clues.ToCore(err))
 }
 
@@ -52,7 +54,7 @@ func (suite *GroupsIntgSuite) TestGroupByID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	gid := tconfig.M365TeamID(t)
+	gid := suite.m365.Group.ID
 
 	group, err := suite.cli.GroupByID(ctx, gid)
 	require.NoError(t, err, clues.ToCore(err))
@@ -68,7 +70,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	gid := tconfig.M365TeamID(t)
+	gid := suite.m365.Group.ID
 
 	group, err := suite.cli.GroupByID(ctx, gid)
 	require.NoError(t, err, clues.ToCore(err))
@@ -77,7 +79,7 @@ func (suite *GroupsIntgSuite) TestGroupByID_ByEmail() {
 	assert.Equal(t, gid, group.ID, "must match expected id")
 	assert.NotEmpty(t, group.DisplayName)
 
-	gemail := tconfig.M365TeamEmail(t)
+	gemail := suite.m365.Group.Email
 
 	groupByEmail, err := suite.cli.GroupByID(ctx, gemail)
 	require.NoError(t, err, clues.ToCore(err))
@@ -92,7 +94,7 @@ func (suite *GroupsIntgSuite) TestTeamByID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	gid := tconfig.M365TeamID(t)
+	gid := suite.m365.Group.ID
 
 	group, err := suite.cli.TeamByID(ctx, gid)
 	require.NoError(t, err, clues.ToCore(err))
@@ -132,7 +134,7 @@ func (suite *GroupsIntgSuite) TestGroups() {
 			assert.NotEmpty(t, group.DisplayName)
 
 			// at least one known group should be a team
-			if group.ID == tconfig.M365TeamID(t) {
+			if group.ID == suite.m365.Group.ID {
 				assert.True(t, group.IsTeam)
 			}
 		})
@@ -145,7 +147,7 @@ func (suite *GroupsIntgSuite) TestSitesInGroup() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	gid := tconfig.M365TeamID(t)
+	gid := suite.m365.Group.ID
 
 	sites, err := suite.cli.SitesInGroup(ctx, gid, fault.New(true))
 	assert.NoError(t, err, clues.ToCore(err))

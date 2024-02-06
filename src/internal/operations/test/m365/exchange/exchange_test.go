@@ -21,6 +21,7 @@ import (
 	exchTD "github.com/alcionai/corso/src/internal/m365/service/exchange/testdata"
 	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -41,7 +42,7 @@ import (
 
 type ExchangeBackupIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestExchangeBackupIntgSuite(t *testing.T) {
@@ -53,7 +54,7 @@ func TestExchangeBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeBackupIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 // MetadataFileNames produces the category-specific set of filenames used to
@@ -80,9 +81,9 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Mail",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 				sel.Include(sel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
-				sel.DiscreteOwner = suite.its.User.ID
+				sel.DiscreteOwner = suite.m365.User.ID
 
 				return sel
 			},
@@ -92,7 +93,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Contacts",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 				sel.Include(sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -102,7 +103,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 		{
 			name: "Calendar Events",
 			selector: func() *selectors.ExchangeBackup {
-				sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+				sel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 				sel.Include(sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()))
 				return sel
 			},
@@ -270,7 +271,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 		// later on during the tests.  Putting their identifiers into the selector
 		// at this point is harmless.
 		containers = []string{container1, container2, container3, containerRename}
-		sel        = selectors.NewExchangeBackup([]string{suite.its.User.ID})
+		sel        = selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 		whatSet    = deeTD.CategoryFromRepoRef
 		opts       = control.DefaultOptions()
 	)
@@ -310,7 +311,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	mailDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.MessageWith(
-			suite.its.User.ID, suite.its.User.ID, suite.its.User.ID,
+			suite.m365.User.ID, suite.m365.User.ID, suite.m365.User.ID,
 			subject, body, body,
 			now, now, now, now)
 	}
@@ -327,7 +328,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 	eventDBF := func(id, timeStamp, subject, body string) []byte {
 		return exchMock.EventWith(
-			suite.its.User.ID, subject, body, body,
+			suite.m365.User.ID, subject, body, body,
 			exchMock.NoOriginalStartDate, now, now,
 			exchMock.NoRecurrence, exchMock.NoAttendees,
 			exchMock.NoAttachments, exchMock.NoCancelledOccurrences,
@@ -596,7 +597,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 						service,
 						category,
 						selectors.NewExchangeRestore([]string{uidn.ID()}).Selector,
-						creds.AzureTenantID, suite.its.User.ID, "", "", container3,
+						creds.AzureTenantID, suite.m365.User.ID, "", "", container3,
 						2,
 						version.Backup,
 						gen.dbf)
@@ -889,7 +890,7 @@ func testExchangeContinuousBackups(suite *ExchangeBackupIntgSuite, toggles contr
 
 type ExchangeBackupNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestExchangeBackupNightlyIntgSuite(t *testing.T) {
@@ -901,11 +902,11 @@ func TestExchangeBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *ExchangeBackupNightlyIntgSuite) TestBackup_Run_exchangeVersion9MergeBase() {
-	sel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+	sel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 	sel.Include(
 		sel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		// sel.EventCalendars([]string{api.DefaultCalendar}, selectors.PrefixMatch()),
@@ -916,7 +917,7 @@ func (suite *ExchangeBackupNightlyIntgSuite) TestBackup_Run_exchangeVersion9Merg
 
 type ExchangeRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestExchangeRestoreIntgSuite(t *testing.T) {
@@ -928,7 +929,7 @@ func TestExchangeRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *ExchangeRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 type clientItemPager interface {
@@ -959,7 +960,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -967,7 +968,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.User.ID
+	baseSel.DiscreteOwner = suite.m365.User.ID
 
 	var (
 		mb      = evmock.NewBus()
@@ -1002,8 +1003,8 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeWithAdvanc
 		}
 
 		testCategories = map[path.CategoryType]clientItemPager{
-			path.ContactsCategory: suite.its.AC.Contacts(),
-			path.EmailCategory:    suite.its.AC.Mail(),
+			path.ContactsCategory: suite.m365.AC.Contacts(),
+			path.EmailCategory:    suite.m365.AC.Mail(),
 			// path.EventsCategory: suite.its.ac.Events(),
 		}
 	)
@@ -1276,7 +1277,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 
 	// a backup is required to run restores
 
-	baseSel := selectors.NewExchangeBackup([]string{suite.its.User.ID})
+	baseSel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 	baseSel.Include(
 		// events cannot be run, for the same reason as incremental backups: the user needs
 		// to have their account recycled.
@@ -1284,7 +1285,7 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 		baseSel.ContactFolders([]string{api.DefaultContacts}, selectors.PrefixMatch()),
 		baseSel.MailFolders([]string{api.MailInbox}, selectors.PrefixMatch()))
 
-	baseSel.DiscreteOwner = suite.its.User.ID
+	baseSel.DiscreteOwner = suite.m365.User.ID
 
 	var (
 		mb      = evmock.NewBus()
@@ -1303,11 +1304,11 @@ func (suite *ExchangeRestoreNightlyIntgSuite) TestRestore_Run_exchangeAlternateP
 	var (
 		restoreCfg      = ctrlTD.DefaultRestoreConfig("exchange_restore_to_user")
 		sel             = rsel.Selector
-		userID          = suite.its.User.ID
-		secondaryUserID = suite.its.SecondaryUser.ID
+		userID          = suite.m365.User.ID
+		secondaryUserID = suite.m365.SecondaryUser.ID
 		uid             = userID
-		acCont          = suite.its.AC.Contacts()
-		acMail          = suite.its.AC.Mail()
+		acCont          = suite.m365.AC.Contacts()
+		acMail          = suite.m365.AC.Mail()
 		// acEvts   = suite.its.ac.Events()
 		firstCtr = count.New()
 	)

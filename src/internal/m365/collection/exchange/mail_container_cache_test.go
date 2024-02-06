@@ -10,10 +10,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
@@ -30,30 +28,24 @@ const (
 	expectedFolderPath = "toplevel/subFolder/subsubfolder"
 )
 
-type MailFolderCacheIntegrationSuite struct {
+type MailFolderCacheIntgSuite struct {
 	tester.Suite
-	credentials account.M365Config
+	m365 its.M365IntgTestSetup
 }
 
 func TestMailFolderCacheIntegrationSuite(t *testing.T) {
-	suite.Run(t, &MailFolderCacheIntegrationSuite{
+	suite.Run(t, &MailFolderCacheIntgSuite{
 		Suite: tester.NewIntegrationSuite(
 			t,
 			[][]string{tconfig.M365AcctCredEnvs}),
 	})
 }
 
-func (suite *MailFolderCacheIntegrationSuite) SetupSuite() {
-	t := suite.T()
-
-	a := tconfig.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.credentials = m365
+func (suite *MailFolderCacheIntgSuite) SetupSuite() {
+	suite.m365 = its.GetM365(suite.T())
 }
 
-func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
+func (suite *MailFolderCacheIntgSuite) TestDeltaFetch() {
 	suite.T().Skipf("Test depends on hardcoded folder names. Skipping till that is fixed")
 
 	tests := []struct {
@@ -75,7 +67,6 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			path: []string{"some", "leading", "path"},
 		},
 	}
-	userID := tconfig.M365UserID(suite.T())
 
 	for _, test := range tests {
 		suite.Run(test.name, func() {
@@ -84,21 +75,15 @@ func (suite *MailFolderCacheIntegrationSuite) TestDeltaFetch() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			ac, err := api.NewClient(
-				suite.credentials,
-				control.DefaultOptions(),
-				count.New())
-			require.NoError(t, err, clues.ToCore(err))
-
-			acm := ac.Mail()
+			acm := suite.m365.AC.Mail()
 
 			mfc := mailContainerCache{
-				userID: userID,
+				userID: suite.m365.User.ID,
 				enumer: acm,
 				getter: acm,
 			}
 
-			err = mfc.Populate(ctx, fault.New(true), test.root, test.path...)
+			err := mfc.Populate(ctx, fault.New(true), test.root, test.path...)
 			require.NoError(t, err, clues.ToCore(err))
 
 			p, l, err := mfc.IDToPath(ctx, testFolderID)

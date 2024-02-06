@@ -65,10 +65,24 @@ type IDs struct {
 	Provider          idname.Provider
 	ID                string
 	Email             string
+	DisplayName       string
 	DriveID           string
 	DriveRootFolderID string
 	TestContainerID   string
 	WebURL            string
+	// a "RootSite" is used by resoruces that own one or more sites.
+	// ex: groups and teams.  Each of those resources should designate
+	// a "root" site (aka: the "default" site).  That site gets embedded
+	// here because we probably interface with it as its own resource
+	// within the drive processors.
+	RootSite struct {
+		Provider          idname.Provider
+		ID                string
+		DisplayName       string
+		DriveID           string
+		DriveRootFolderID string
+		WebURL            string
+	}
 }
 
 // M365IntgTestSetup provides all the common references used in an m365 integration
@@ -82,8 +96,11 @@ type M365IntgTestSetup struct {
 	AC     api.Client
 	GockAC api.Client
 
-	Site  IDs
-	Group IDs
+	Site          IDs
+	SecondarySite IDs
+
+	Group          IDs
+	SecondaryGroup IDs
 
 	User          IDs
 	SecondaryUser IDs
@@ -104,6 +121,7 @@ func GetM365(t *testing.T) M365IntgTestSetup {
 	setup.Acct = tconfig.NewM365Account(t)
 	setup.Creds, err = setup.Acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
+
 	setup.TenantID = setup.Creds.AzureTenantID
 
 	setup.AC, err = api.NewClient(setup.Creds, control.DefaultOptions(), count.New())
@@ -120,46 +138,13 @@ func GetM365(t *testing.T) M365IntgTestSetup {
 
 	// site
 
-	setup.Site.ID = tconfig.M365SiteID(t)
+	fillSite(t, setup.AC, tconfig.M365SiteID(t), &setup.Site)
+	fillSite(t, setup.AC, tconfig.SecondaryM365SiteID(t), &setup.SecondarySite)
 
-	site, err := setup.AC.Sites().GetByID(ctx, setup.Site.ID, api.CallConfig{})
-	require.NoError(t, err, clues.ToCore(err))
+	// team
 
-	setup.Site.ID = ptr.Val(site.GetId())
-	setup.Site.WebURL = ptr.Val(site.GetWebUrl())
-	setup.Site.Provider = idname.NewProvider(setup.Site.ID, setup.Site.WebURL)
-
-	siteDrive, err := setup.AC.Sites().GetDefaultDrive(ctx, setup.Site.ID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	setup.Site.DriveID = ptr.Val(siteDrive.GetId())
-
-	siteDriveRootFolder, err := setup.AC.Drives().GetRootFolder(ctx, setup.Site.DriveID)
-	require.NoError(t, err, clues.ToCore(err))
-
-	setup.Site.DriveRootFolderID = ptr.Val(siteDriveRootFolder.GetId())
-
-	// team group
-
-	setup.Group.Email = tconfig.M365TeamEmail(t)
-
-	// use of the TeamID is intentional here, so that we are assured
-	// the team has full usage of the teams api.
-	team, err := setup.AC.Groups().GetByID(ctx, tconfig.M365TeamID(t), api.CallConfig{})
-	require.NoError(t, err, clues.ToCore(err))
-
-	setup.Group.ID = ptr.Val(team.GetId())
-	setup.Group.Provider = idname.NewProvider(setup.Group.ID, setup.Group.Email)
-
-	channel, err := setup.AC.Channels().
-		GetChannelByName(
-			ctx,
-			setup.Group.ID,
-			"Test")
-	require.NoError(t, err, clues.ToCore(err))
-	require.Equal(t, "Test", ptr.Val(channel.GetDisplayName()))
-
-	setup.Group.TestContainerID = ptr.Val(channel.GetId())
+	fillTeam(t, setup.AC, tconfig.M365TeamID(t), &setup.Group)
+	fillTeam(t, setup.AC, tconfig.SecondaryM365TeamID(t), &setup.SecondaryGroup)
 
 	return setup
 }
@@ -181,6 +166,7 @@ func fillUser(
 	ids.ID = ptr.Val(user.GetId())
 	ids.Email = ptr.Val(user.GetUserPrincipalName())
 	ids.Provider = idname.NewProvider(ids.ID, ids.Email)
+	ids.DisplayName = ptr.Val(user.GetDisplayName())
 
 	drive, err := ac.Users().GetDefaultDrive(ctx, ids.ID)
 	require.NoError(t, err, clues.ToCore(err))
@@ -191,4 +177,78 @@ func fillUser(
 	require.NoError(t, err, clues.ToCore(err))
 
 	ids.DriveRootFolderID = ptr.Val(rootFolder.GetId())
+}
+
+func fillSite(
+	t *testing.T,
+	ac api.Client,
+	sid string,
+	ids *IDs,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	site, err := ac.Sites().GetByID(ctx, sid, api.CallConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.ID = ptr.Val(site.GetId())
+	ids.WebURL = ptr.Val(site.GetWebUrl())
+	ids.Provider = idname.NewProvider(ids.ID, ids.WebURL)
+	ids.DisplayName = ptr.Val(site.GetDisplayName())
+
+	drive, err := ac.Sites().GetDefaultDrive(ctx, ids.ID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.DriveID = ptr.Val(drive.GetId())
+
+	rootFolder, err := ac.Drives().GetRootFolder(ctx, ids.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.DriveRootFolderID = ptr.Val(rootFolder.GetId())
+}
+
+func fillTeam(
+	t *testing.T,
+	ac api.Client,
+	gid string,
+	ids *IDs,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	team, err := ac.Groups().GetByID(ctx, gid, api.CallConfig{})
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.ID = ptr.Val(team.GetId())
+	ids.Email = ptr.Val(team.GetMail())
+	ids.Provider = idname.NewProvider(ids.ID, ids.Email)
+	ids.DisplayName = ptr.Val(team.GetDisplayName())
+
+	channel, err := ac.Channels().
+		GetChannelByName(
+			ctx,
+			ids.ID,
+			"Test")
+	require.NoError(t, err, clues.ToCore(err))
+	require.Equal(t, "Test", ptr.Val(channel.GetDisplayName()))
+
+	ids.TestContainerID = ptr.Val(channel.GetId())
+
+	site, err := ac.Groups().GetRootSite(ctx, gid)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.RootSite.ID = ptr.Val(site.GetId())
+	ids.RootSite.WebURL = ptr.Val(site.GetWebUrl())
+	ids.RootSite.DisplayName = ptr.Val(site.GetDisplayName())
+	ids.RootSite.Provider = idname.NewProvider(ids.RootSite.ID, ids.RootSite.WebURL)
+
+	drive, err := ac.Sites().GetDefaultDrive(ctx, ids.RootSite.ID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.RootSite.DriveID = ptr.Val(drive.GetId())
+
+	rootFolder, err := ac.Drives().GetRootFolder(ctx, ids.RootSite.DriveID)
+	require.NoError(t, err, clues.ToCore(err))
+
+	ids.RootSite.DriveRootFolderID = ptr.Val(rootFolder.GetId())
 }

@@ -19,12 +19,11 @@ import (
 	dataMock "github.com/alcionai/corso/src/internal/data/mock"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -84,32 +83,17 @@ func (suite *SharePointCollectionUnitSuite) TestFormatListsRestoreDestination() 
 
 type SharePointRestoreSuite struct {
 	tester.Suite
-	siteID string
-	creds  account.M365Config
-	ac     api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func (suite *SharePointRestoreSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
 	graph.InitializeConcurrencyLimiter(ctx, false, 4)
-
-	suite.siteID = tconfig.M365SiteID(t)
-	a := tconfig.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = m365
-
-	ac, err := api.NewClient(
-		m365,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac = ac
 }
 
 func TestSharePointRestoreSuite(t *testing.T) {
@@ -129,17 +113,17 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 
 	testName, lrh, destName, mockData := setupDependencies(
 		suite,
-		suite.ac,
-		suite.siteID,
-		suite.creds,
+		suite.m365.AC,
+		suite.m365.Site.ID,
+		suite.m365.Creds,
 		"genericList")
 
-	deets, err := restoreListItem(ctx, lrh, mockData, suite.siteID, destName, fault.New(true))
+	deets, err := restoreListItem(ctx, lrh, mockData, suite.m365.Site.ID, destName, fault.New(true))
 	require.NoError(t, err, clues.ToCore(err))
 	assert.Equal(t, fmt.Sprintf("%s_%s", destName, testName), deets.SharePoint.List.Name)
 
 	// Clean-Up
-	deleteList(ctx, t, suite.siteID, lrh, deets)
+	deleteList(ctx, t, suite.m365.Site.ID, lrh, deets)
 }
 
 func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTemplate() {
@@ -158,9 +142,9 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 			getParams: func() (listsRestoreHandler, string, *dataMock.Item) {
 				_, lrh, destName, mockData := setupDependencies(
 					suite,
-					suite.ac,
-					suite.siteID,
-					suite.creds,
+					suite.m365.AC,
+					suite.m365.Site.ID,
+					suite.m365.Creds,
 					api.DocumentLibraryListTemplate)
 
 				return lrh, destName, mockData
@@ -172,9 +156,9 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 			getParams: func() (listsRestoreHandler, string, *dataMock.Item) {
 				_, lrh, destName, mockData := setupDependencies(
 					suite,
-					suite.ac,
-					suite.siteID,
-					suite.creds,
+					suite.m365.AC,
+					suite.m365.Site.ID,
+					suite.m365.Creds,
 					api.WebTemplateExtensionsListTemplate)
 
 				return lrh, destName, mockData
@@ -193,7 +177,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				ctx,
 				lrh,
 				mockData,
-				suite.siteID,
+				suite.m365.Site.ID,
 				destName,
 				fault.New(false))
 			require.Error(t, err)
