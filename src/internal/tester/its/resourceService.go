@@ -7,19 +7,24 @@ type ResourceServicer interface {
 	Service() path.ServiceType
 }
 
+var _ ResourceServicer = resourceAndService{}
+
 type resourceAndService struct {
-	ProtectedResource IDs
-	ServiceType       path.ServiceType
+	protectedResource IDs
+	serviceType       path.ServiceType
 }
 
 func (ras resourceAndService) Resource() IDs {
-	return ras.ProtectedResource
+	return ras.protectedResource
 }
 
 func (ras resourceAndService) Service() path.ServiceType {
-	return ras.ServiceType
+	return ras.serviceType
 }
 
 func NewResourceService(r IDs, s path.ServiceType) ResourceServicer {
-	return &resourceAndService{r, s}
+	return &resourceAndService{
+		protectedResource: r,
+		serviceType:       s,
+	}
 }

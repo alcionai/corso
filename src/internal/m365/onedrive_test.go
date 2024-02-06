@@ -40,12 +40,6 @@ var (
 	readPerm  = []string{"read"}
 )
 
-// type suiteInfoImpl struct {
-// 	controller    *Controller
-// 	resourceOwner string
-// 	service       path.ServiceType
-// }
-
 // ---------------------------------------------------------------------------
 // SharePoint Libraries
 // ---------------------------------------------------------------------------
@@ -55,8 +49,8 @@ var (
 
 type SharePointIntegrationSuite struct {
 	tester.Suite
-	m365 its.M365IntgTestSetup
-	rs   its.ResourceServicer
+	m365           its.M365IntgTestSetup
+	resourceAndSvc its.ResourceServicer
 }
 
 func TestSharePointIntegrationSuite(t *testing.T) {
@@ -69,37 +63,37 @@ func TestSharePointIntegrationSuite(t *testing.T) {
 
 func (suite *SharePointIntegrationSuite) SetupSuite() {
 	suite.m365 = its.GetM365(suite.T())
-	suite.rs = its.NewResourceService(suite.m365.Site, path.SharePointService)
+	suite.resourceAndSvc = its.NewResourceService(suite.m365.Site, path.SharePointService)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, version.Backup)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 // TODO: Re-enable these tests (disabled as it currently acting up CI)
 func (suite *SharePointIntegrationSuite) TestPermissionsRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
 	suite.T().Skip("Temporarily disabled due to CI issues")
-	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.resourceAndSvc, version.All8MigrateUserPNToID)
 }
 
 // ---------------------------------------------------------------------------
@@ -107,8 +101,8 @@ func (suite *SharePointIntegrationSuite) TestRestoreFolderNamedFolderRegression(
 // ---------------------------------------------------------------------------
 type OneDriveIntegrationSuite struct {
 	tester.Suite
-	m365 its.M365IntgTestSetup
-	rs   its.ResourceServicer
+	m365           its.M365IntgTestSetup
+	resourceAndSvc its.ResourceServicer
 }
 
 func TestOneDriveIntegrationSuite(t *testing.T) {
@@ -121,32 +115,32 @@ func TestOneDriveIntegrationSuite(t *testing.T) {
 
 func (suite *OneDriveIntegrationSuite) SetupSuite() {
 	suite.m365 = its.GetM365(suite.T())
-	suite.rs = its.NewResourceService(suite.m365.User, path.OneDriveService)
+	suite.resourceAndSvc = its.NewResourceService(suite.m365.User, path.OneDriveService)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, version.Backup)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsRestoreAndBackup() {
-	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreNoPermissionsAndBackup() {
-	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestPermissionsInheritanceRestoreAndBackup() {
-	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestLinkSharesInheritanceRestoreAndBackup() {
-	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.resourceAndSvc, version.All8MigrateUserPNToID)
 }
 
 // ---------------------------------------------------------------------------
@@ -154,8 +148,8 @@ func (suite *OneDriveIntegrationSuite) TestRestoreFolderNamedFolderRegression() 
 // ---------------------------------------------------------------------------
 type OneDriveNightlySuite struct {
 	tester.Suite
-	m365 its.M365IntgTestSetup
-	rs   its.ResourceServicer
+	m365           its.M365IntgTestSetup
+	resourceAndSvc its.ResourceServicer
 }
 
 func TestOneDriveNightlySuite(t *testing.T) {
@@ -168,43 +162,43 @@ func TestOneDriveNightlySuite(t *testing.T) {
 
 func (suite *OneDriveNightlySuite) SetupSuite() {
 	suite.m365 = its.GetM365(suite.T())
-	suite.rs = its.NewResourceService(suite.m365.User, path.OneDriveService)
+	suite.resourceAndSvc = its.NewResourceService(suite.m365.User, path.OneDriveService)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreAndBackup_MultipleFilesAndFolders_NoPermissions() {
-	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.rs, 0)
+	testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(suite, suite.m365, suite.resourceAndSvc, 0)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsRestoreAndBackup() {
-	testPermissionsRestoreAndBackup(suite, suite.m365, suite.rs, version.OneDrive1DataAndMetaFiles)
+	testPermissionsRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreNoPermissionsAndBackup() {
-	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.rs, version.OneDrive1DataAndMetaFiles)
+	testRestoreNoPermissionsAndBackup(suite, suite.m365, suite.resourceAndSvc, version.OneDrive1DataAndMetaFiles)
 }
 
 func (suite *OneDriveNightlySuite) TestPermissionsInheritanceRestoreAndBackup() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.OneDrive4DirIncludesPermissions)
+	testPermissionsInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.OneDrive4DirIncludesPermissions)
 }
 
 func (suite *OneDriveNightlySuite) TestLinkSharesInheritanceRestoreAndBackup() {
-	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.rs, version.Backup)
+	testLinkSharesInheritanceRestoreAndBackup(suite, suite.m365, suite.resourceAndSvc, version.Backup)
 }
 
 func (suite *OneDriveNightlySuite) TestRestoreFolderNamedFolderRegression() {
 	// No reason why it couldn't work with previous versions, but this is when it got introduced.
-	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.rs, version.All8MigrateUserPNToID)
+	testRestoreFolderNamedFolderRegression(suite, suite.m365, suite.resourceAndSvc, version.All8MigrateUserPNToID)
 }
 
 func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -317,17 +311,17 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("Version%d", vn), func() {
 			t := suite.T()
-			input, err := stub.DataForInfo(irs.Service(), cols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -342,7 +336,7 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -356,11 +350,11 @@ func testRestoreAndBackupMultipleFilesAndFoldersNoPermissions(
 func testPermissionsRestoreAndBackup(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	fileName2 := "test-file2.txt"
 	folderCName := "folder-c"
@@ -559,10 +553,10 @@ func testPermissionsRestoreAndBackup(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
-	bss := irs.Service().String()
+	bss := resourceAndSvc.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -570,11 +564,11 @@ func testPermissionsRestoreAndBackup(
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(irs.Service(), cols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -589,7 +583,7 @@ func testPermissionsRestoreAndBackup(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -603,11 +597,11 @@ func testPermissionsRestoreAndBackup(
 func testRestoreNoPermissionsAndBackup(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	inputCols := []stub.ColInfo{
 		{
@@ -650,20 +644,20 @@ func testRestoreNoPermissionsAndBackup(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), expectedCols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), expectedCols, version.Backup)
 	require.NoError(suite.T(), err, clues.ToCore(err))
 
-	bss := irs.Service().String()
+	bss := resourceAndSvc.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
 
-			input, err := stub.DataForInfo(irs.Service(), inputCols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), inputCols, vn)
 			require.NoError(t, err, clues.ToCore(err))
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -678,7 +672,7 @@ func testRestoreNoPermissionsAndBackup(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -694,11 +688,11 @@ func testRestoreNoPermissionsAndBackup(
 func testPermissionsInheritanceRestoreAndBackup(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -850,10 +844,10 @@ func testPermissionsInheritanceRestoreAndBackup(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
-	bss := irs.Service().String()
+	bss := resourceAndSvc.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -861,11 +855,11 @@ func testPermissionsInheritanceRestoreAndBackup(
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(irs.Service(), cols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -880,7 +874,7 @@ func testPermissionsInheritanceRestoreAndBackup(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -894,11 +888,11 @@ func testPermissionsInheritanceRestoreAndBackup(
 func testLinkSharesInheritanceRestoreAndBackup(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	folderAName := "custom"
 	folderBName := "inherited"
@@ -1042,10 +1036,10 @@ func testLinkSharesInheritanceRestoreAndBackup(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
-	bss := irs.Service().String()
+	bss := resourceAndSvc.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
@@ -1053,11 +1047,11 @@ func testLinkSharesInheritanceRestoreAndBackup(
 			// Ideally this can always be true or false and still
 			// work, but limiting older versions to use emails so as
 			// to validate that flow as well.
-			input, err := stub.DataForInfo(irs.Service(), cols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1072,7 +1066,7 @@ func testLinkSharesInheritanceRestoreAndBackup(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
@@ -1086,11 +1080,11 @@ func testLinkSharesInheritanceRestoreAndBackup(
 func testRestoreFolderNamedFolderRegression(
 	suite tester.Suite,
 	m365 its.M365IntgTestSetup,
-	irs its.ResourceServicer,
+	resourceAndSvc its.ResourceServicer,
 	startVersion int,
 ) {
 	// Get the default drive ID for the test user.
-	driveID := irs.Resource().DriveID
+	driveID := resourceAndSvc.Resource().DriveID
 
 	rootPath := []string{
 		odConsts.DrivesPathDir,
@@ -1159,19 +1153,19 @@ func testRestoreFolderNamedFolderRegression(
 		},
 	}
 
-	expected, err := stub.DataForInfo(irs.Service(), cols, version.Backup)
+	expected, err := stub.DataForInfo(resourceAndSvc.Service(), cols, version.Backup)
 	require.NoError(suite.T(), err)
 
-	bss := irs.Service().String()
+	bss := resourceAndSvc.Service().String()
 
 	for vn := startVersion; vn <= version.Backup; vn++ {
 		suite.Run(fmt.Sprintf("%s-Version%d", bss, vn), func() {
 			t := suite.T()
-			input, err := stub.DataForInfo(irs.Service(), cols, vn)
+			input, err := stub.DataForInfo(resourceAndSvc.Service(), cols, vn)
 			require.NoError(suite.T(), err)
 
 			testData := restoreBackupInfoMultiVersion{
-				service:             irs.Service(),
+				service:             resourceAndSvc.Service(),
 				backupVersion:       vn,
 				collectionsPrevious: input,
 				collectionsLatest:   expected,
@@ -1185,7 +1179,7 @@ func testRestoreFolderNamedFolderRegression(
 
 			cfg := m365Stub.ConfigInfo{
 				Tenant:         m365.TenantID,
-				ResourceOwners: []string{irs.Resource().ID},
+				ResourceOwners: []string{resourceAndSvc.Resource().ID},
 				Service:        testData.service,
 				Opts:           opts,
 				RestoreCfg:     restoreCfg,
