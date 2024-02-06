@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.19.0] (beta) - 2024-02-06
+## [Unreleased] (beta)
 
 ### Added
 - Events can now be exported from Exchange backups as .ics files.
@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exchange in-place restore may restore items in well-known folders to different folders if the user has well-known folder names change based on locale and has updated the locale since the backup was created.
 - In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
 - External users with access through shared links will not receive these links as they are not sent via email during restore.
+- Due to limitations in Graph APIs pertaining to column definition support for certain column types such as `location`, `hyperlink/picture`, and `metadata`, the restoration process for SharePoint list items containing these columns will result in differences compared to the original items.
+- Support for SharePoint list item attachments is currently unavailable due to limitations in graph APIss.
 
 ## [v0.18.0] (beta) - 2024-01-02
 
@@ -490,7 +492,7 @@ this case, Corso will skip over the item but report this in the backup summary.
 - Miscellaneous
   - Optional usage statistics reporting ([RM-35](https://github.com/alcionai/corso-roadmap/issues/35))
 
-[v0.19.0]: https://github.com/alcionai/corso/compare/v0.18.0...v0.19.0
+[Unreleased]: https://github.com/alcionai/corso/compare/v0.18.0...HEAD
 [v0.18.0]: https://github.com/alcionai/corso/compare/v0.17.0...v0.18.0
 [v0.17.0]: https://github.com/alcionai/corso/compare/v0.16.0...v0.17.0
 [v0.16.0]: https://github.com/alcionai/corso/compare/v0.15.0...v0.16.0
