@@ -32,6 +32,7 @@ import (
 	"github.com/alcionai/corso/src/internal/streamstore"
 	ssmock "github.com/alcionai/corso/src/internal/streamstore/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -47,7 +48,6 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/selectors"
 	selTD "github.com/alcionai/corso/src/pkg/selectors/testdata"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
 	"github.com/alcionai/corso/src/pkg/store"
@@ -1505,8 +1505,7 @@ func withoutModified(de details.Entry) details.Entry {
 
 type BackupOpIntegrationSuite struct {
 	tester.Suite
-	user, site string
-	ac         api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupOpIntegrationSuite(t *testing.T) {
@@ -1519,25 +1518,12 @@ func TestBackupOpIntegrationSuite(t *testing.T) {
 
 func (suite *BackupOpIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	graph.InitializeConcurrencyLimiter(ctx, true, 4)
-
-	suite.user = tconfig.M365UserID(t)
-	suite.site = tconfig.M365SiteID(t)
-
-	a := tconfig.NewM365Account(t)
-
-	creds, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
 }
 
 func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
@@ -1545,8 +1531,8 @@ func (suite *BackupOpIntegrationSuite) TestNewBackupOperation() {
 		kw   = &kopia.Wrapper{}
 		sw   = store.NewWrapper(&kopia.ModelStore{})
 		ctrl = &mock.Controller{}
-		acct = tconfig.NewM365Account(suite.T())
 		opts = control.DefaultOptions()
+		acct = suite.m365.Acct
 	)
 
 	table := []struct {
@@ -1744,7 +1730,7 @@ func makeMockItem(
 func (suite *AssistBackupIntegrationSuite) TestBackupTypesForFailureModes() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[account.AzureTenantIDKey]
+		tenantID = acct.ID()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 	)
 
@@ -2073,7 +2059,7 @@ func selectFilesFromDeets(d details.Details) map[string]details.Entry {
 func (suite *AssistBackupIntegrationSuite) TestExtensionsIncrementals() {
 	var (
 		acct     = tconfig.NewM365Account(suite.T())
-		tenantID = acct.Config[account.AzureTenantIDKey]
+		tenantID = acct.ID()
 		opts     = control.DefaultOptions()
 		osel     = selectors.NewOneDriveBackup([]string{userID})
 		// Default policy used by SDK clients

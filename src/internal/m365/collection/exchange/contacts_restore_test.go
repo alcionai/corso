@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -54,7 +55,7 @@ func (m *contactRestoreMock) DeleteItem(
 
 type ContactsRestoreIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestContactsRestoreIntgSuite(t *testing.T) {
@@ -66,17 +67,17 @@ func TestContactsRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *ContactsRestoreIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 // Testing to ensure that cache system works for in multiple different environments
 func (suite *ContactsRestoreIntgSuite) TestCreateContainerDestination() {
 	runCreateDestinationTest(
 		suite.T(),
-		newContactRestoreHandler(suite.its.ac),
+		newContactRestoreHandler(suite.m365.AC),
 		path.ContactsCategory,
-		suite.its.creds.AzureTenantID,
-		suite.its.userID,
+		suite.m365.TenantID,
+		suite.m365.User.ID,
 		testdata.DefaultRestoreConfig("").Location,
 		[]string{"Hufflepuff"},
 		[]string{"Ravenclaw"})
@@ -207,17 +208,16 @@ func (suite *ContactsRestoreIntgSuite) TestRestoreContact() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
+			ctr := count.New()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
-
-			ctr := count.New()
 
 			_, err := restoreContact(
 				ctx,
 				test.apiMock,
 				body,
-				suite.its.userID,
+				suite.m365.User.ID,
 				"destination",
 				test.collisionMap,
 				test.onCollision,
