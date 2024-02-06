@@ -909,6 +909,17 @@ func (suite *ICSUnitSuite) TestAttendees() {
 			},
 		},
 		{
+			name: "attendee with internal exchange representation for email",
+			att: [][]string{{
+				"/o=ExchangeLabs/ou=ExchangeAdministrative Group(FY...LT)/cn=Recipients/cn=883...4a-John Doe",
+				"required",
+				"declined",
+			}},
+			check: func(out string) {
+				assert.NotContains(t, out, "ATTENDEE")
+			},
+		},
+		{
 			name: "multiple attendees",
 			att: [][]string{
 				{"one@att.co", "", ""},
