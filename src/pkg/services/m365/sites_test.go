@@ -143,7 +143,8 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
 				odErr.SetErrorEscaped(merr)
 
-				return mockGASites{nil, clues.StackWC(ctx, odErr)}
+				// needs graph.Stack, not clues.Stack
+				return mockGASites{nil, graph.Stack(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, core.ErrServiceNotEnabled, clues.ToCore(err))

@@ -58,7 +58,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "no sharepoint license",
 			mock: func(ctx context.Context) getSiteRooter {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.NoSPLicense))
-				return mockGSR{nil, clues.StackWC(ctx, odErr)}
+				// needs graph.Stack, not clues.StackWC
+				return mockGSR{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {

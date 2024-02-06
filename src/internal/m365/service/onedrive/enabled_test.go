@@ -54,7 +54,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "mysite not found",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteNotFound))
-				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
+				// needs graph.Stack, not clues.Stack
+				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {
@@ -65,7 +66,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "mysite URL not found",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.MysiteURLNotFound))
-				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
+				// needs graph.Stack, not clues.Stack
+				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {
@@ -76,7 +78,8 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 			name: "no sharepoint license",
 			mock: func(ctx context.Context) getDefaultDriver {
 				odErr := graphTD.ODataErrWithMsg("code", string(graph.NoSPLicense))
-				return mockDGDD{nil, clues.StackWC(ctx, odErr)}
+				// needs graph.Stack, not clues.Stack
+				return mockDGDD{nil, graph.Stack(ctx, odErr)}
 			},
 			expect: assert.False,
 			expectErr: func(t *testing.T, err error) {
