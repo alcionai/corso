@@ -136,6 +136,7 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrNotFound, err)
 	default:
 		err = toErrByRespCode(ode, err)
+
 		labels = append(labels, core.LabelRootCauseUnknown)
 	}
 
