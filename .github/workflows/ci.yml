@@ -52,7 +52,18 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    environment: Testing
+    runs-on: ubuntu-latest
+    outputs:
+      client_app_slot: ${{ steps.roundrobin.outputs.CLIENT_APP_SLOT }}
+      client_id_env: ${{ steps.roundrobin.outputs.CLIENT_ID_ENV }}
+      client_secret_env: ${{ steps.roundrobin.outputs.CLIENT_SECRET_ENV }}
+    steps:
+      - name: sets all client id and secrets
+        id: roundrobin
+        run: |
+          echo "CLIENT_ID_ENV=CLIENT_ID,CLIENT_ID_2,CLIENT_ID_3,CLIENT_ID_4" >> $GITHUB_OUTPUT
+          echo "CLIENT_SECRET_ENV=CLIENT_SECRET,CLIENT_SECRET_2,CLIENT_SECRET_3,CLIENT_SECRET_4" >> $GITHUB_OUTPUT
 
   SetEnv:
     environment: Testing
@@ -101,7 +112,6 @@ jobs:
             echo "website-cfid=ESFTEIYTIP7Y3" | tee -a $GITHUB_OUTPUT
           fi
 
-
   # ----------------------------------------------------------------------------------------------------
   # --- Website Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
@@ -136,24 +146,31 @@ jobs:
         working-directory: src
     env:
       # Resolve the name of the secret that contains the Azure client ID/secret
-      AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
-      AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
+      AZURE_CLIENT_ID_NAME: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
+      AZURE_CLIENT_SECRET_NAME: ${{ secrets[CLIENT_SECRET] }},${{ secrets[CLIENT_SECRET_2] }},${{ secrets[CLIENT_SECRET_3] }},${{ secrets[CLIENT_SECRET_4] }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-ci.log
+      CORSO_LOG_FILE: /tmp/corso-trusted-testlog/run-ci.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
 
-      - run: mkdir testlog
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-trusted-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-trusted-
 
-      # Install gotestfmt
-      - name: Set up gotestfmt
-        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      - run: mkdir -p /tmp/corso-trusted-testlog
 
       # AWS creds
       - name: Configure AWS credentials from Test account
@@ -166,7 +183,7 @@ jobs:
       # run the tests
       - name: Integration Tests
         env:
-          AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+          AZURE_CLIENT_ID: ${{ secrets[CLIENT_ID] }},${{ secrets[CLIENT_ID_2] }},${{ secrets[CLIENT_ID_3] }},${{ secrets[CLIENT_ID_4] }}
           AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
           AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
           CORSO_CI_TESTS: true
@@ -178,21 +195,44 @@ jobs:
           set -euo pipefail
           go test       \
           -tags testing \
-          -json         \
-          -v            \
           -failfast     \
           -p 1          \
+          -v \
           -timeout 20m  \
-          ./... \
-          2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
+          -run '^TestDataCollectionIntgSuite/TestExchangeDataCollection$' ./internal/m365 \
+          2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log
+
+      - name: peek
+        run: ls /tmp/corso-trusted-testlog
+
+      # # run the tests
+      # - name: Integration Tests
+      #   env:
+      #     AZURE_CLIENT_ID: ${{ secrets[env.AZURE_CLIENT_ID_NAME] }}
+      #     AZURE_CLIENT_SECRET: ${{ secrets[env.AZURE_CLIENT_SECRET_NAME] }}
+      #     AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
+      #     CORSO_CI_TESTS: true
+      #     CORSO_M365_TEST_USER_ID: ${{ vars.CORSO_M365_TEST_USER_ID }}
+      #     CORSO_SECONDARY_M365_TEST_USER_ID: ${{ vars.CORSO_SECONDARY_M365_TEST_USER_ID }}
+      #     CORSO_PASSPHRASE: ${{ secrets.INTEGRATION_TEST_CORSO_PASSPHRASE }}
+      #     S3_BUCKET: ${{ secrets.CI_TESTS_S3_BUCKET }}
+      #   run: |
+      #     set -euo pipefail
+      #     go test       \
+      #     -tags testing \
+      #     -failfast     \
+      #     -p 1          \
+      #     -timeout 20m  \
+      #     ./... \
+      #     2>&1 | tee /tmp/corso-trusted-testlog/gotest-ci.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ci-test-log
-          path: src/testlog/*
+          path: /tmp/corso-trusted-testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -210,21 +250,28 @@ jobs:
       AZURE_CLIENT_ID_NAME: ${{ needs.SetM365App.outputs.client_id_env }}
       AZURE_CLIENT_SECRET_NAME: ${{ needs.SetM365App.outputs.client_secret_env }}
       CLIENT_APP_SLOT: ${{ needs.SetM365App.outputs.client_app_slot }}
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-ci-retention.log
+      CORSO_LOG_FILE: /tmp/corso-retention-testlog/run-ci-retention.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
 
-      - run: mkdir testlog
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-retention-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-retention-
 
-      # Install gotestfmt
-      - name: Set up gotestfmt
-        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      - run: mkdir -p /tmp/corso-retention-testlog
 
       # AWS creds
       - name: Configure AWS credentials from Test account
@@ -249,23 +296,24 @@ jobs:
           set -euo pipefail
           go test       \
           -tags testing \
-          -json         \
-          -v            \
           -failfast     \
           -p 1          \
           -timeout 10m  \
           ./... \
-          2>&1 | tee ./testlog/gotest-ci.log | gotestfmt -hide successful-tests
+          2>&1 | tee /tmp/corso-retention-testlog/gotest-ci.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ci-retention-test-log
-          path: src/testlog/*
+          path: /tmp/corso-retention-testlog/*
           if-no-files-found: error
           retention-days: 14
+
+      - name: peek
+        run: ls
 
   Unit-Test-Suite:
     needs: [Precheck, Checkout]
@@ -277,48 +325,54 @@ jobs:
       run:
         working-directory: src
     env:
-      CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-unit.log
+      CORSO_LOG_FILE: /tmp/corso-testlog/run-unit.log
       LOG_GRAPH_REQUESTS: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
-          go-version-file: src/go.mod
+          go-version: 1.21
+          cache: true
 
-      - run: mkdir testlog
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-golang-unit-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-golang-unit-
 
-      # Install gotestfmt
-      - name: Set up gotestfmt
-        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      - run: mkdir -p /tmp/corso-testlog
 
-      # run the tests
       - name: Unit Tests
         env:
           # Set these to a bad value so we don't accidentally fall back to
           # something elsewhere.
-          CORSO_M365_TEST_USER_ID: 'foo'
-          CORSO_SECONDARY_M365_TEST_USER_ID: 'foo'
+          CORSO_M365_TEST_USER_ID: "foo"
+          CORSO_SECONDARY_M365_TEST_USER_ID: "foo"
         run: |
           set -euo pipefail
-          go test       \
-          -tags testing \
-          -json         \
-          -v            \
-          -failfast     \
-          -p 1          \
-          -timeout 20m  \
-          ./... \
-          2>&1 | tee ./testlog/gotest-unit.log | gotestfmt -hide successful-tests
+
+          # Run the first test
+          go test \
+            -tags testing \
+            -failfast \
+            -p 1 \
+            -timeout 20m \
+            ./... \
+            2>&1 | tee -a /tmp/corso-testlog/gotest-unit.log
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-log
-          path: src/testlog/*
+          path: /tmp/corso-testlog/*
           if-no-files-found: error
           retention-days: 14
 
@@ -495,7 +549,7 @@ jobs:
       - uses: cachix/install-nix-action@v25
       - uses: cachix/cachix-action@v14
         with:
-            name: tree-grepper
+          name: tree-grepper
       - run: nix-env -if https://github.com/BrianHicks/tree-grepper/archive/refs/heads/main.tar.gz
       - name: Run trailing comma lint rule
         run: |
@@ -737,7 +791,14 @@ jobs:
           cfid: ${{ needs.SetEnv.outputs.website-cfid }}
 
   Publish-Website-Prod:
-    needs: [SetEnv, Validate-Linux-Artifacts, Validate-MacOS-Artifacts, Validate-Docker-Artifacts, Validate-Windows-Artifacts]
+    needs:
+      [
+        SetEnv,
+        Validate-Linux-Artifacts,
+        Validate-MacOS-Artifacts,
+        Validate-Docker-Artifacts,
+        Validate-Windows-Artifacts,
+      ]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')

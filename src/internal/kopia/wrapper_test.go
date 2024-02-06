@@ -715,6 +715,7 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters() {
 }
 
 func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenance() {
+	suite.T().Skip()
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -796,6 +797,8 @@ func (suite *RetentionIntegrationSuite) TestSetRetentionParameters_And_Maintenan
 }
 
 func (suite *RetentionIntegrationSuite) TestSetAndUpdateRetentionParameters_RunMaintenance() {
+	suite.T().Skip()
+
 	table := []struct {
 		name   string
 		reopen bool

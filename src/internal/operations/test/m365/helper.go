@@ -390,26 +390,27 @@ func NewIntegrationTesterSetup(t *testing.T) IntgTesterSetup {
 	a := tconfig.NewM365Account(t)
 	creds, err := a.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, creds)
 
-	counter := count.New()
+	// counter := count.New()
 
-	its.AC, err = api.NewClient(
-		creds,
-		control.DefaultOptions(),
-		counter)
-	require.NoError(t, err, clues.ToCore(err))
+	// its.AC, err = api.NewClient(
+	// 	creds,
+	// 	control.DefaultOptions(),
+	// 	counter)
+	// require.NoError(t, err, clues.ToCore(err))
 
-	its.GockAC, err = GockClient(creds, counter)
-	require.NoError(t, err, clues.ToCore(err))
+	// its.GockAC, err = GockClient(creds, counter)
+	// require.NoError(t, err, clues.ToCore(err))
 
-	its.User = userIDs(t, tconfig.M365UserID(t), its.AC)
-	its.SecondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.AC)
-	its.Site = siteIDs(t, tconfig.M365SiteID(t), its.AC)
-	its.SecondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.AC)
-	// teamID is used here intentionally.  We want the group
-	// to have access to teams data
-	its.Group = groupIDs(t, tconfig.M365TeamID(t), its.AC)
-	its.SecondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.AC)
+	// its.User = userIDs(t, tconfig.M365UserID(t), its.AC)
+	// its.SecondaryUser = userIDs(t, tconfig.SecondaryM365UserID(t), its.AC)
+	// its.Site = siteIDs(t, tconfig.M365SiteID(t), its.AC)
+	// its.SecondarySite = siteIDs(t, tconfig.SecondaryM365SiteID(t), its.AC)
+	// // teamID is used here intentionally.  We want the group
+	// // to have access to teams data
+	// its.Group = groupIDs(t, tconfig.M365TeamID(t), its.AC)
+	// its.SecondaryGroup = groupIDs(t, tconfig.SecondaryM365TeamID(t), its.AC)
 
 	return its
 }

@@ -3,12 +3,12 @@ package logger_test
 import (
 	"testing"
 
-	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
