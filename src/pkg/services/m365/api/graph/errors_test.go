@@ -84,9 +84,10 @@ func (suite *GraphErrorsUnitSuite) TestIsErrApplicationThrottled() {
 			expect: assert.True,
 		},
 		{
-			name:   "too many requests resp status",
-			err:    graphTD.ODataErrWithStatus(http.StatusTooManyRequests, "err"),
-			expect: assert.True,
+			name: "too many requests resp status",
+			err:  graphTD.ODataErrWithStatus(http.StatusTooManyRequests, "err"),
+			// caught in the by-code handler
+			expect: assert.False,
 		},
 	}
 	for _, test := range table {
@@ -214,9 +215,10 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 			expect: assert.True,
 		},
 		{
-			name:   "not found resp status",
-			err:    graphTD.ODataErrWithStatus(http.StatusNotFound, "err"),
-			expect: assert.True,
+			name: "not found resp status",
+			err:  graphTD.ODataErrWithStatus(http.StatusNotFound, "err"),
+			// caught in the by-code handler
+			expect: assert.False,
 		},
 	}
 	for _, test := range table {
@@ -988,6 +990,101 @@ func (suite *GraphErrorsUnitSuite) TestIsErrSharingDisabled() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrSharingDisabled(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestToErrByRespCode() {
+	table := []struct {
+		name          string
+		err           error
+		expectNoStack bool
+		expectIs      error
+	}{
+		{
+			name:          "nil",
+			err:           nil,
+			expectNoStack: true,
+			expectIs:      nil,
+		},
+		{
+			name:          "non-matching",
+			err:           assert.AnError,
+			expectNoStack: true,
+			expectIs:      nil,
+		},
+		{
+			name:          "unidentified resp code",
+			err:           graphTD.ODataErrWithStatus(http.StatusConflict, "err"),
+			expectNoStack: true,
+			expectIs:      nil,
+		},
+		{
+			name:          "404",
+			err:           graphTD.ODataErrWithStatus(http.StatusNotFound, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrNotFound,
+		},
+		{
+			name:          "401",
+			err:           graphTD.ODataErrWithStatus(http.StatusUnauthorized, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrInsufficientAuthorization,
+		},
+		{
+			name:          "403",
+			err:           graphTD.ODataErrWithStatus(http.StatusForbidden, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrInsufficientAuthorization,
+		},
+		{
+			name:          "429",
+			err:           graphTD.ODataErrWithStatus(http.StatusTooManyRequests, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrApplicationThrottled,
+		},
+		{
+			name:          "500",
+			err:           graphTD.ODataErrWithStatus(http.StatusInternalServerError, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrDownstreamServerError,
+		},
+		{
+			name:          "501",
+			err:           graphTD.ODataErrWithStatus(http.StatusNotImplemented, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrDownstreamServerError,
+		},
+		{
+			name:          "502",
+			err:           graphTD.ODataErrWithStatus(http.StatusBadGateway, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrDownstreamServerError,
+		},
+		{
+			name:          "503",
+			err:           graphTD.ODataErrWithStatus(http.StatusServiceUnavailable, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrDownstreamServerError,
+		},
+		{
+			name:          "504",
+			err:           graphTD.ODataErrWithStatus(http.StatusGatewayTimeout, "err"),
+			expectNoStack: false,
+			expectIs:      core.ErrDownstreamServerError,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			err := toErrByRespCode(parseODataErr(test.err), test.err)
+
+			if test.expectNoStack {
+				assert.Equal(t, test.err, err)
+			} else {
+				assert.ErrorIs(t, err, test.expectIs)
+			}
 		})
 	}
 }

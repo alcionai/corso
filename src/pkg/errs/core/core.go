@@ -66,6 +66,12 @@ var (
 	// about what it sounds like: we tried to look for a backup by ID, but the
 	// storage layer couldn't find anything for that ID.
 	ErrBackupNotFound = &Err{msg: "backup not found"}
+	// basically "internal server error". But not internal issues. We only return this
+	// when a downstream service (ex: graph api) responds with a 5xx style error.
+	// Note: producers may not funnel all 5xx errors in this umbrella, because
+	// different cases (ex: `StatusHTTPVersionNotSupported`) may need more specific
+	// attention and handling than standard gateway outages or service issues.
+	ErrDownstreamServerError = &Err{msg: "server error in downstream service"}
 	// a catch-all for downstream api auth issues.  doesn't matter which api.
 	ErrInsufficientAuthorization = &Err{msg: "insufficient authorization"}
 	// happens when we look up something using an identifier other than a canonical ID
@@ -116,3 +122,27 @@ func As(err error) (*Err, bool) {
 
 	return ce, ok
 }
+
+// ---------------------------------------------------------------------------
+// Labels
+//
+// In some cases we like to attach well known labels to errors for additional
+// metadata or metrics or other associations.  Labeling differs from error
+// typing or identification because a label won't explain the cause or clearly
+// contextualize an error.  Labels are tags for their own sake.
+//
+// Therefore, labels are expressly not for error identification.  IE: if you
+// see the check `if clues.HasLabel(err, labelFoo)` in place of
+// `if errors.Is(err, errFoo)`, that's a red flag.
+// ---------------------------------------------------------------------------
+
+const (
+	// add this label when we might need to further investigate the cause of the
+	// error.  For example, in the graph api layer we try to categorize errors
+	// by their specific identity, such as "the resource was locked out".  If
+	// we're unsuccessful, we can still fall back to the more generic error code,
+	// "403 forbidden".  But it tradeoff, we may end up catching (and gracefully
+	// handling) 403s, but not identifying an underlying root issue.  This label
+	// is here to say, "maybe you should look for the reason why this happened".
+	LabelRootCauseUnknown = "root-cause-unknown"
+)

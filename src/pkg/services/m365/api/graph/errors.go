@@ -117,6 +117,7 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	}
 
 	ode := parseODataErr(err)
+	labels := []string{}
 
 	switch {
 	case isErrBadJWTToken(ode, err):
@@ -133,16 +134,43 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrAlreadyExists, err)
 	case isErrNotFound(ode, err):
 		err = clues.Stack(core.ErrNotFound, err)
+	default:
+		err = toErrByRespCode(ode, err)
+
+		labels = append(labels, core.LabelRootCauseUnknown)
 	}
 
-	return stackWithDepth(ctx, err, 1+traceDepth)
+	stacked := stackWithDepth(ctx, err, 1+traceDepth)
+
+	// labeling here because we want the context from stackWithDepth first
+	for _, label := range labels {
+		stacked = stacked.Label(label)
+	}
+
+	return stacked
 }
 
 // unexported categorizers, for use with stackWithCoreErr
 
+// for categorizing errors by their response code and no other response propery
+func toErrByRespCode(ode oDataErr, err error) error {
+	switch {
+	case ode.hasResponseCode(http.StatusNotFound):
+		return clues.Stack(core.ErrNotFound, err)
+	case ode.hasResponseCode(http.StatusUnauthorized, http.StatusForbidden):
+		return clues.Stack(core.ErrInsufficientAuthorization, err)
+	case ode.hasResponseCode(http.StatusTooManyRequests):
+		return clues.Stack(core.ErrApplicationThrottled, err)
+	// catch any 5xx error
+	case ode.hasResponseCode(5):
+		return clues.Stack(core.ErrDownstreamServerError, err)
+	default:
+		return err
+	}
+}
+
 func isErrApplicationThrottled(ode oDataErr, err error) bool {
-	return ode.hasErrorCode(err, ApplicationThrottled) ||
-		ode.hasResponseCode(err, http.StatusTooManyRequests)
+	return ode.hasErrorCode(err, ApplicationThrottled)
 }
 
 func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
@@ -151,7 +179,6 @@ func isErrInsufficientAuthorization(ode oDataErr, err error) bool {
 
 func isErrNotFound(ode oDataErr, err error) bool {
 	return clues.HasLabel(err, LabelStatus(http.StatusNotFound)) ||
-		ode.hasResponseCode(err, http.StatusNotFound) ||
 		ode.hasErrorCode(
 			err,
 			ErrorItemNotFound,
@@ -200,7 +227,7 @@ func IsErrInvalidDelta(err error) bool {
 }
 
 func IsErrInvalidRequest(err error) bool {
-	return parseODataErr(err).hasResponseCode(err, http.StatusBadRequest) &&
+	return parseODataErr(err).hasResponseCode(http.StatusBadRequest) &&
 		parseODataErr(err).hasErrorCode(err, invalidRequest)
 }
 
@@ -572,8 +599,24 @@ func parseODataErr(err error) oDataErr {
 
 // hasResponseCode checks if the error is an ODataError and carries the provided
 // http response code.
-func (ode oDataErr) hasResponseCode(err error, httpResponseCode int) bool {
-	return ode.isODataErr && ode.Resp.StatusCode == httpResponseCode
+func (ode oDataErr) hasResponseCode(httpResponseCode ...int) bool {
+	if !ode.isODataErr {
+		return false
+	}
+
+	orsc := ode.Resp.StatusCode
+
+	for _, hrc := range httpResponseCode {
+		if orsc == hrc {
+			return true
+		}
+
+		if hrc < 10 && orsc/100 == hrc {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ode oDataErr) hasErrorCode(err error, codes ...errorCode) bool {
