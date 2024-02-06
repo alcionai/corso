@@ -14,7 +14,6 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -51,18 +50,18 @@ func (c Sites) GetRoot(
 		Sites().
 		BySiteId("root").
 		Get(ctx, options)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting root site")
-	}
 
-	return resp, nil
+	return resp, clues.Wrap(err, "getting root site").OrNil()
 }
 
 // GetAll retrieves all sites.
 func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, error) {
-	resp, err := c.Stable.Client().Sites().Get(ctx, nil)
+	resp, err := c.Stable.
+		Client().
+		Sites().
+		Get(ctx, nil)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting all sites")
+		return nil, clues.Wrap(err, "getting all sites")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator[models.Siteable](
@@ -70,7 +69,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 		c.Stable.Adapter(),
 		models.CreateSiteCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating sites iterator")
+		return nil, clues.WrapWC(ctx, err, "creating sites iterator")
 	}
 
 	var (
@@ -85,7 +84,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 
 		err := validateSite(item)
 		if err != nil {
-			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating site"))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "validating site"))
 			return true
 		}
 
@@ -99,7 +98,7 @@ func (c Sites) GetAll(ctx context.Context, errs *fault.Bus) ([]models.Siteable, 
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating sites")
+		return nil, clues.Wrap(err, "enumerating sites")
 	}
 
 	return us, el.Failure()
@@ -147,12 +146,8 @@ func (c Sites) GetByID(
 			Sites().
 			BySiteId(identifier).
 			Get(ctx, options)
-		if err != nil {
-			err := graph.Wrap(ctx, err, "getting site by id")
-			return nil, err
-		}
 
-		return resp, err
+		return resp, clues.Wrap(err, "getting site by id").OrNil()
 	}
 
 	// if the id is not a standard sharepoint ID, assume it's a url.
@@ -182,12 +177,8 @@ func (c Sites) GetByID(
 	resp, err = sites.
 		NewItemSitesSiteItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, nil)
-	if err != nil {
-		err := graph.Wrap(ctx, err, "getting site by weburl")
-		return nil, err
-	}
 
-	return resp, err
+	return resp, clues.Wrap(err, "getting site by weburl").OrNil()
 }
 
 // GetIDAndName looks up the site matching the given ID, and returns
@@ -220,11 +211,8 @@ func (c Sites) GetDefaultDrive(
 		BySiteId(site).
 		Drive().
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting site's default drive")
-	}
 
-	return d, nil
+	return d, clues.Wrap(err, "getting site's default drive").OrNil()
 }
 
 // ---------------------------------------------------------------------------

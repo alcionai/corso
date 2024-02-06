@@ -59,11 +59,8 @@ func (c Events) CreateContainer(
 		ByUserId(userID).
 		Calendars().
 		Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating calendar")
-	}
 
-	return CalendarDisplayable{Calendarable: container}, nil
+	return CalendarDisplayable{Calendarable: container}, clues.Wrap(err, "creating calendar").OrNil()
 }
 
 // DeleteContainer removes a calendar from user's M365 account
@@ -76,7 +73,7 @@ func (c Events) DeleteContainer(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.Client().
@@ -85,11 +82,8 @@ func (c Events) DeleteContainer(
 		Calendars().
 		ByCalendarId(containerID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
 
-	return nil
+	return clues.Stack(err).OrNil()
 }
 
 func (c Events) GetContainerByID(
@@ -109,11 +103,8 @@ func (c Events) GetContainerByID(
 		Calendars().
 		ByCalendarId(containerID).
 		Get(ctx, config)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return graph.CalendarDisplayable{Calendarable: resp}, nil
+	return graph.CalendarDisplayable{Calendarable: resp}, clues.Stack(err).OrNil()
 }
 
 // GetContainerByName fetches a calendar by name
@@ -138,7 +129,7 @@ func (c Events) GetContainerByName(
 		Calendars().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.Stack(err)
 	}
 
 	gv := resp.GetValue()
@@ -174,11 +165,8 @@ func (c Events) PatchCalendar(
 		Calendars().
 		ByCalendarId(containerID).
 		Patch(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "patching event calendar")
-	}
 
-	return nil
+	return clues.Wrap(err, "patching event calendar").OrNil()
 }
 
 const (
@@ -217,7 +205,7 @@ func (c Events) GetItem(
 		NewItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter()).
 		Get(ctx, config)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, nil, clues.Stack(err)
 	}
 
 	_, err = GetCancelledEventDateStrings(event)
@@ -394,7 +382,7 @@ func (c Events) GetAttachments(
 		Attachments().
 		Get(ctx, config)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "event attachment download")
+		return nil, clues.Wrap(err, "event attachment download")
 	}
 
 	return attached.GetValue(), nil
@@ -438,7 +426,7 @@ func (c Events) GetItemInstances(
 		Instances().
 		Get(ctx, config)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.Stack(err)
 	}
 
 	return events.GetValue(), nil
@@ -453,11 +441,8 @@ func (c Events) PostItem(
 	builder := users.NewItemCalendarsItemEventsRequestBuilder(rawURL, c.Stable.Adapter())
 
 	itm, err := builder.Post(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating calendar event")
-	}
 
-	return itm, nil
+	return itm, clues.Wrap(err, "creating calendar event").OrNil()
 }
 
 func (c Events) PatchItem(
@@ -469,11 +454,8 @@ func (c Events) PatchItem(
 	builder := users.NewItemCalendarsItemEventsEventItemRequestBuilder(rawURL, c.Stable.Adapter())
 
 	itm, err := builder.Patch(ctx, body, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "updating calendar event")
-	}
 
-	return itm, nil
+	return itm, clues.Wrap(err, "updating calendar event").OrNil()
 }
 
 func (c Events) DeleteItem(
@@ -484,7 +466,7 @@ func (c Events) DeleteItem(
 	// https://github.com/alcionai/corso/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
-		return graph.Stack(ctx, err)
+		return clues.StackWC(ctx, err)
 	}
 
 	err = srv.
@@ -494,11 +476,8 @@ func (c Events) DeleteItem(
 		Events().
 		ByEventId(itemID).
 		Delete(ctx, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "deleting calendar event")
-	}
 
-	return nil
+	return clues.Wrap(err, "deleting calendar event").OrNil()
 }
 
 func (c Events) PostSmallAttachment(
@@ -516,11 +495,8 @@ func (c Events) PostSmallAttachment(
 		ByEventId(parentItemID).
 		Attachments().
 		Post(ctx, body, nil)
-	if err != nil {
-		return graph.Wrap(ctx, err, "uploading small event attachment")
-	}
 
-	return nil
+	return clues.Wrap(err, "uploading small event attachment").OrNil()
 }
 
 func (c Events) PostLargeAttachment(
@@ -544,7 +520,7 @@ func (c Events) PostLargeAttachment(
 		CreateUploadSession().
 		Post(ctx, session, nil)
 	if err != nil {
-		return "", graph.Wrap(ctx, err, "uploading large event attachment")
+		return "", clues.Wrap(err, "uploading large event attachment")
 	}
 
 	url := ptr.Val(us.GetUploadUrl())
@@ -605,15 +581,12 @@ func (c Events) Serialize(
 	defer writer.Close()
 
 	if err := writer.WriteObjectValue("", event); err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.StackWC(ctx, err)
 	}
 
 	bs, err := writer.GetSerializedContent()
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "serializing event")
-	}
 
-	return bs, nil
+	return bs, clues.WrapWC(ctx, err, "serializing event").OrNil()
 }
 
 // ---------------------------------------------------------------------------

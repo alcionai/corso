@@ -15,7 +15,6 @@ import (
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -53,7 +52,7 @@ func (c Channels) GetChannel(
 		ByChannelId(containerID).
 		Get(ctx, config)
 
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 // GetChannelByName fetches a channel by name
@@ -77,7 +76,7 @@ func (c Channels) GetChannelByName(
 		Channels().
 		Get(ctx, options)
 	if err != nil {
-		return nil, graph.Stack(ctx, err)
+		return nil, clues.Stack(err)
 	}
 
 	gv := resp.GetValue()
@@ -117,12 +116,12 @@ func (c Channels) GetChannelMessage(
 		ByChatMessageId(messageID).
 		Get(ctx, nil)
 	if err != nil {
-		return nil, nil, graph.Stack(ctx, err)
+		return nil, nil, clues.Stack(err)
 	}
 
 	replies, err := c.GetChannelMessageReplies(ctx, teamID, channelID, messageID)
 	if err != nil {
-		return nil, nil, graph.Wrap(ctx, err, "retrieving message replies")
+		return nil, nil, clues.Wrap(err, "retrieving message replies")
 	}
 
 	message.SetReplies(replies)

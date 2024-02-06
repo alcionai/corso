@@ -32,7 +32,7 @@ func (p *conversationsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Conversationable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *conversationsPageCtrl) ValidModTimes() bool {
@@ -75,7 +75,7 @@ func (c Conversations) GetConversations(
 	pager := c.NewConversationsPager(groupID, cc)
 	items, err := pagers.BatchEnumerateItems[models.Conversationable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ func (p *conversationThreadsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.ConversationThreadable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *conversationThreadsPageCtrl) ValidModTimes() bool {
@@ -150,7 +150,7 @@ func (c Conversations) GetConversationThreads(
 	pager := c.NewConversationThreadsPager(groupID, conversationID, cc)
 	items, err := pagers.BatchEnumerateItems[models.ConversationThreadable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ func (p *conversationThreadPostsPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Postable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *conversationThreadPostsPageCtrl) ValidModTimes() bool {
@@ -228,7 +228,7 @@ func (c Conversations) GetConversationThreadPosts(
 	pager := c.NewConversationThreadPostsPager(groupID, conversationID, threadID, cc)
 	items, err := pagers.BatchEnumerateItems[models.Postable](ctx, pager)
 
-	return items, graph.Stack(ctx, err).OrNil()
+	return items, clues.Stack(err).OrNil()
 }
 
 // GetConversations fetches all added and deleted conversation posts in the group.

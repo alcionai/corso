@@ -69,7 +69,7 @@ func CollectLibraries(
 
 	odcs, canUsePreviousBackup, err := colls.Get(ctx, bpc.MetadataCollections, ssmb, errs)
 	if err != nil {
-		return nil, false, graph.Wrap(ctx, err, "getting library")
+		return nil, false, clues.Wrap(err, "getting library")
 	}
 
 	return append(collections, odcs...), canUsePreviousBackup, nil

@@ -73,9 +73,12 @@ func (c Users) GetAll(
 		},
 	}
 
-	resp, err := service.Client().Users().Get(ctx, config)
+	resp, err := service.
+		Client().
+		Users().
+		Get(ctx, config)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting all users")
+		return nil, clues.Wrap(err, "getting all users")
 	}
 
 	iter, err := msgraphgocore.NewPageIterator[models.Userable](
@@ -83,7 +86,7 @@ func (c Users) GetAll(
 		service.Adapter(),
 		models.CreateUserCollectionResponseFromDiscriminatorValue)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "creating users iterator")
+		return nil, clues.WrapWC(ctx, err, "creating users iterator")
 	}
 
 	var (
@@ -98,7 +101,7 @@ func (c Users) GetAll(
 
 		err := validateUser(item)
 		if err != nil {
-			el.AddRecoverable(ctx, graph.Wrap(ctx, err, "validating user"))
+			el.AddRecoverable(ctx, clues.WrapWC(ctx, err, "validating user"))
 		} else {
 			us = append(us, item)
 		}
@@ -107,7 +110,7 @@ func (c Users) GetAll(
 	}
 
 	if err := iter.Iterate(ctx, iterator); err != nil {
-		return nil, graph.Wrap(ctx, err, "iterating all users")
+		return nil, clues.Wrap(err, "iterating all users")
 	}
 
 	return us, el.Failure()
@@ -136,11 +139,8 @@ func (c Users) GetByID(
 		Users().
 		ByUserId(identifier).
 		Get(ctx, options)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return resp, err
+	return resp, clues.Stack(err).OrNil()
 }
 
 // GetIDAndName looks up the user matching the given ID, and returns
@@ -228,11 +228,8 @@ func (c Users) GetMailboxSettings(
 			fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/mailboxSettings", userID),
 			c.Stable.Adapter()).
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Stack(ctx, err)
-	}
 
-	return settings, nil
+	return settings, clues.Stack(err).OrNil()
 }
 
 func (c Users) GetMailInbox(
@@ -246,11 +243,8 @@ func (c Users) GetMailInbox(
 		MailFolders().
 		ByMailFolderId(MailInbox).
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting MailFolders")
-	}
 
-	return inbox, nil
+	return inbox, clues.Wrap(err, "getting MailFolders").OrNil()
 }
 
 func (c Users) GetDefaultDrive(
@@ -263,11 +257,8 @@ func (c Users) GetDefaultDrive(
 		ByUserId(userID).
 		Drive().
 		Get(ctx, nil)
-	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting user's drive")
-	}
 
-	return d, nil
+	return d, clues.Wrap(err, "getting user's drive").OrNil()
 }
 
 // TODO: This tries to determine if the user has hit their mailbox
@@ -295,11 +286,8 @@ func (c Users) GetFirstInboxMessage(
 		Messages().
 		Delta().
 		Get(ctx, config)
-	if err != nil {
-		return graph.Stack(ctx, err)
-	}
 
-	return nil
+	return clues.Stack(err).OrNil()
 }
 
 // ---------------------------------------------------------------------------

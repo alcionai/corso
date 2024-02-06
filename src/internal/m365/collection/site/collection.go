@@ -541,12 +541,12 @@ func serializeContent(
 
 	err := writer.WriteObjectValue("", obj)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "writing to serializer").Label(fault.LabelForceNoBackupCreation)
+		return nil, clues.WrapWC(ctx, err, "writing to serializer").Label(fault.LabelForceNoBackupCreation)
 	}
 
 	byteArray, err := writer.GetSerializedContent()
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "getting content from writer").Label(fault.LabelForceNoBackupCreation)
+		return nil, clues.WrapWC(ctx, err, "getting content from writer").Label(fault.LabelForceNoBackupCreation)
 	}
 
 	return byteArray, nil

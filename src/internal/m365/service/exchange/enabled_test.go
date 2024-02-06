@@ -70,7 +70,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 				odErr := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "message")
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, odErr),
+					mailboxErr: clues.Stack(odErr),
 				}
 			},
 			expect:    assert.False,
@@ -82,7 +82,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 				odErr := graphTD.ODataErrWithMsg(string(graph.RequestResourceNotFound), "message")
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, odErr),
+					mailboxErr: clues.Stack(odErr),
 				}
 			},
 			expect:    assert.False,
@@ -95,7 +95,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 				err := clues.Stack(core.ErrNotFound, odErr)
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, err),
+					mailboxErr: clues.StackWC(ctx, err),
 				}
 			},
 			expect:    assert.False,
@@ -107,7 +107,7 @@ func (suite *EnabledUnitSuite) TestIsServiceEnabled() {
 				odErr := graphTD.ODataErrWithMsg("code", "message")
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, odErr),
+					mailboxErr: clues.Stack(odErr),
 				}
 			},
 			expect:    assert.False,
@@ -158,7 +158,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 				err := graphTD.ODataErrWithMsg(string(graph.ResourceNotFound), "message")
 
 				return mockGMB{
-					mailboxErr: graph.Stack(ctx, err),
+					mailboxErr: clues.StackWC(ctx, err),
 				}
 			},
 			expectErr: func(t *testing.T, err error) {
@@ -219,7 +219,7 @@ func (suite *EnabledUnitSuite) TestGetMailboxInfo() {
 				return mockGMB{
 					mailbox:         models.NewMailFolder(),
 					settings:        mock.UserSettings(),
-					inboxMessageErr: graph.Stack(ctx, err),
+					inboxMessageErr: clues.StackWC(ctx, err),
 				}
 			},
 			expectErr: func(t *testing.T, err error) {

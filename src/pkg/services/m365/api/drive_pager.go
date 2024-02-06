@@ -62,7 +62,7 @@ func (p *driveItemPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.DriveItemable], error) {
 	page, err := p.builder.Get(ctx, p.options)
-	return page, graph.Stack(ctx, err).OrNil()
+	return page, clues.Stack(err).OrNil()
 }
 
 func (p *driveItemPageCtrl) SetNextLink(nextLink string) {
@@ -82,7 +82,7 @@ func (c Drives) GetItemsInContainerByCollisionKey(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating drive items")
+		return nil, clues.Wrap(err, "enumerating drive items")
 	}
 
 	m := map[string]DriveItemIDType{}
@@ -106,7 +106,7 @@ func (c Drives) GetItemIDsInContainer(
 
 	items, err := pagers.BatchEnumerateItems(ctx, pager)
 	if err != nil {
-		return nil, graph.Wrap(ctx, err, "enumerating contacts")
+		return nil, clues.Wrap(err, "enumerating contacts")
 	}
 
 	m := map[string]DriveItemIDType{}
@@ -182,7 +182,7 @@ func (p *DriveItemDeltaPageCtrl) GetPage(
 	ctx context.Context,
 ) (pagers.DeltaLinkValuer[models.DriveItemable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *DriveItemDeltaPageCtrl) SetNextLink(link string) {
@@ -289,7 +289,7 @@ func (p *userDrivePager) GetPage(
 		Drive().
 		Get(ctx, nil)
 
-	return &nopUserDrivePage{drive: d}, graph.Stack(ctx, err).OrNil()
+	return &nopUserDrivePage{drive: d}, clues.Stack(err).OrNil()
 }
 
 func (p *userDrivePager) SetNextLink(link string) {
@@ -344,7 +344,7 @@ func (p *siteDrivePager) GetPage(
 	ctx context.Context,
 ) (pagers.NextLinkValuer[models.Driveable], error) {
 	resp, err := p.builder.Get(ctx, p.options)
-	return resp, graph.Stack(ctx, err).OrNil()
+	return resp, clues.Stack(err).OrNil()
 }
 
 func (p *siteDrivePager) SetNextLink(link string) {
@@ -377,5 +377,5 @@ func GetAllDrives(
 		return make([]models.Driveable, 0), nil
 	}
 
-	return ds, graph.Stack(ctx, err).OrNil()
+	return ds, clues.Stack(err).OrNil()
 }

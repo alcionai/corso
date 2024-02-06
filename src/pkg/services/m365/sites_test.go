@@ -143,6 +143,7 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 				merr.SetMessage(ptr.To(string(graph.NoSPLicense)))
 				odErr.SetErrorEscaped(merr)
 
+				// needs graph.Stack, not clues.Stack
 				return mockGASites{nil, graph.Stack(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
@@ -158,7 +159,7 @@ func (suite *siteUnitSuite) TestGetAllSites() {
 				merr.SetMessage(ptr.To("message"))
 				odErr.SetErrorEscaped(merr)
 
-				return mockGASites{nil, graph.Stack(ctx, odErr)}
+				return mockGASites{nil, clues.StackWC(ctx, odErr)}
 			},
 			expectErr: func(t *testing.T, err error) {
 				assert.Error(t, err, clues.ToCore(err))
