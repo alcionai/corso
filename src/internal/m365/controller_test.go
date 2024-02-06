@@ -23,6 +23,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/operations/inject"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -413,9 +414,8 @@ func (suite *ControllerUnitSuite) TestController_CacheItemInfo() {
 
 type ControllerIntegrationSuite struct {
 	tester.Suite
-	ctrl          *Controller
-	user          string
-	secondaryUser string
+	ctrl *Controller
+	m365 its.M365IntgTestSetup
 }
 
 func TestControllerIntegrationSuite(t *testing.T) {
@@ -428,15 +428,12 @@ func TestControllerIntegrationSuite(t *testing.T) {
 
 func (suite *ControllerIntegrationSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
 	suite.ctrl = newController(ctx, t, path.ExchangeService)
-	suite.user = tconfig.M365UserID(t)
-	suite.secondaryUser = tconfig.SecondaryM365UserID(t)
-
-	tester.LogTimeOfTest(t)
 }
 
 func (suite *ControllerIntegrationSuite) TestEmptyCollections() {
@@ -1064,7 +1061,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_core() {
 		suite.Run(test.name, func() {
 			cfg := stub.ConfigInfo{
 				Tenant:         suite.ctrl.tenant,
-				ResourceOwners: []string{suite.user},
+				ResourceOwners: []string{suite.m365.User.ID},
 				Service:        test.service,
 				Opts:           control.DefaultOptions(),
 				RestoreCfg:     control.DefaultRestoreConfig(dttm.SafeForTesting),
@@ -1143,7 +1140,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 			ctx, flush := tester.NewContext(t)
 			defer flush()
 
-			restoreSel := getSelectorWith(t, test.service, []string{suite.user}, true)
+			restoreSel := getSelectorWith(t, test.service, []string{suite.m365.User.ID}, true)
 			expectedDests := make([]destAndCats, 0, len(test.collections))
 			allItems := 0
 			allExpectedData := map[string]map[string][]byte{}
@@ -1154,7 +1151,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				restoreCfg.IncludePermissions = true
 
 				expectedDests = append(expectedDests, destAndCats{
-					resourceOwner: suite.user,
+					resourceOwner: suite.m365.User.ID,
 					dest:          restoreCfg.Location,
 					cats: map[path.CategoryType]struct{}{
 						collection.Category: {},
@@ -1164,7 +1161,7 @@ func (suite *ControllerIntegrationSuite) TestMultiFolderBackupDifferentNames() {
 				totalItems, _, collections, expectedData, err := stub.CollectionsForInfo(
 					test.service,
 					suite.ctrl.tenant,
-					suite.user,
+					suite.m365.User.ID,
 					restoreCfg,
 					[]stub.ColInfo{collection},
 					version.Backup)
@@ -1289,7 +1286,7 @@ func (suite *ControllerIntegrationSuite) TestRestoreAndBackup_largeMailAttachmen
 
 	cfg := stub.ConfigInfo{
 		Tenant:         suite.ctrl.tenant,
-		ResourceOwners: []string{suite.user},
+		ResourceOwners: []string{suite.m365.User.ID},
 		Service:        test.service,
 		Opts:           control.DefaultOptions(),
 		RestoreCfg:     restoreCfg,
@@ -1310,7 +1307,7 @@ func (suite *ControllerIntegrationSuite) TestProduceBackupCollections_createsPre
 			name:        "Exchange",
 			resourceCat: resource.Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewExchangeBackup([]string{suite.user})
+				sel := selectors.NewExchangeBackup([]string{suite.m365.User.ID})
 				sel.Include(
 					sel.ContactFolders(selectors.None()),
 					sel.EventCalendars(selectors.None()),
@@ -1329,7 +1326,7 @@ func (suite *ControllerIntegrationSuite) TestProduceBackupCollections_createsPre
 			name:        "OneDrive",
 			resourceCat: resource.Users,
 			selectorFunc: func(t *testing.T) selectors.Selector {
-				sel := selectors.NewOneDriveBackup([]string{suite.user})
+				sel := selectors.NewOneDriveBackup([]string{suite.m365.User.ID})
 				sel.Include(sel.Folders(selectors.None()))
 
 				return sel.Selector

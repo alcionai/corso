@@ -13,12 +13,13 @@ import (
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/events"
 	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/m365"
+	m365Ctrl "github.com/alcionai/corso/src/internal/m365"
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	"github.com/alcionai/corso/src/internal/model"
 	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/streamstore"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup"
@@ -36,7 +37,7 @@ import (
 
 type OneDriveBackupIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestOneDriveBackupIntgSuite(t *testing.T) {
@@ -48,12 +49,12 @@ func TestOneDriveBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *OneDriveBackupIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 	var (
-		resourceID = suite.its.SecondaryUser.ID
+		resourceID = suite.m365.SecondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})
 	)
 
@@ -67,12 +68,12 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDrive() {
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_incrementalOneDrive() {
-	runOneDriveIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+	runOneDriveIncrementalBackupTests(suite, suite.m365, control.DefaultOptions())
 }
 
 func (suite *OneDriveBackupIntgSuite) TestBackup_Run_extensionsOneDrive() {
 	var (
-		resourceID = suite.its.SecondaryUser.ID
+		resourceID = suite.m365.SecondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})
 	)
 
@@ -91,7 +92,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_extensionsOneDrive() {
 
 type OneDriveBackupTreeIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestOneDriveBackupTreeIntgSuite(t *testing.T) {
@@ -103,12 +104,12 @@ func TestOneDriveBackupTreeIntgSuite(t *testing.T) {
 }
 
 func (suite *OneDriveBackupTreeIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 	var (
-		resourceID = suite.its.SecondaryUser.ID
+		resourceID = suite.m365.SecondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})
 		opts       = control.DefaultOptions()
 	)
@@ -124,12 +125,12 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeOneDrive() {
 
 func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeIncrementalOneDrive() {
 	opts := control.DefaultOptions()
-	runOneDriveIncrementalBackupTests(suite, suite.its, opts)
+	runOneDriveIncrementalBackupTests(suite, suite.m365, opts)
 }
 
 func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive() {
 	var (
-		resourceID = suite.its.SecondaryUser.ID
+		resourceID = suite.m365.SecondaryUser.ID
 		sel        = selectors.NewOneDriveBackup([]string{resourceID})
 		opts       = control.DefaultOptions()
 	)
@@ -149,10 +150,10 @@ func (suite *OneDriveBackupTreeIntgSuite) TestBackup_Run_treeExtensionsOneDrive(
 
 func runOneDriveIncrementalBackupTests(
 	suite tester.Suite,
-	its IntgTesterSetup,
+	m365 its.M365IntgTestSetup,
 	opts control.Options,
 ) {
-	sel := selectors.NewOneDriveRestore([]string{its.User.ID})
+	sel := selectors.NewOneDriveRestore([]string{m365.User.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.Folders(cs, selectors.PrefixMatch()))
@@ -163,10 +164,10 @@ func runOneDriveIncrementalBackupTests(
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		d, err := its.AC.Users().GetDefaultDrive(ctx, its.User.ID)
+		d, err := m365.AC.Users().GetDefaultDrive(ctx, m365.User.ID)
 		if err != nil {
 			err = clues.Wrap(err, "retrieving default user drive").
-				With("user", its.User.ID)
+				With("user", m365.User.ID)
 		}
 
 		require.NoError(t, err, clues.ToCore(err))
@@ -184,8 +185,8 @@ func runOneDriveIncrementalBackupTests(
 	RunIncrementalDriveishBackupTest(
 		suite,
 		opts,
-		its.User.ID,
-		its.User.ID,
+		m365.User.ID,
+		m365.User.ID,
 		path.OneDriveService,
 		path.FilesCategory,
 		ic,
@@ -219,7 +220,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 	creds, err := acct.M365Config()
 	require.NoError(t, err, clues.ToCore(err))
 
-	ctrl, err := m365.NewController(
+	ctrl, err := m365Ctrl.NewController(
 		ctx,
 		acct,
 		path.OneDriveService,
@@ -229,7 +230,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 	userable, err := ctrl.AC.Users().GetByID(
 		ctx,
-		suite.its.User.ID,
+		suite.m365.User.ID,
 		api.CallConfig{})
 	require.NoError(t, err, clues.ToCore(err))
 
@@ -333,7 +334,7 @@ func (suite *OneDriveBackupIntgSuite) TestBackup_Run_oneDriveOwnerMigration() {
 
 type OneDriveBackupNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestOneDriveBackupNightlyIntgSuite(t *testing.T) {
@@ -345,11 +346,11 @@ func TestOneDriveBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *OneDriveBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *OneDriveBackupNightlyIntgSuite) TestBackup_Run_oneDriveVersion9MergeBase() {
-	sel := selectors.NewOneDriveBackup([]string{suite.its.User.ID})
+	sel := selectors.NewOneDriveBackup([]string{suite.m365.User.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
 
 	RunMergeBaseGroupsUpdate(suite, sel.Selector, true)
@@ -364,7 +365,7 @@ func (suite *OneDriveBackupNightlyIntgSuite) TestBackup_Run_oneDriveVersion9Merg
 
 type OneDriveRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestOneDriveRestoreIntgSuite(t *testing.T) {
@@ -376,34 +377,34 @@ func TestOneDriveRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *OneDriveRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveWithAdvancedOptions() {
-	sel := selectors.NewOneDriveBackup([]string{suite.its.User.ID})
+	sel := selectors.NewOneDriveBackup([]string{suite.m365.User.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
-	sel.DiscreteOwner = suite.its.User.ID
+	sel.DiscreteOwner = suite.m365.User.ID
 
 	RunDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
-		suite.its.AC,
+		suite.m365.AC,
 		sel.Selector,
-		suite.its.User.DriveID,
-		suite.its.User.DriveRootFolderID)
+		suite.m365.User.DriveID,
+		suite.m365.User.DriveRootFolderID)
 }
 
 func (suite *OneDriveRestoreNightlyIntgSuite) TestRestore_Run_onedriveAlternateProtectedResource() {
-	sel := selectors.NewOneDriveBackup([]string{suite.its.User.ID})
+	sel := selectors.NewOneDriveBackup([]string{suite.m365.User.ID})
 	sel.Include(selTD.OneDriveBackupFolderScope(sel))
-	sel.DiscreteOwner = suite.its.User.ID
+	sel.DiscreteOwner = suite.m365.User.ID
 
 	RunDriveRestoreToAlternateProtectedResource(
 		suite.T(),
 		suite,
-		suite.its.AC,
+		suite.m365.AC,
 		sel.Selector,
-		suite.its.User,
-		suite.its.SecondaryUser,
-		suite.its.SecondaryUser.ID)
+		suite.m365.User,
+		suite.m365.SecondaryUser,
+		suite.m365.SecondaryUser.ID)
 }

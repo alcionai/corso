@@ -8,12 +8,14 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 )
 
 type M365IntgSuite struct {
 	tester.Suite
+	m365 its.M365IntgTestSetup
 }
 
 func TestM365IntgSuite(t *testing.T) {
@@ -24,26 +26,29 @@ func TestM365IntgSuite(t *testing.T) {
 	})
 }
 
-func (suite *userIntegrationSuite) TestNewM365Client() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	_, err := NewM365Client(ctx, tconfig.NewM365Account(t))
-	assert.NoError(t, err, clues.ToCore(err))
+func (suite *M365IntgSuite) SetupSuite() {
+	suite.m365 = its.GetM365(suite.T())
 }
 
-func (suite *userIntegrationSuite) TestNewM365Client_invalidCredentials() {
+func (suite *M365IntgSuite) TestNewM365Client() {
 	table := []struct {
-		name string
-		acct func(t *testing.T) account.Account
+		name      string
+		acct      func(t *testing.T) account.Account
+		expectErr assert.ErrorAssertionFunc
 	}{
+		{
+			name: "Valid Credentials",
+			acct: func(t *testing.T) account.Account {
+				return suite.m365.Acct
+			},
+			expectErr: assert.NoError,
+		},
 		{
 			name: "Invalid Credentials",
 			acct: func(t *testing.T) account.Account {
 				return tconfig.NewFakeM365Account(t)
 			},
+			expectErr: assert.Error,
 		},
 	}
 
@@ -55,7 +60,7 @@ func (suite *userIntegrationSuite) TestNewM365Client_invalidCredentials() {
 			defer flush()
 
 			_, err := NewM365Client(ctx, test.acct(t))
-			assert.Error(t, err, clues.ToCore(err))
+			test.expectErr(t, err, clues.ToCore(err))
 		})
 	}
 }

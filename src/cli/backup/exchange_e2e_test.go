@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -39,7 +40,7 @@ var (
 type NoBackupExchangeE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestNoBackupExchangeE2ESuite(t *testing.T) {
@@ -54,7 +55,7 @@ func (suite *NoBackupExchangeE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 }
 
@@ -93,7 +94,7 @@ func (suite *NoBackupExchangeE2ESuite) TestExchangeBackupListCmd_noBackups() {
 type BackupExchangeE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupExchangeE2ESuite(t *testing.T) {
@@ -108,7 +109,7 @@ func (suite *BackupExchangeE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 }
 
@@ -138,7 +139,7 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category path.
 	cmd, ctx := buildExchangeBackupCmd(
 		ctx,
 		suite.dpnd.configFilePath,
-		suite.its.user.ID,
+		suite.m365.User.ID,
 		category.String(),
 		&recorder)
 
@@ -150,7 +151,7 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category path.
 	t.Log("backup results", result)
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.its.user.ID)
+	assert.Contains(t, result, suite.m365.User.ID)
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_ServiceNotEnabled_email() {
@@ -173,7 +174,7 @@ func runExchangeBackupServiceNotEnabledTest(suite *BackupExchangeE2ESuite, categ
 	cmd, ctx := buildExchangeBackupCmd(
 		ctx,
 		suite.dpnd.configFilePath,
-		fmt.Sprintf("%s,%s", tconfig.UnlicensedM365UserID(suite.T()), suite.its.user.ID),
+		fmt.Sprintf("%s,%s", tconfig.UnlicensedM365UserID(suite.T()), suite.m365.User.ID),
 		category.String(),
 		&recorder)
 	err := cmd.ExecuteContext(ctx)
@@ -183,7 +184,7 @@ func runExchangeBackupServiceNotEnabledTest(suite *BackupExchangeE2ESuite, categ
 	t.Log("backup results", result)
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.its.user.ID)
+	assert.Contains(t, result, suite.m365.User.ID)
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_email() {
@@ -242,7 +243,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_badAzureClientIDFl
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.its.user.ID,
+		"--user", suite.m365.User.ID,
 		"--azure-client-id", "invalid-value")
 	cli.BuildCommandTree(cmd)
 
@@ -266,7 +267,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_fromConfigFile() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.its.user.ID,
+		"--user", suite.m365.User.ID,
 		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
@@ -282,7 +283,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_fromConfigFile() {
 	t.Log("backup results", result)
 
 	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.its.user.ID)
+	assert.Contains(t, result, suite.m365.User.ID)
 }
 
 // AWS flags
@@ -296,7 +297,7 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_badAWSFlags() {
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "exchange",
-		"--user", suite.its.user.ID,
+		"--user", suite.m365.User.ID,
 		"--aws-access-key", "invalid-value",
 		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
@@ -319,7 +320,7 @@ type PreparedBackupExchangeE2ESuite struct {
 	tester.Suite
 	dpnd      dependencies
 	backupOps map[path.CategoryType]string
-	its       intgTesterSetup
+	m365      its.M365IntgTestSetup
 }
 
 func TestPreparedBackupExchangeE2ESuite(t *testing.T) {
@@ -336,13 +337,13 @@ func (suite *PreparedBackupExchangeE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.ExchangeService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		users = []string{suite.its.user.ID}
-		ins   = idname.NewCache(map[string]string{suite.its.user.ID: suite.its.user.ID})
+		users = []string{suite.m365.User.ID}
+		ins   = idname.NewCache(map[string]string{suite.m365.User.ID: suite.m365.User.ID})
 	)
 
 	for _, set := range []path.CategoryType{email, contacts, events} {

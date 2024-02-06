@@ -21,8 +21,8 @@ import (
 	siteMock "github.com/alcionai/corso/src/internal/m365/collection/site/mock"
 	spMock "github.com/alcionai/corso/src/internal/m365/service/sharepoint/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -87,32 +87,17 @@ func (suite *SharePointCollectionUnitSuite) TestFormatListsRestoreDestination() 
 
 type SharePointRestoreSuite struct {
 	tester.Suite
-	siteID string
-	creds  account.M365Config
-	ac     api.Client
+	m365 its.M365IntgTestSetup
 }
 
 func (suite *SharePointRestoreSuite) SetupSuite() {
 	t := suite.T()
+	suite.m365 = its.GetM365(t)
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
+
 	graph.InitializeConcurrencyLimiter(ctx, false, 4)
-
-	suite.siteID = tconfig.M365SiteID(t)
-	a := tconfig.NewM365Account(t)
-	m365, err := a.M365Config()
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.creds = m365
-
-	ac, err := api.NewClient(
-		m365,
-		control.DefaultOptions(),
-		count.New())
-	require.NoError(t, err, clues.ToCore(err))
-
-	suite.ac = ac
 }
 
 func TestSharePointRestoreSuite(t *testing.T) {
@@ -135,8 +120,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		listTemplate = "genericList"
 		restoreCfg   = testdata.DefaultRestoreConfig("")
 		destName     = restoreCfg.Location
-		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		service      = createTestService(t, suite.creds)
+		lrh          = NewListsRestoreHandler(suite.m365.Site.ID, suite.m365.AC.Lists())
+		service      = createTestService(t, suite.m365.Creds)
 		list         = stubList(listTemplate, listName)
 		mockData     = generateListData(t, service, list)
 	)
@@ -147,7 +132,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 		ctx,
 		lrh,
 		mockData,
-		suite.siteID,
+		suite.m365.Site.ID,
 		restoreCfg,
 		nil,
 		count.New(),
@@ -156,7 +141,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore() {
 	assert.Equal(t, fmt.Sprintf("%s_%s", destName, listName), deets.SharePoint.List.Name)
 
 	// Clean-Up
-	deleteList(ctx, t, suite.siteID, lrh, deets)
+	deleteList(ctx, t, suite.m365.Site.ID, lrh, deets)
 }
 
 func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTemplate() {
@@ -166,10 +151,10 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 	defer flush()
 
 	var (
-		lrh        = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
+		lrh        = NewListsRestoreHandler(suite.m365.Site.ID, suite.m365.AC.Lists())
 		listName   = "MockListing"
 		restoreCfg = testdata.DefaultRestoreConfig("")
-		service    = createTestService(t, suite.creds)
+		service    = createTestService(t, suite.m365.Creds)
 	)
 
 	restoreCfg.OnCollision = control.Copy
@@ -201,7 +186,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_Restore_invalidListTempl
 				ctx,
 				lrh,
 				listData,
-				suite.siteID,
+				suite.m365.Site.ID,
 				restoreCfg,
 				nil,
 				count.New(),
@@ -222,8 +207,8 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 		listName     = "MockListing"
 		listTemplate = "genericList"
 		restoreCfg   = testdata.DefaultRestoreConfig("")
-		lrh          = NewListsRestoreHandler(suite.siteID, suite.ac.Lists())
-		service      = createTestService(t, suite.creds)
+		lrh          = NewListsRestoreHandler(suite.m365.Site.ID, suite.m365.AC.Lists())
+		service      = createTestService(t, suite.m365.Creds)
 		list         = stubList(listTemplate, listName)
 		newList      = stubList(listTemplate, listName)
 		cl           = count.New()
@@ -239,7 +224,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_skip() {
 		ctx,
 		lrh,
 		mockData,
-		suite.siteID,
+		suite.m365.Site.ID,
 		restoreCfg, // OnCollision is skip by default
 		collisionKeyToItemID,
 		cl,
@@ -261,7 +246,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 		listTemplate = "genericList"
 		listID       = "some-list-id"
 		restoreCfg   = testdata.DefaultRestoreConfig("")
-		service      = createTestService(t, suite.creds)
+		service      = createTestService(t, suite.m365.Creds)
 
 		policyToKey = map[control.CollisionPolicy]count.Key{
 			control.Replace: count.CollisionReplace,
@@ -354,7 +339,7 @@ func (suite *SharePointRestoreSuite) TestListCollection_RestoreInPlace_copy() {
 				ctx,
 				test.lrh,
 				mockData,
-				suite.siteID,
+				suite.m365.Site.ID,
 				restoreCfg,
 				collisionKeyToItemID,
 				cl,

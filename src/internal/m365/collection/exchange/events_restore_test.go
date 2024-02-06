@@ -13,6 +13,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/control/testdata"
@@ -101,7 +102,7 @@ func (m *eventRestoreMock) PatchItem(
 
 type EventsRestoreIntgSuite struct {
 	tester.Suite
-	its intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestEventsRestoreIntgSuite(t *testing.T) {
@@ -113,17 +114,17 @@ func TestEventsRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *EventsRestoreIntgSuite) SetupSuite() {
-	suite.its = newIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 // Testing to ensure that cache system works for in multiple different environments
 func (suite *EventsRestoreIntgSuite) TestCreateContainerDestination() {
 	runCreateDestinationTest(
 		suite.T(),
-		newEventRestoreHandler(suite.its.ac),
+		newEventRestoreHandler(suite.m365.AC),
 		path.EventsCategory,
-		suite.its.creds.AzureTenantID,
-		suite.its.userID,
+		suite.m365.TenantID,
+		suite.m365.User.ID,
 		testdata.DefaultRestoreConfig("").Location,
 		[]string{"Durmstrang"},
 		[]string{"Beauxbatons"})
@@ -264,7 +265,7 @@ func (suite *EventsRestoreIntgSuite) TestRestoreEvent() {
 				ctx,
 				test.apiMock,
 				body,
-				suite.its.userID,
+				suite.m365.User.ID,
 				"destination",
 				test.collisionMap,
 				test.onCollision,

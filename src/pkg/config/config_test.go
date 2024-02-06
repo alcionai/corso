@@ -16,6 +16,7 @@ import (
 	"github.com/alcionai/corso/src/cli/flags"
 	"github.com/alcionai/corso/src/internal/common/str"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/account"
 	"github.com/alcionai/corso/src/pkg/control/repository"
@@ -399,12 +400,17 @@ func (suite *ConfigSuite) TestReadFromFlags() {
 
 type ConfigIntegrationSuite struct {
 	tester.Suite
+	m365 its.M365IntgTestSetup
 }
 
 func TestConfigIntegrationSuite(t *testing.T) {
 	suite.Run(t, &ConfigIntegrationSuite{Suite: tester.NewIntegrationSuite(
 		t,
 		[][]string{storeTD.AWSStorageCredEnvs, tconfig.M365AcctCredEnvs})})
+}
+
+func (suite *ConfigIntegrationSuite) SetupSuite() {
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
@@ -418,7 +424,6 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 		bkt = "get-storage-and-account-bucket"
 		end = "https://get-storage-and-account.com"
 		pfx = "get-storage-and-account-prefix/"
-		tid = "3a2faa4e-a882-445c-9d27-f552ef189381"
 	)
 
 	// Configure viper to read test config file
@@ -434,9 +439,10 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount() {
 		DoNotVerifyTLS: true,
 		DoNotUseTLS:    true,
 	}
-	m365 := account.M365Config{AzureTenantID: tid}
 
-	err = writeRepoConfigWithViper(vpr, s3Cfg, m365, repository.Options{}, "repoid")
+	creds := suite.m365.Creds
+
+	err = writeRepoConfigWithViper(vpr, s3Cfg, creds, repository.Options{}, "repoid")
 	require.NoError(t, err, "writing repo config", clues.ToCore(err))
 
 	require.Equal(
@@ -484,13 +490,12 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 		bkt = "get-storage-and-account-no-file-bucket"
 		end = "https://get-storage-and-account.com/no-file"
 		pfx = "get-storage-and-account-no-file-prefix/"
-		tid = "88f8522b-18e4-4d0f-b514-2d7b34d4c5a1"
 	)
 
-	m365 := account.M365Config{AzureTenantID: tid}
+	creds := suite.m365.Creds
 
 	overrides := map[string]string{
-		account.AzureTenantID:          tid,
+		account.AzureTenantID:          suite.m365.TenantID,
 		account.AccountProviderTypeKey: account.ProviderM365.String(),
 		storage.Bucket:                 bkt,
 		storage.Endpoint:               end,
@@ -519,7 +524,7 @@ func (suite *ConfigIntegrationSuite) TestGetStorageAndAccount_noFileOnlyOverride
 
 	readM365, err := cfg.Account.M365Config()
 	require.NoError(t, err, "reading m365 config from account", clues.ToCore(err))
-	assert.Equal(t, readM365.AzureTenantID, m365.AzureTenantID)
+	assert.Equal(t, readM365.AzureTenantID, creds.AzureTenantID)
 	assert.Equal(t, readM365.AzureClientID, os.Getenv(credentials.AzureClientID))
 	assert.Equal(t, readM365.AzureClientSecret, os.Getenv(credentials.AzureClientSecret))
 }
