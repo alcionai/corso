@@ -49,6 +49,6 @@ Below is a list of known Corso issues and limitations:
 * Sharepoint list item "attachments" aren't backed up, restored or exported as
   graph APIs doesn't currently provide attachment data for Lists or List Items.
 
-* Group mailbox restore is not supported due to limited Graph API support for creating mailbox items. EML export is supported.
+* Group mailbox restore isn't supported due to limited Graph API support for creating mailbox items. EML export is supported.
 
 * Due to Graph API limitations, any group mailbox items present in subfolders other than Inbox aren't backed up.
