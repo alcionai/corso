@@ -266,9 +266,14 @@ func IncludeGroupsRestoreDataSelectors(ctx context.Context, opts GroupsOpts) *se
 			opts.Conversations = selectors.Any()
 		}
 
+		// if no post is specified, select all posts in the conversation
+		if convPosts == 0 {
+			opts.Posts = selectors.Any()
+		}
+
 		// if no post is specified, only select conversations;
-		// otherwise, look for channel/message pairs
-		if chanMsgs == 0 {
+		// otherwise, look for conv/post pairs
+		if convs == 0 {
 			sel.Include(sel.Conversation(opts.Conversations))
 		} else {
 			sel.Include(sel.ConversationPosts(opts.Conversations, opts.Posts))

@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update repo init configuration to reduce the total number of GET requests sent
   to the object store when using corso. This affects repos that have many
   backups created in them per day the most.
-- Group mailbox emails can now be exported as `.eml` files.
-- Feature Preview: Corso now supports sSharePoint lists with operations including backup, list, details, restore, and export. Utilize `corso backup create sharepoint --site <site-url> --data lists` for Sharepoint list backups using the `--data` flag.
+- Feature Preview: Corso now supports backup, export & restore of SharePoint lists. Lists backup can be initiated using `corso backup create sharepoint --site <site-url> --data lists`.
+- Group mailbox(aka conversations) backup and export support is now officially available. Group mailbox posts can be exported as `.eml` files.
 
 ### Fixed
 - Retry transient 400 "invalidRequest" errors during onedrive & sharepoint backup.
@@ -36,8 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exchange in-place restore may restore items in well-known folders to different folders if the user has well-known folder names change based on locale and has updated the locale since the backup was created.
 - In-place Exchange contacts restore will merge items in folders named "Contacts" or "contacts" into the default folder.
 - External users with access through shared links will not receive these links as they are not sent via email during restore.
-- Due to limitations in Graph APIs pertaining to column definition support for certain column types such as `location`, `hyperlink/picture`, and `metadata`, the restoration process for SharePoint list items containing these columns will result in differences compared to the original items.
-- Support for SharePoint list item attachments is currently unavailable due to limitations in graph APIss.
+- Graph API has limited support for certain column types such as `location`, `hyperlink/picture`, and `metadata`. Restoring SharePoint list items containing these columns will result in differences compared to the original items.
+- SharePoint list item attachments are not available due to graph API limitations.
+- Group mailbox restore is not supported due to limited Graph API support for creating mailbox items.
+- Due to Graph API limitations, any group mailbox items present in subfolders other than Inbox aren't backed up.
 
 ## [v0.18.0] (beta) - 2024-01-02
 
