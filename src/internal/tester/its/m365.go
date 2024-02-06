@@ -70,7 +70,12 @@ type IDs struct {
 	DriveRootFolderID string
 	TestContainerID   string
 	WebURL            string
-	RootSite          struct {
+	// a "RootSite" is used by resoruces that own one or more sites.
+	// ex: groups and teams.  Each of those resources should designate
+	// a "root" site (aka: the "default" site).  That site gets embedded
+	// here because we probably interface with it as its own resource
+	// within the drive processors.
+	RootSite struct {
 		Provider          idname.Provider
 		ID                string
 		DriveID           string
