@@ -24,6 +24,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
 	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	"github.com/alcionai/corso/src/pkg/backup/details"
@@ -988,7 +989,7 @@ func RunDriveRestoreToAlternateProtectedResource(
 	suite tester.Suite,
 	ac api.Client,
 	sel selectors.Selector, // owner should match 'from', both Restore and Backup types work.
-	driveFrom, driveTo IDs,
+	driveFrom, driveTo its.IDs,
 	toResource string,
 ) {
 	ctx, flush := tester.NewContext(t)

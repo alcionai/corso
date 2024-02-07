@@ -20,6 +20,7 @@ import (
 	"github.com/alcionai/corso/src/internal/common/idname"
 	"github.com/alcionai/corso/src/internal/operations"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/config"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -35,7 +36,7 @@ import (
 type NoBackupTeamsChatsE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestNoBackupTeamsChatsE2ESuite(t *testing.T) {
@@ -51,7 +52,7 @@ func (suite *NoBackupTeamsChatsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.TeamsChatsService)
 }
 
@@ -90,7 +91,7 @@ func (suite *NoBackupTeamsChatsE2ESuite) TestTeamsChatsBackupListCmd_noBackups()
 type BackupTeamsChatsE2ESuite struct {
 	tester.Suite
 	dpnd dependencies
-	its  intgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestBackupTeamsChatsE2ESuite(t *testing.T) {
@@ -106,7 +107,7 @@ func (suite *BackupTeamsChatsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.TeamsChatsService)
 }
 
@@ -128,7 +129,7 @@ func runTeamsChatsBackupCategoryTest(suite *BackupTeamsChatsE2ESuite, category s
 	cmd, ctx := buildTeamsChatsBackupCmd(
 		ctx,
 		suite.dpnd.configFilePath,
-		suite.its.user.ID,
+		suite.m365.User.ID,
 		category,
 		&recorder)
 
@@ -188,7 +189,7 @@ func (suite *BackupTeamsChatsE2ESuite) TestBackupCreateTeamsChats_badAzureClient
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "chats",
-		"--teamschat", suite.its.user.ID,
+		"--teamschat", suite.m365.User.ID,
 		"--azure-client-id", "invalid-value")
 	cli.BuildCommandTree(cmd)
 
@@ -212,7 +213,7 @@ func (suite *BackupTeamsChatsE2ESuite) TestBackupCreateTeamsChats_fromConfigFile
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "chats",
-		"--teamschat", suite.its.user.ID,
+		"--teamschat", suite.m365.User.ID,
 		"--"+flags.ConfigFileFN, suite.dpnd.configFilePath)
 	cli.BuildCommandTree(cmd)
 
@@ -236,7 +237,7 @@ func (suite *BackupTeamsChatsE2ESuite) TestBackupCreateTeamsChats_badAWSFlags() 
 
 	cmd := cliTD.StubRootCmd(
 		"backup", "create", "chats",
-		"--teamschat", suite.its.user.ID,
+		"--teamschat", suite.m365.User.ID,
 		"--aws-access-key", "invalid-value",
 		"--aws-secret-access-key", "some-invalid-value")
 	cli.BuildCommandTree(cmd)
@@ -259,7 +260,7 @@ type PreparedBackupTeamsChatsE2ESuite struct {
 	tester.Suite
 	dpnd      dependencies
 	backupOps map[path.CategoryType]string
-	its       intgTesterSetup
+	m365      its.M365IntgTestSetup
 }
 
 func TestPreparedBackupTeamsChatsE2ESuite(t *testing.T) {
@@ -277,13 +278,13 @@ func (suite *PreparedBackupTeamsChatsE2ESuite) SetupSuite() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	suite.its = newIntegrationTesterSetup(t)
+	suite.m365 = its.GetM365(t)
 	suite.dpnd = prepM365Test(t, ctx, path.TeamsChatsService)
 	suite.backupOps = make(map[path.CategoryType]string)
 
 	var (
-		teamschats = []string{suite.its.user.ID}
-		ins        = idname.NewCache(map[string]string{suite.its.user.ID: suite.its.user.ID})
+		teamschats = []string{suite.m365.User.ID}
+		ins        = idname.NewCache(map[string]string{suite.m365.User.ID: suite.m365.User.ID})
 		cats       = []path.CategoryType{
 			path.ChatsCategory,
 		}

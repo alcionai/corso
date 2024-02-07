@@ -14,6 +14,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/collection/drive"
 	. "github.com/alcionai/corso/src/internal/operations/test/m365"
 	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/corso/src/internal/tester/its"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/internal/version"
 	deeTD "github.com/alcionai/corso/src/pkg/backup/details/testdata"
@@ -28,7 +29,7 @@ import (
 
 type GroupsBackupIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsBackupIntgSuite(t *testing.T) {
@@ -40,12 +41,12 @@ func TestGroupsBackupIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsBackupIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
 	var (
-		resourceID = suite.its.Group.ID
+		resourceID = suite.m365.Group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
 	)
 
@@ -59,12 +60,12 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groups() {
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_incrementalGroups() {
-	runGroupsIncrementalBackupTests(suite, suite.its, control.DefaultOptions())
+	runGroupsIncrementalBackupTests(suite, suite.m365, control.DefaultOptions())
 }
 
 func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
 	var (
-		resourceID = suite.its.Group.ID
+		resourceID = suite.m365.Group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
 	)
 
@@ -84,7 +85,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_extensionsGroups() {
 
 type GroupsBackupTreeIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsBackupTreeIntgSuite(t *testing.T) {
@@ -96,12 +97,12 @@ func TestGroupsBackupTreeIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsBackupTreeIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 	var (
-		resourceID = suite.its.Group.ID
+		resourceID = suite.m365.Group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
 		opts       = control.DefaultOptions()
 	)
@@ -117,12 +118,12 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeGroups() {
 
 func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeIncrementalGroups() {
 	opts := control.DefaultOptions()
-	runGroupsIncrementalBackupTests(suite, suite.its, opts)
+	runGroupsIncrementalBackupTests(suite, suite.m365, opts)
 }
 
 func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
 	var (
-		resourceID = suite.its.Group.ID
+		resourceID = suite.m365.Group.ID
 		sel        = selectors.NewGroupsBackup([]string{resourceID})
 		opts       = control.DefaultOptions()
 	)
@@ -142,10 +143,10 @@ func (suite *GroupsBackupTreeIntgSuite) TestBackup_Run_treeExtensionsGroups() {
 
 func runGroupsIncrementalBackupTests(
 	suite tester.Suite,
-	its IntgTesterSetup,
+	m365 its.M365IntgTestSetup,
 	opts control.Options,
 ) {
-	sel := selectors.NewGroupsRestore([]string{its.Group.ID})
+	sel := selectors.NewGroupsRestore([]string{m365.Group.ID})
 
 	ic := func(cs []string) selectors.Selector {
 		sel.Include(sel.LibraryFolders(cs, selectors.PrefixMatch()))
@@ -156,14 +157,14 @@ func runGroupsIncrementalBackupTests(
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		return its.Group.RootSite.DriveID
+		return m365.Group.RootSite.DriveID
 	}
 
 	gtsi := func(
 		t *testing.T,
 		ctx context.Context,
 	) string {
-		return its.Group.RootSite.ID
+		return m365.Group.RootSite.ID
 	}
 
 	grh := func(ac api.Client) drive.RestoreHandler {
@@ -173,8 +174,8 @@ func runGroupsIncrementalBackupTests(
 	RunIncrementalDriveishBackupTest(
 		suite,
 		opts,
-		its.Group.ID,
-		its.User.ID,
+		m365.Group.ID,
+		m365.User.ID,
 		path.GroupsService,
 		path.LibrariesCategory,
 		ic,
@@ -193,7 +194,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 	var (
 		mb      = evmock.NewBus()
 		counter = count.New()
-		sel     = selectors.NewGroupsBackup([]string{suite.its.Group.ID})
+		sel     = selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 		opts    = control.DefaultOptions()
 		whatSet = deeTD.CategoryFromRepoRef
 	)
@@ -306,7 +307,7 @@ func (suite *GroupsBackupIntgSuite) TestBackup_Run_groupsBasic() {
 
 type GroupsBackupNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
@@ -318,11 +319,11 @@ func TestGroupsBackupNightlyIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBase() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel),
@@ -332,7 +333,7 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBas
 }
 
 func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBases() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
 		selTD.GroupsBackupChannelScope(sel),
@@ -343,7 +344,7 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBa
 
 type GroupsRestoreNightlyIntgSuite struct {
 	tester.Suite
-	its IntgTesterSetup
+	m365 its.M365IntgTestSetup
 }
 
 func TestGroupsRestoreIntgSuite(t *testing.T) {
@@ -355,20 +356,20 @@ func TestGroupsRestoreIntgSuite(t *testing.T) {
 }
 
 func (suite *GroupsRestoreNightlyIntgSuite) SetupSuite() {
-	suite.its = NewIntegrationTesterSetup(suite.T())
+	suite.m365 = its.GetM365(suite.T())
 }
 
 func (suite *GroupsRestoreNightlyIntgSuite) TestRestore_Run_groupsWithAdvancedOptions() {
-	sel := selectors.NewGroupsBackup([]string{suite.its.Group.ID})
+	sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 	sel.Include(selTD.GroupsBackupLibraryFolderScope(sel))
 	sel.Filter(sel.Library("documents"))
-	sel.DiscreteOwner = suite.its.Group.ID
+	sel.DiscreteOwner = suite.m365.Group.ID
 
 	RunDriveRestoreWithAdvancedOptions(
 		suite.T(),
 		suite,
-		suite.its.AC,
+		suite.m365.AC,
 		sel.Selector,
-		suite.its.Group.RootSite.DriveID,
-		suite.its.Group.RootSite.DriveRootFolderID)
+		suite.m365.Group.RootSite.DriveID,
+		suite.m365.Group.RootSite.DriveRootFolderID)
 }

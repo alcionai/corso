@@ -523,16 +523,16 @@ func (c Events) PostLargeAttachment(
 		return "", clues.Wrap(err, "uploading large event attachment")
 	}
 
-	url := ptr.Val(us.GetUploadUrl())
-	w := graph.NewLargeItemWriter(parentItemID, url, size, c.counter)
-	copyBuffer := make([]byte, graph.AttachmentChunkSize)
+	var (
+		url        = ptr.Val(us.GetUploadUrl())
+		w          = graph.NewLargeItemWriter(parentItemID, url, size, c.counter)
+		reader     = bytes.NewReader(content)
+		copyBuffer = make([]byte, graph.AttachmentChunkSize)
+	)
 
-	_, err = io.CopyBuffer(w, bytes.NewReader(content), copyBuffer)
-	if err != nil {
-		return "", clues.WrapWC(ctx, err, "buffering large attachment content")
-	}
+	_, err = io.CopyBuffer(w, reader, copyBuffer)
 
-	return w.ID, nil
+	return w.ID, clues.WrapWC(ctx, err, "buffering large attachment content").OrNil()
 }
 
 // ---------------------------------------------------------------------------
