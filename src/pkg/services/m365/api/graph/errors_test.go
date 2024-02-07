@@ -235,7 +235,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrNotFound() {
 	}
 }
 
-func (suite *GraphErrorsUnitSuite) Test() {
+func (suite *GraphErrorsUnitSuite) TestIsErrInvalidRecipients() {
 	table := []struct {
 		name   string
 		err    error
@@ -265,6 +265,40 @@ func (suite *GraphErrorsUnitSuite) Test() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			test.expect(suite.T(), IsErrInvalidRecipients(test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrCorruptData() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErr("fnords"),
+			expect: assert.False,
+		},
+		{
+			name:   "invalid receipient oDataErr",
+			err:    graphTD.ODataErr(string(ErrorCorruptData)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			test.expect(suite.T(), IsErrCorruptData(test.err))
 		})
 	}
 }

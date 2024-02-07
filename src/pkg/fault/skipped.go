@@ -36,6 +36,10 @@ const (
 	// SkipInvalidRecipients identifies that an email was skipped because Exchange
 	// believes it is not valid and fails any attempt to read it.
 	SkipInvalidRecipients skipCause = "invalid_recipients_email"
+
+	// SkipCorruptData identifies that an email was skipped because graph reported
+	// that the email data was corrupt and failed all attempts to read it.
+	SkipCorruptData skipCause = "corrupt_data"
 )
 
 var _ print.Printable = &Skipped{}

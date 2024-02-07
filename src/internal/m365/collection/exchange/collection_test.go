@@ -364,6 +364,17 @@ func (suite *CollectionUnitSuite) TestCollection_SkippedErrors() {
 			},
 			expectedSkipError: fault.EmailSkip(fault.SkipInvalidRecipients, "", "fisher", nil),
 		},
+		{
+			name: "ErrorCorruptData",
+			added: map[string]time.Time{
+				"fisher": {},
+			},
+			expectItemCount: 0,
+			itemGetter: &mock.ItemGetSerialize{
+				GetErr: graphTD.ODataErr(string(graph.ErrorCorruptData)),
+			},
+			expectedSkipError: fault.EmailSkip(fault.SkipCorruptData, "", "fisher", nil),
+		},
 	}
 
 	for _, test := range table {
