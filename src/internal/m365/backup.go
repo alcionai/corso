@@ -2,6 +2,7 @@ package m365
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/alcionai/clues"
 
@@ -109,7 +110,7 @@ func (ctrl *Controller) ProduceBackupCollections(
 		handler = teamschats.NewBackup()
 
 	default:
-		return nil, nil, false, clues.Wrap(clues.NewWC(ctx, service.String()), "service not supported")
+		return nil, nil, false, clues.NewWC(ctx, fmt.Sprintf("service not supported: %s", service.HumanString()))
 	}
 
 	colls, excludeItems, canUsePreviousBackup, err = handler.ProduceBackupCollections(
@@ -173,7 +174,8 @@ func verifyBackupInputs(sel selectors.Selector, cachedIDs []string) error {
 	}
 
 	if !filters.Contains(ids).Compare(sel.ID()) {
-		return clues.Stack(core.ErrNotFound).With("selector_protected_resource", sel.ID())
+		return clues.Wrap(core.ErrNotFound, "verifying existence of resource").
+			With("selector_protected_resource", sel.ID())
 	}
 
 	return nil
