@@ -8,8 +8,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/dustin/go-humanize"
 
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // NewGroupsLocationIDer builds a LocationIDer for the groups.

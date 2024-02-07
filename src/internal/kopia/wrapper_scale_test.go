@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/data"
-	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/data"
+	exchMock "github.com/alcionai/canario/src/internal/m365/service/exchange/mock"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/backup/identity"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 func BenchmarkHierarchyMerge(b *testing.B) {

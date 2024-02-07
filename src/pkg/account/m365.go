@@ -7,8 +7,8 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/canario/src/internal/common/str"
+	"github.com/alcionai/canario/src/pkg/credentials"
 )
 
 // config exported name consts

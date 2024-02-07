@@ -8,16 +8,16 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/internal/operations"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/export"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/cli/flags"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/observe"
+	"github.com/alcionai/canario/src/internal/operations"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/export"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 var exportCommands = []func(cmd *cobra.Command) *cobra.Command{

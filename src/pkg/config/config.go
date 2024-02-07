@@ -13,14 +13,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control/repository"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/canario/src/cli/flags"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/internal/common/str"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/control/repository"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/storage"
 )
 
 const (

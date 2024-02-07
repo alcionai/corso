@@ -3,7 +3,7 @@ package drive
 import (
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/control"
 )
 
 var (

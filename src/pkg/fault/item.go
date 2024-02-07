@@ -1,6 +1,6 @@
 package fault
 
-import "github.com/alcionai/corso/src/cli/print"
+import "github.com/alcionai/canario/src/cli/print"
 
 const (
 	AddtlCreatedBy     = "created_by"

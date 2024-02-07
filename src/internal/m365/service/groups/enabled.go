@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/filters"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 func IsServiceEnabled(

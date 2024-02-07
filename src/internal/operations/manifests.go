@@ -6,13 +6,13 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/kopia/inject"
-	oinject "github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/kopia"
+	"github.com/alcionai/canario/src/internal/kopia/inject"
+	oinject "github.com/alcionai/canario/src/internal/operations/inject"
+	"github.com/alcionai/canario/src/pkg/backup/identity"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 func produceManifestsAndMetadata(

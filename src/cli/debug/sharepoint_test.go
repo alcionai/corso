@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	flagsTD "github.com/alcionai/corso/src/cli/flags/testdata"
-	cliTD "github.com/alcionai/corso/src/cli/testdata"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/canario/src/cli/flags"
+	flagsTD "github.com/alcionai/canario/src/cli/flags/testdata"
+	cliTD "github.com/alcionai/canario/src/cli/testdata"
+	"github.com/alcionai/canario/src/internal/tester"
 )
 
 type SharePointUnitSuite struct {

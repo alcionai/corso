@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/its"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/testdata"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	exchMock "github.com/alcionai/canario/src/internal/m365/service/exchange/mock"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester/its"
+	"github.com/alcionai/canario/src/internal/tester/tconfig"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/control/testdata"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 type RestoreIntgSuite struct {
@@ -127,7 +127,7 @@ func (suite *RestoreIntgSuite) TestRestoreEvent() {
 	}
 
 	for _, test := range tests {
-		// Skip till https://github.com/alcionai/corso/issues/3675 is fixed
+		// Skip till https://github.com/alcionai/canario/issues/3675 is fixed
 		if test.name == "Test exceptionOccurrences" {
 			t.Skip("Bug 3675")
 		}

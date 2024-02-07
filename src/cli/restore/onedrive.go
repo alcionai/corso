@@ -3,9 +3,9 @@ package restore
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/pkg/dttm"
 )
 
 // called by restore.go to map subcommands to provider-specific handling.

@@ -3,7 +3,7 @@ package flags
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/canario/src/pkg/storage"
 )
 
 // filesystem flag names

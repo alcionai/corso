@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/filters"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/filters"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------

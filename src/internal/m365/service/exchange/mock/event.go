@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/dttm"
 )
 
 // Order of fields to fill in:

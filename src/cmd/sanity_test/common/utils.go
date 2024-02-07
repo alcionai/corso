@@ -10,8 +10,8 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 func Assert(

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/credentials"
 )
 
 type S3CfgUnitSuite struct {

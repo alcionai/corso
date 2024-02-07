@@ -1,8 +1,8 @@
 package control
 
 import (
-	"github.com/alcionai/corso/src/pkg/control/repository"
-	"github.com/alcionai/corso/src/pkg/extensions"
+	"github.com/alcionai/canario/src/pkg/control/repository"
+	"github.com/alcionai/canario/src/pkg/extensions"
 )
 
 // Options holds the optional configurations for a process
@@ -98,7 +98,7 @@ type Toggles struct {
 	// bucket rate limiter.
 	DisableSlidingWindowLimiter bool `json:"disableSlidingWindowLimiter"`
 
-	// see: https://github.com/alcionai/corso/issues/4688
+	// see: https://github.com/alcionai/canario/issues/4688
 	UseDeltaTree       bool `json:"useDeltaTree"`
 	UseOldDeltaProcess bool `json:"useOldDeltaProcess"`
 

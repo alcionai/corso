@@ -14,15 +14,15 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/its"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester/its"
+	"github.com/alcionai/canario/src/internal/tester/tconfig"
+	"github.com/alcionai/canario/src/pkg/errs/core"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------

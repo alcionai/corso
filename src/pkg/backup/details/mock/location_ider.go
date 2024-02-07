@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/alcionai/corso/src/pkg/path"
+import "github.com/alcionai/canario/src/pkg/path"
 
 type LocationIDer struct {
 	Unique  *path.Builder

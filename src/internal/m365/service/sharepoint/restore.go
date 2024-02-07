@@ -6,18 +6,18 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/collection/site"
-	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/m365/collection/drive"
+	"github.com/alcionai/canario/src/internal/m365/collection/site"
+	"github.com/alcionai/canario/src/internal/m365/support"
+	"github.com/alcionai/canario/src/internal/operations/inject"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // ConsumeRestoreCollections will restore the specified data collections into OneDrive

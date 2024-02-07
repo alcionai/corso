@@ -7,8 +7,8 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/metadata"
 )
 
 // Max number of items for which we will print details. If there are

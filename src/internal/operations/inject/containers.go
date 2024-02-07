@@ -1,10 +1,10 @@
 package inject
 
 import (
-	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 // RestoreConsumerConfig is a container-of-things for holding options and

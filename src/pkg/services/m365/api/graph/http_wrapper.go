@@ -11,11 +11,11 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
-	"github.com/alcionai/corso/src/internal/events"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/internal/events"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 // ---------------------------------------------------------------------------

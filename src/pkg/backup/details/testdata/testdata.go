@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // mustParsePath takes a string representing a resource path and returns a path

@@ -8,15 +8,15 @@ import (
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester/tconfig"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------

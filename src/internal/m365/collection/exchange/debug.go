@@ -5,8 +5,8 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/pkg/store"
 )
 
 func DeserializeMetadataFiles(

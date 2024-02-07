@@ -6,9 +6,9 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/cmd/sanity_test/common"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/cmd/sanity_test/common"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 const (

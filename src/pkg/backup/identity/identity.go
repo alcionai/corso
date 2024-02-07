@@ -3,7 +3,7 @@ package identity
 import (
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // Reasoner describes the parts of the backup that make up its

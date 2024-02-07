@@ -3,12 +3,12 @@ package m365
 import (
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/m365/service/exchange"
-	"github.com/alcionai/corso/src/internal/m365/service/groups"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
-	"github.com/alcionai/corso/src/internal/m365/service/sharepoint"
-	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/m365/service/exchange"
+	"github.com/alcionai/canario/src/internal/m365/service/groups"
+	"github.com/alcionai/canario/src/internal/m365/service/onedrive"
+	"github.com/alcionai/canario/src/internal/m365/service/sharepoint"
+	"github.com/alcionai/canario/src/internal/operations/inject"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // NewServiceHandler returns an instance of a struct capable of running various

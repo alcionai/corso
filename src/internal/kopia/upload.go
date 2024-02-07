@@ -16,17 +16,17 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
+	"github.com/alcionai/canario/src/internal/common/prefixmatcher"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/diagnostics"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/metadata"
 )
 
 const maxInflateTraversalDepth = 500

@@ -11,8 +11,8 @@ import (
 	"github.com/tidwall/pretty"
 	"github.com/tomlazar/table"
 
-	"github.com/alcionai/corso/src/internal/common/color"
-	"github.com/alcionai/corso/src/internal/observe"
+	"github.com/alcionai/canario/src/internal/common/color"
+	"github.com/alcionai/canario/src/internal/observe"
 )
 
 var (

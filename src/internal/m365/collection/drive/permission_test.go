@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/syncd"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
-	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
+	"github.com/alcionai/canario/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/syncd"
+	"github.com/alcionai/canario/src/internal/m365/collection/drive/metadata"
+	odConsts "github.com/alcionai/canario/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
+	graphTD "github.com/alcionai/canario/src/pkg/services/m365/api/graph/testdata"
 )
 
 type PermissionsUnitTestSuite struct {

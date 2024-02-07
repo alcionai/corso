@@ -13,7 +13,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 var _ io.ReadCloser = &resetRetryHandler{}

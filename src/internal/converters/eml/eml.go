@@ -20,12 +20,12 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	mail "github.com/xhit/go-simple-mail/v2"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/converters/ics"
-	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/str"
+	"github.com/alcionai/canario/src/internal/converters/ics"
+	"github.com/alcionai/canario/src/internal/m365/collection/groups/metadata"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 const (
@@ -154,7 +154,7 @@ func getFileAttachment(ctx context.Context, attachment models.Attachmentable) (*
 
 	if bytes == nil {
 		// TODO(meain): Handle non file attachments
-		// https://github.com/alcionai/corso/issues/4772
+		// https://github.com/alcionai/canario/issues/4772
 		logger.Ctx(ctx).
 			With("attachment_id", ptr.Val(attachment.GetId()),
 				"attachment_type", ptr.Val(attachment.GetOdataType())).
@@ -352,7 +352,7 @@ func FromMessageable(ctx context.Context, data models.Messageable) (string, erro
 		// TODO: Fetch event object from graph when fetching email
 	case *models.CalendarSharingMessage:
 		// TODO: Parse out calendar sharing message
-		// https://github.com/alcionai/corso/issues/5041
+		// https://github.com/alcionai/canario/issues/5041
 	case *models.EventMessageRequest:
 		cal, err := getICalData(ctx, data)
 		if err != nil {
@@ -452,7 +452,7 @@ func FromJSONPostToEML(
 
 			if bytes == nil {
 				// TODO(meain): Handle non file attachments
-				// https://github.com/alcionai/corso/issues/4772
+				// https://github.com/alcionai/canario/issues/4772
 				//
 				// TODO(pandeyabs): Above issue is for messages.
 				// This is not a problem for posts but leaving it here for safety.

@@ -10,15 +10,15 @@ import (
 
 	"github.com/dustin/go-humanize"
 
-	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/stats"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/dttm"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/internal/common/str"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/internal/stats"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 // Backup represents the result of a backup operation

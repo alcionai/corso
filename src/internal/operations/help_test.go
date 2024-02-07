@@ -7,12 +7,12 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/m365"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 // A QoL builder for live instances that updates

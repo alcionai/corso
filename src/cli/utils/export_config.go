@@ -7,9 +7,9 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/filters"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/filters"
 )
 
 type ExportCfgOpts struct {

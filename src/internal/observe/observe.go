@@ -15,8 +15,8 @@ import (
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
-	"github.com/alcionai/corso/src/internal/common/color"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/internal/common/color"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 const (

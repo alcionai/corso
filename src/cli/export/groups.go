@@ -4,9 +4,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/pkg/control"
 )
 
 // called by export.go to map subcommands to provider-specific handling.

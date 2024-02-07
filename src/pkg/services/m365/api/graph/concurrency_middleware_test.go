@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/count"
 )
 
 type ConcurrencyMWUnitTestSuite struct {

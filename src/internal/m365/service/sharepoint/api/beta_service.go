@@ -5,7 +5,7 @@ import (
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/betasdk"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/betasdk"
 )
 
 // Service wraps BetaClient's functionality.

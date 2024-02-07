@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/kopia/kopia/repo/manifest"
 
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/pkg/backup"
 )
 
 // ------------------------------------------------------------

@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 var localRun bool

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/alcionai/corso/src/internal/common/keys"
+	"github.com/alcionai/canario/src/internal/common/keys"
 )
 
 // Well knwon Folder Names
@@ -78,7 +78,7 @@ const (
 	DescoratorFieldNamePrefix       = "@"
 
 	WebTemplateExtensionsListTemplate = "webTemplateExtensionsList"
-	// This issue https://github.com/alcionai/corso/issues/4932
+	// This issue https://github.com/alcionai/canario/issues/4932
 	// tracks to backup/restore supportability of `documentLibrary` templated lists
 	DocumentLibraryListTemplate = "documentLibrary"
 	SharingLinksListTemplate    = "sharingLinks"

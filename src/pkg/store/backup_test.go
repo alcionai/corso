@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/store"
-	"github.com/alcionai/corso/src/pkg/store/mock"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/backup"
+	"github.com/alcionai/canario/src/pkg/store"
+	"github.com/alcionai/canario/src/pkg/store/mock"
 )
 
 // ------------------------------------------------------------

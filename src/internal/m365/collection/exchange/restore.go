@@ -11,19 +11,19 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/diagnostics"
-	"github.com/alcionai/corso/src/internal/m365/support"
-	"github.com/alcionai/corso/src/internal/observe"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/diagnostics"
+	"github.com/alcionai/canario/src/internal/m365/support"
+	"github.com/alcionai/canario/src/internal/observe"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/errs/core"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // RestoreCollection handles restoration of an individual collection.
@@ -287,7 +287,7 @@ func uploadAttachments(
 
 		if err != nil {
 			// FIXME: I don't know why we're swallowing this error case.
-			// It needs investigation: https://github.com/alcionai/corso/issues/3498
+			// It needs investigation: https://github.com/alcionai/canario/issues/3498
 			if ptr.Val(a.GetOdataType()) == "#microsoft.graph.itemAttachment" {
 				name := ptr.Val(a.GetName())
 

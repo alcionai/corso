@@ -1,4 +1,4 @@
-module github.com/alcionai/corso/src
+module github.com/alcionai/canario/src
 
 go 1.21
 

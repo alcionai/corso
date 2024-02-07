@@ -3,7 +3,7 @@ package help
 import (
 	"github.com/spf13/cobra"
 
-	. "github.com/alcionai/corso/src/cli/print"
+	. "github.com/alcionai/canario/src/cli/print"
 )
 
 // AddCommands attaches all `corso env * *` commands to the parent.

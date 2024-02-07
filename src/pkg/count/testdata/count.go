@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/count"
 )
 
 type Expected map[count.Key]int64

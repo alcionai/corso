@@ -6,13 +6,13 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/events"
-	"github.com/alcionai/corso/src/pkg/config"
-	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/storage"
+	"github.com/alcionai/canario/src/cli/flags"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/internal/events"
+	"github.com/alcionai/canario/src/pkg/config"
+	"github.com/alcionai/canario/src/pkg/repository"
+	"github.com/alcionai/canario/src/pkg/storage"
 )
 
 // called by repo.go to map subcommands to provider-specific handling.

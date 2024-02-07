@@ -7,10 +7,10 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/canario/src/cli/flags"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/dttm"
 )
 
 type RestoreCfgOpts struct {

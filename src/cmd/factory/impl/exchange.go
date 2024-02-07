@@ -3,15 +3,15 @@ package impl
 import (
 	"github.com/spf13/cobra"
 
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
-	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/cli/utils"
+	exchMock "github.com/alcionai/canario/src/internal/m365/service/exchange/mock"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 var (

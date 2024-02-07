@@ -11,12 +11,12 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/sanitize"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/sanitize"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/errs/core"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ func (c Contacts) DeleteContainer(
 	userID, containerID string,
 ) error {
 	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
+	// https://github.com/alcionai/canario/issues/2707
 	srv, err := NewService(c.Credentials, c.counter)
 	if err != nil {
 		return clues.StackWC(ctx, err)
@@ -212,7 +212,7 @@ func (c Contacts) DeleteItem(
 	userID, itemID string,
 ) error {
 	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
+	// https://github.com/alcionai/canario/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
 		return clues.StackWC(ctx, err)

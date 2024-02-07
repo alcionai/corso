@@ -7,12 +7,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	. "github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/cli/flags"
+	. "github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 var restoreCommands = []func(cmd *cobra.Command) *cobra.Command{

@@ -5,15 +5,15 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/data"
-	kinject "github.com/alcionai/corso/src/internal/kopia/inject"
-	"github.com/alcionai/corso/src/internal/m365"
-	"github.com/alcionai/corso/src/internal/operations/inject"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/common/prefixmatcher"
+	"github.com/alcionai/canario/src/internal/data"
+	kinject "github.com/alcionai/canario/src/internal/kopia/inject"
+	"github.com/alcionai/canario/src/internal/m365"
+	"github.com/alcionai/canario/src/internal/operations/inject"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 var _ inject.BackupProducer = &mockBackupProducer{}

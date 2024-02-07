@@ -4,7 +4,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/fault"
 )
 
 func MakeErrors(failure, recovered, skipped bool) fault.Errors {

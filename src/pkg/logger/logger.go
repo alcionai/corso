@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/canario/src/internal/common/str"
 )
 
 // Default location for writing logs, initialized in platform specific files

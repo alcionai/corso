@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/data"
-	dataMock "github.com/alcionai/corso/src/internal/data/mock"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/export"
-	"github.com/alcionai/corso/src/pkg/metrics"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/data"
+	dataMock "github.com/alcionai/canario/src/internal/data/mock"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/export"
+	"github.com/alcionai/canario/src/pkg/metrics"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 type ExportUnitSuite struct {

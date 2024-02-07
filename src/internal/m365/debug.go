@@ -5,14 +5,14 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/m365/collection/drive"
-	"github.com/alcionai/corso/src/internal/m365/collection/exchange"
-	"github.com/alcionai/corso/src/internal/m365/collection/groups"
-	"github.com/alcionai/corso/src/internal/m365/collection/teamschats"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/m365/collection/drive"
+	"github.com/alcionai/canario/src/internal/m365/collection/exchange"
+	"github.com/alcionai/canario/src/internal/m365/collection/groups"
+	"github.com/alcionai/canario/src/internal/m365/collection/teamschats"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/store"
 )
 
 func (ctrl *Controller) DeserializeMetadataFiles(

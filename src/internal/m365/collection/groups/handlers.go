@@ -6,13 +6,13 @@ import (
 
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/backup/metadata"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/backup/metadata"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/selectors"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/pagers"
 )
 
 // itemer standardizes common behavior that can be expected from all

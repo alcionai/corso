@@ -9,11 +9,11 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/sites"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	onedrive "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	onedrive "github.com/alcionai/canario/src/internal/m365/service/onedrive/consts"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/pagers"
 )
 
 type DriveItemIDType struct {

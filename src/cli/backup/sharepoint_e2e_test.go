@@ -13,21 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/cli"
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/cli/print"
-	cliTD "github.com/alcionai/corso/src/cli/testdata"
-	"github.com/alcionai/corso/src/internal/common/idname"
-	"github.com/alcionai/corso/src/internal/operations"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/its"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/config"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/selectors/testdata"
-	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
+	"github.com/alcionai/canario/src/cli"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/cli/print"
+	cliTD "github.com/alcionai/canario/src/cli/testdata"
+	"github.com/alcionai/canario/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/operations"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester/its"
+	"github.com/alcionai/canario/src/internal/tester/tconfig"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/config"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/selectors"
+	"github.com/alcionai/canario/src/pkg/selectors/testdata"
+	storeTD "github.com/alcionai/canario/src/pkg/storage/testdata"
 )
 
 // ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ func (suite *BackupSharepointE2ESuite) SetupSuite() {
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_lists() {
-	// Issue: https://github.com/alcionai/corso/issues/4754
+	// Issue: https://github.com/alcionai/canario/issues/4754
 	suite.T().Skip("unskip when sharepoint lists support is enabled")
 	runSharepointBackupCategoryTest(suite, flags.DataLists)
 }
@@ -142,7 +142,7 @@ func runSharepointBackupCategoryTest(suite *BackupSharepointE2ESuite, category s
 }
 
 func (suite *BackupSharepointE2ESuite) TestSharepointBackupCmd_siteNotFound_lists() {
-	// Issue: https://github.com/alcionai/corso/issues/4754
+	// Issue: https://github.com/alcionai/canario/issues/4754
 	suite.T().Skip("un-skip test when lists support is enabled")
 	runSharepointBackupSiteNotFoundTest(suite, flags.DataLists)
 }

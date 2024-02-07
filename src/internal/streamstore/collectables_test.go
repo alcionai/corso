@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/control/repository"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
-	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
+	strTD "github.com/alcionai/canario/src/internal/common/str/testdata"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/internal/kopia"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/backup/identity"
+	"github.com/alcionai/canario/src/pkg/control/repository"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
+	storeTD "github.com/alcionai/canario/src/pkg/storage/testdata"
 )
 
 type StreamStoreIntgSuite struct {

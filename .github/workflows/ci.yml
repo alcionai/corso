@@ -477,7 +477,7 @@ jobs:
         run: go install github.com/google/go-licenses@latest
 
       - name: Run go-licenses
-        run: go-licenses check github.com/alcionai/corso/src --ignore github.com/alcionai/corso/src
+        run: go-licenses check github.com/alcionai/canario/src --ignore github.com/alcionai/canario/src
 
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@v1.3.0
@@ -626,7 +626,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/corso/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/corso/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/corso/src/internal/version.Version=${{ needs.SetEnv.outputs.version }}'
+            CORSO_BUILD_LDFLAGS=-X 'github.com/alcionai/canario/src/internal/events.RudderStackWriteKey=${{ secrets.RUDDERSTACK_CORSO_WRITE_KEY }}' -X 'github.com/alcionai/canario/src/internal/events.RudderStackDataPlaneURL=${{ secrets.RUDDERSTACK_CORSO_DATA_PLANE_URL }}' -X 'github.com/alcionai/canario/src/internal/version.Version=${{ needs.SetEnv.outputs.version }}'
           # use the github cache
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -642,7 +642,7 @@ jobs:
       - name: Validate x86_64 binary artifacts
         run: |
           set -ex
-          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz > corso.tar.gz
+          curl -L https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz > corso.tar.gz
           tar -xf corso.tar.gz
           ./corso --help
           ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
@@ -656,7 +656,7 @@ jobs:
           run: |
             set -ex
             sudo apt-get update && sudo apt-get install curl
-            curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_arm64.tar.gz > corso.tar.gz
+            curl -L https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_arm64.tar.gz > corso.tar.gz
             tar -xf corso.tar.gz
             ./corso --help
             ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
@@ -694,14 +694,14 @@ jobs:
       - name: Validate x86_64 binary artifacts
         run: |
           set -ex
-          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_x86_64.tar.gz > corso.tar.gz
+          curl -L https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_x86_64.tar.gz > corso.tar.gz
           tar -xf corso.tar.gz
           ./corso --help
           ./corso --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
       - name: Validate arm64 binary artifacts
         run: |
           set -ex
-          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_arm64.tar.gz > corso.tar.gz
+          curl -L https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Darwin_arm64.tar.gz > corso.tar.gz
           tar -xf corso.tar.gz
           # TODO: test/validate arm64 executable once we have arm64 CI
 
@@ -715,7 +715,7 @@ jobs:
     steps:
       - name: Validate x86_64 binary artifacts
         run: |
-          curl -L https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Windows_x86_64.zip -o corso.zip
+          curl -L https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Windows_x86_64.zip -o corso.zip
           7z x corso.zip
           ./corso.exe --help
           ./corso.exe --version 2>&1 | grep -E "version: ${{ env.CORSO_VERSION }}$"
@@ -762,4 +762,4 @@ jobs:
     steps:
       - name: Validate docs
         run: |
-          curl https://corsobackup.io/docs/quickstart/ | grep https://github.com/alcionai/corso/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz
+          curl https://corsobackup.io/docs/quickstart/ | grep https://github.com/alcionai/canario/releases/download/${{ env.CORSO_VERSION }}/corso_${{ env.CORSO_VERSION }}_Linux_x86_64.tar.gz

@@ -3,9 +3,9 @@ package metrics
 import (
 	"io"
 
-	"github.com/alcionai/corso/src/internal/common/syncd"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/common/syncd"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 type KindStats struct {

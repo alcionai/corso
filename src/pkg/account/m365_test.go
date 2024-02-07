@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/credentials"
 )
 
 type M365CfgSuite struct {

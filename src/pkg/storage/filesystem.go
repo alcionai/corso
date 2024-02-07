@@ -9,8 +9,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cast"
 
-	"github.com/alcionai/corso/src/internal/common/str"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/common/str"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // nothing to exclude, for parity

@@ -9,7 +9,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 // Recovery provides a deferrable func that can be called

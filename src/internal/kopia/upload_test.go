@@ -18,15 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	pmMock "github.com/alcionai/corso/src/internal/common/prefixmatcher/mock"
-	"github.com/alcionai/corso/src/internal/data"
-	exchMock "github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
+	pmMock "github.com/alcionai/canario/src/internal/common/prefixmatcher/mock"
+	"github.com/alcionai/canario/src/internal/data"
+	exchMock "github.com/alcionai/canario/src/internal/m365/service/exchange/mock"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/backup/identity"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 func makePath(t *testing.T, elements []string, isItem bool) path.Path {

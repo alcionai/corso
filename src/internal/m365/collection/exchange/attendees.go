@@ -5,7 +5,7 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/ptr"
 )
 
 type attendee struct {

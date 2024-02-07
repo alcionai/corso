@@ -11,13 +11,13 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/cli/utils"
-	"github.com/alcionai/corso/src/pkg/config"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/repository"
-	"github.com/alcionai/corso/src/pkg/storage"
-	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/canario/src/cli/utils"
+	"github.com/alcionai/canario/src/pkg/config"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/repository"
+	"github.com/alcionai/canario/src/pkg/storage"
+	"github.com/alcionai/canario/src/pkg/store"
 )
 
 // deleteBackups connects to the repository and deletes all backups for

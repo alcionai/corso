@@ -6,7 +6,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 
-	"github.com/alcionai/corso/src/internal/data"
+	"github.com/alcionai/canario/src/internal/data"
 )
 
 // ControllerOperationStatus is a data type used to describe the state of

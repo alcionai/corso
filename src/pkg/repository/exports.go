@@ -5,11 +5,11 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/operations"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/selectors"
-	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/internal/operations"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/selectors"
+	"github.com/alcionai/canario/src/pkg/store"
 )
 
 type Exporter interface {

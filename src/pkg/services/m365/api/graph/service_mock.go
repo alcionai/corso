@@ -8,8 +8,8 @@ import (
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/count"
 )
 
 // authMock implements the

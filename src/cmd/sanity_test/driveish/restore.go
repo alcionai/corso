@@ -8,10 +8,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/cmd/sanity_test/common"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/tform"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/cmd/sanity_test/common"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/tform"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 func ComparatorEqualPerms(expect, result []common.PermissionInfo) func() bool {

@@ -5,9 +5,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/alcionai/corso/src/internal/data"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/extensions"
+	"github.com/alcionai/canario/src/internal/data"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/extensions"
 )
 
 // ---------------------------------------------------------------------------

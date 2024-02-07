@@ -7,11 +7,11 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/service/exchange"
-	"github.com/alcionai/corso/src/internal/m365/service/onedrive"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/m365/service/exchange"
+	"github.com/alcionai/canario/src/internal/m365/service/onedrive"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 // UserNoInfo is the minimal information required to identify and display a user.

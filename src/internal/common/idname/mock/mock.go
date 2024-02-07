@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/idname"
+	"github.com/alcionai/canario/src/internal/common/idname"
 )
 
 var _ idname.Provider = &in{}

@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/spf13/cobra"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 type GroupsOpts struct {

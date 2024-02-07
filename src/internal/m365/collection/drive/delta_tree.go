@@ -8,11 +8,11 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
-	"github.com/alcionai/corso/src/pkg/services/m365/custom"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/metadata"
+	"github.com/alcionai/canario/src/pkg/services/m365/custom"
 )
 
 // folderyMcFolderFace owns our delta processing tree.

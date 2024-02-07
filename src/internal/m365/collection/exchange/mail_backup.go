@@ -1,8 +1,8 @@
 package exchange
 
 import (
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 var _ backupHandler = &mailBackupHandler{}

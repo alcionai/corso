@@ -12,7 +12,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/ptr"
 )
 
 func ODataErr(code string) *odataerrors.ODataError {

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/account"
 )
 
 const (

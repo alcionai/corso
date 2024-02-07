@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
-	evmock "github.com/alcionai/corso/src/internal/events/mock"
-	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/control/repository"
-	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	strTD "github.com/alcionai/canario/src/internal/common/str/testdata"
+	evmock "github.com/alcionai/canario/src/internal/events/mock"
+	"github.com/alcionai/canario/src/internal/kopia"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/control/repository"
+	storeTD "github.com/alcionai/canario/src/pkg/storage/testdata"
 )
 
 type PersistentConfigOpIntegrationSuite struct {

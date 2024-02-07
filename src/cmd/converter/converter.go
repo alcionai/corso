@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/alcionai/corso/src/internal/converters/eml"
-	"github.com/alcionai/corso/src/internal/converters/ics"
-	"github.com/alcionai/corso/src/internal/converters/vcf"
+	"github.com/alcionai/canario/src/internal/converters/eml"
+	"github.com/alcionai/canario/src/internal/converters/ics"
+	"github.com/alcionai/canario/src/internal/converters/vcf"
 )
 
 func main() {

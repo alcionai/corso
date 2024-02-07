@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/cli/flags"
+	"github.com/alcionai/canario/src/cli/flags"
 )
 
 func PreparedLibraryFlags() []string {

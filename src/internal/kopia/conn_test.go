@@ -18,13 +18,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	strTD "github.com/alcionai/corso/src/internal/common/str/testdata"
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/pkg/control/repository"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/storage"
-	storeTD "github.com/alcionai/corso/src/pkg/storage/testdata"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	strTD "github.com/alcionai/canario/src/internal/common/str/testdata"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/pkg/control/repository"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/storage"
+	storeTD "github.com/alcionai/canario/src/pkg/storage/testdata"
 )
 
 func openLocalKopiaRepo(

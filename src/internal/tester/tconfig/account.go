@@ -6,8 +6,8 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/pkg/account"
-	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/canario/src/pkg/account"
+	"github.com/alcionai/canario/src/pkg/credentials"
 )
 
 var M365AcctCredEnvs = []string{

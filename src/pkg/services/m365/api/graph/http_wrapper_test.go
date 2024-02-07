@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/http2"
 
-	"github.com/alcionai/corso/src/internal/tester"
-	"github.com/alcionai/corso/src/internal/tester/tconfig"
-	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/canario/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester/tconfig"
+	"github.com/alcionai/canario/src/pkg/count"
 )
 
 type HTTPWrapperIntgSuite struct {

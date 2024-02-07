@@ -6,7 +6,7 @@ import (
 	"net/http/httputil"
 	"os"
 
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 const (

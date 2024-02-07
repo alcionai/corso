@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester"
 )
 
 type LocSetUnitSuite struct {

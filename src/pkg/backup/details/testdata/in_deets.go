@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
-	"github.com/alcionai/corso/src/internal/kopia"
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/internal/streamstore"
-	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/kopia"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/internal/streamstore"
+	"github.com/alcionai/canario/src/pkg/backup"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // ---------------------------------------------------------------------------

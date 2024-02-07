@@ -1,7 +1,7 @@
 package fault
 
 import (
-	"github.com/alcionai/corso/src/cli/print"
+	"github.com/alcionai/canario/src/cli/print"
 )
 
 const (

@@ -3,7 +3,7 @@ package drive
 import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 // TODO: refactor to comply with graph/cache_container

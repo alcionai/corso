@@ -5,7 +5,7 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/common/pii"
+	"github.com/alcionai/canario/src/internal/common/pii"
 )
 
 var piiSafePathElems = pii.MapWithPlurals(

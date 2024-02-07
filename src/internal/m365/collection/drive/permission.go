@@ -7,16 +7,16 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/drives"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/common/syncd"
-	"github.com/alcionai/corso/src/internal/data"
-	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/syncd"
+	"github.com/alcionai/canario/src/internal/data"
+	odmetadata "github.com/alcionai/canario/src/internal/m365/collection/drive/metadata"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/metadata"
 )
 
 // empty string is used to indicate that a permission cannot be restored
@@ -212,7 +212,7 @@ func UpdatePermissions(
 			"permission_entity_email", clues.Hide(p.Email))
 
 		// deletes require unique http clients
-		// https://github.com/alcionai/corso/issues/2707
+		// https://github.com/alcionai/canario/issues/2707
 		// this is bad citizenship, and could end up consuming a lot of
 		// system resources if servicers leak client connections (sockets, etc).
 

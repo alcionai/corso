@@ -18,7 +18,7 @@ lint: check-lint-version
 fmt:
 	gofumpt -w .
 	goimports -w .
-	gci write --skip-generated -s 'standard' -s 'default' -s 'prefix(github.com/alcionai/corso)' .
+	gci write --skip-generated -s 'standard' -s 'default' -s 'prefix(github.com/alcionai/canario)' .
 
 check-lint-version: check-lint
 	@if [ "$(LINT_VERSION)" != "$(WANTED_LINT_VERSION)" ]; then \

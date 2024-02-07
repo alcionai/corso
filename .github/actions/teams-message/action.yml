@@ -24,9 +24,9 @@ runs:
     - name: build urls
       shell: bash
       run: |
-        echo "logurl=$(printf 'https://github.com/alcionai/corso/actions/runs/%s' ${{ github.run_id }})" >> $GITHUB_ENV
-        echo "commiturl=$(printf 'https://github.com/alcionai/corso/commit/%s' ${{ github.sha }})" >> $GITHUB_ENV
-        echo "refurl=$(printf 'https://github.com/alcionai/corso/%s' ${{ env.trimmed_ref }})" >> $GITHUB_ENV
+        echo "logurl=$(printf 'https://github.com/alcionai/canario/actions/runs/%s' ${{ github.run_id }})" >> $GITHUB_ENV
+        echo "commiturl=$(printf 'https://github.com/alcionai/canario/commit/%s' ${{ github.sha }})" >> $GITHUB_ENV
+        echo "refurl=$(printf 'https://github.com/alcionai/canario/%s' ${{ env.trimmed_ref }})" >> $GITHUB_ENV
 
     - name: use url or blank val
       shell: bash

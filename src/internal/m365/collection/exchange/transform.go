@@ -7,7 +7,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/ptr"
 )
 
 //==========================================================
@@ -96,7 +96,7 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	newBody.SetContent(&newContent)
 	orig.SetBody(newBody)
 	// Sanitation steps for Events
-	// See: https://github.com/alcionai/corso/issues/2490
+	// See: https://github.com/alcionai/canario/issues/2490
 	orig.SetTransactionId(nil)
 	orig.SetWebLink(nil)
 	orig.SetICalUId(nil)

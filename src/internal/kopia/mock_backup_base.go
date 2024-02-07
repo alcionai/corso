@@ -8,10 +8,10 @@ import (
 	"github.com/kopia/kopia/snapshot"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alcionai/corso/src/internal/model"
-	"github.com/alcionai/corso/src/pkg/backup"
-	"github.com/alcionai/corso/src/pkg/backup/identity"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/model"
+	"github.com/alcionai/canario/src/pkg/backup"
+	"github.com/alcionai/canario/src/pkg/backup/identity"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 func basesMatch(t *testing.T, expect, got []BackupBase, dataType string) {

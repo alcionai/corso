@@ -9,10 +9,10 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/pkg/control"
-	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/pkg/control"
+	"github.com/alcionai/canario/src/pkg/errs/core"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -225,13 +225,13 @@ func (c Drives) PutItemContent(
 }
 
 // deletes require unique http clients
-// https://github.com/alcionai/corso/issues/2707
+// https://github.com/alcionai/canario/issues/2707
 func (c Drives) DeleteItem(
 	ctx context.Context,
 	driveID, itemID string,
 ) error {
 	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
+	// https://github.com/alcionai/canario/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
 		return clues.WrapWC(ctx, err, "creating adapter to delete item permission")
@@ -292,7 +292,7 @@ func (c Drives) DeleteItemPermission(
 	driveID, itemID, permissionID string,
 ) error {
 	// deletes require unique http clients
-	// https://github.com/alcionai/corso/issues/2707
+	// https://github.com/alcionai/canario/issues/2707
 	srv, err := c.Service(c.counter)
 	if err != nil {
 		return clues.WrapWC(ctx, err, "creating adapter to delete item permission")

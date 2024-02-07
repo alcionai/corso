@@ -1,6 +1,6 @@
 package metadata
 
-import "github.com/alcionai/corso/src/pkg/path"
+import "github.com/alcionai/canario/src/pkg/path"
 
 const (
 	// DeltaURLsFileName is the name of the file containing delta token(s) for a

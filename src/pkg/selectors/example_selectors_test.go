@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/selectors"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/selectors"
 )
 
 // ExampleNewSelector demonstrates creation and distribution of a Selector.

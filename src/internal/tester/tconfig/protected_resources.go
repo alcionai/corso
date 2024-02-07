@@ -9,7 +9,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 // M365TenantID returns a tenantID string representing the azureTenantID described

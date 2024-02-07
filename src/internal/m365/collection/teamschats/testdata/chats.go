@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/common/ptr"
 )
 
 func StubChats(ids ...string) []models.Chatable {

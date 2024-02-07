@@ -3,7 +3,7 @@ package ptr
 import (
 	"time"
 
-	"github.com/alcionai/corso/src/pkg/dttm"
+	"github.com/alcionai/canario/src/pkg/dttm"
 )
 
 // ptr package is a common package used for pointer

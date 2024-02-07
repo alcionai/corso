@@ -1,7 +1,7 @@
 package stub
 
 import (
-	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/backup/details"
 )
 
 func ItemInfo() details.ItemInfo {

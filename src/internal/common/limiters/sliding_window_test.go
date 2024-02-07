@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/tester"
 )
 
 type SlidingWindowUnitTestSuite struct {

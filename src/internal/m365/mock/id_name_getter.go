@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
 )
 
 type IDNameGetter struct {

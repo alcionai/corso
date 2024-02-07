@@ -3,7 +3,7 @@ package storage
 import (
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/pkg/credentials"
+	"github.com/alcionai/canario/src/pkg/credentials"
 )
 
 type CommonConfig struct {

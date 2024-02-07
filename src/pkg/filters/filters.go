@@ -7,8 +7,8 @@ import (
 	"github.com/alcionai/clues"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/internal/common/pii"
-	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/canario/src/internal/common/pii"
+	"github.com/alcionai/canario/src/pkg/path"
 )
 
 type comparator string

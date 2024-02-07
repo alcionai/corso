@@ -5,11 +5,11 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/corso/src/internal/data"
-	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/store"
+	"github.com/alcionai/canario/src/internal/data"
+	bupMD "github.com/alcionai/canario/src/pkg/backup/metadata"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/store"
 )
 
 func DeserializeMetadataFiles(

@@ -3,8 +3,8 @@ package errs
 import (
 	"errors"
 
-	"github.com/alcionai/corso/src/pkg/errs/core"
-	"github.com/alcionai/corso/src/pkg/repository"
+	"github.com/alcionai/canario/src/pkg/errs/core"
+	"github.com/alcionai/canario/src/pkg/repository"
 )
 
 // map of enums to errors.  We might want to re-use an enum for multiple

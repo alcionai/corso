@@ -11,13 +11,13 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	"github.com/alcionai/corso/src/cli/print"
-	"github.com/alcionai/corso/src/pkg/logger"
+	"github.com/alcionai/canario/src/cli/print"
+	"github.com/alcionai/canario/src/pkg/logger"
 )
 
 // temporary hack identifier
-// see: https://github.com/alcionai/corso/pull/2510#discussion_r1113532530
-// TODO: https://github.com/alcionai/corso/issues/4003
+// see: https://github.com/alcionai/canario/pull/2510#discussion_r1113532530
+// TODO: https://github.com/alcionai/canario/issues/4003
 const LabelForceNoBackupCreation = "label_forces_no_backup_creations"
 
 type Bus struct {

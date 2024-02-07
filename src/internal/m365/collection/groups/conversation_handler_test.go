@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/m365/collection/groups/metadata"
-	"github.com/alcionai/corso/src/internal/tester"
-	deltaPath "github.com/alcionai/corso/src/pkg/backup/metadata"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/m365/collection/groups/metadata"
+	"github.com/alcionai/canario/src/internal/tester"
+	deltaPath "github.com/alcionai/canario/src/pkg/backup/metadata"
 )
 
 const (

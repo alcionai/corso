@@ -8,13 +8,13 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 
-	odmetadata "github.com/alcionai/corso/src/internal/m365/collection/drive/metadata"
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	m365Stub "github.com/alcionai/corso/src/internal/m365/stub"
-	"github.com/alcionai/corso/src/internal/version"
-	"github.com/alcionai/corso/src/pkg/backup/details"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph/metadata"
+	odmetadata "github.com/alcionai/canario/src/internal/m365/collection/drive/metadata"
+	odConsts "github.com/alcionai/canario/src/internal/m365/service/onedrive/consts"
+	m365Stub "github.com/alcionai/canario/src/internal/m365/stub"
+	"github.com/alcionai/canario/src/internal/version"
+	"github.com/alcionai/canario/src/pkg/backup/details"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph/metadata"
 )
 
 // For any version post this(inclusive), we expect to be using IDs for

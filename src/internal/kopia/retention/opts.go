@@ -9,7 +9,7 @@ import (
 	"github.com/kopia/kopia/repo/format"
 	"github.com/kopia/kopia/repo/maintenance"
 
-	"github.com/alcionai/corso/src/pkg/control/repository"
+	"github.com/alcionai/canario/src/pkg/control/repository"
 )
 
 type Opts struct {

@@ -8,19 +8,19 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/pkg/errors"
 
-	"github.com/alcionai/corso/src/internal/common/prefixmatcher"
-	"github.com/alcionai/corso/src/internal/common/ptr"
-	"github.com/alcionai/corso/src/internal/data"
-	odConsts "github.com/alcionai/corso/src/internal/m365/service/onedrive/consts"
-	bupMD "github.com/alcionai/corso/src/pkg/backup/metadata"
-	"github.com/alcionai/corso/src/pkg/count"
-	"github.com/alcionai/corso/src/pkg/fault"
-	"github.com/alcionai/corso/src/pkg/logger"
-	"github.com/alcionai/corso/src/pkg/path"
-	"github.com/alcionai/corso/src/pkg/services/m365/api"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
-	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
-	"github.com/alcionai/corso/src/pkg/services/m365/custom"
+	"github.com/alcionai/canario/src/internal/common/prefixmatcher"
+	"github.com/alcionai/canario/src/internal/common/ptr"
+	"github.com/alcionai/canario/src/internal/data"
+	odConsts "github.com/alcionai/canario/src/internal/m365/service/onedrive/consts"
+	bupMD "github.com/alcionai/canario/src/pkg/backup/metadata"
+	"github.com/alcionai/canario/src/pkg/count"
+	"github.com/alcionai/canario/src/pkg/fault"
+	"github.com/alcionai/canario/src/pkg/logger"
+	"github.com/alcionai/canario/src/pkg/path"
+	"github.com/alcionai/canario/src/pkg/services/m365/api"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
+	"github.com/alcionai/canario/src/pkg/services/m365/api/pagers"
+	"github.com/alcionai/canario/src/pkg/services/m365/custom"
 )
 
 // ---------------------------------------------------------------------------
@@ -29,7 +29,7 @@ import (
 
 // this file is used to separate the collections handling between the previous
 // (list-based) design, and the in-progress (tree-based) redesign.
-// see: https://github.com/alcionai/corso/issues/4688
+// see: https://github.com/alcionai/canario/issues/4688
 
 func (c *Collections) getTree(
 	ctx context.Context,

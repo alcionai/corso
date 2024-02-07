@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/corso/src/internal/common/pii"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/canario/src/internal/common/pii"
+	"github.com/alcionai/canario/src/internal/tester"
 )
 
 type PIIUnitSuite struct {

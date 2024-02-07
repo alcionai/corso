@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alcionai/corso/src/cli/flags"
-	"github.com/alcionai/corso/src/internal/tester"
+	"github.com/alcionai/canario/src/cli/flags"
+	"github.com/alcionai/canario/src/internal/tester"
 )
 
 // StubRootCmd builds a stub cobra command to be used as
