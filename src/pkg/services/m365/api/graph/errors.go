@@ -50,6 +50,10 @@ const (
 	// are mailbox creation racing with email receipt or a similar issue triggered
 	// due to on-prem->M365 mailbox migration.
 	ErrorInvalidRecipients errorCode = "ErrorInvalidRecipients"
+	// We have seen this graph error with a 500 response while backing up email
+	// messages. It implies that the email message is corrupt and cannot be read.
+	// Associated error message goes like "Data is corrupt.,Invalid global object ID:"
+	ErrorCorruptData errorCode = "ErrorCorruptData"
 	// This error occurs when an attempt is made to create a folder that has
 	// the same name as another folder in the same parent. Such duplicate folder
 	// names are not allowed by graph.
@@ -247,6 +251,10 @@ func IsErrExchangeMailFolderNotFound(err error) bool {
 
 func IsErrInvalidRecipients(err error) bool {
 	return parseODataErr(err).hasErrorCode(err, ErrorInvalidRecipients)
+}
+
+func IsErrCorruptData(err error) bool {
+	return parseODataErr(err).hasErrorCode(err, ErrorCorruptData)
 }
 
 func IsErrCannotOpenFileAttachment(err error) bool {

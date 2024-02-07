@@ -10,3 +10,6 @@ var EmailWithEventInfo string
 
 //go:embed email-with-event-object.json
 var EmailWithEventObject string
+
+//go:embed email-within-email.json
+var EmailWithinEmail string
