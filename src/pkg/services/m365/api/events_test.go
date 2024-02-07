@@ -241,27 +241,30 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	userID := tconfig.M365UserID(suite.T())
+	var (
+		evts       = suite.its.ac.Events()
+		userID     = suite.its.user.id
+		folderName = testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
+		tomorrow   = time.Now().Add(24 * time.Hour)
+		item       models.Eventable
+		start      = models.NewDateTimeTimeZone()
+		end        = models.NewDateTimeTimeZone()
+	)
 
-	folderName := testdata.DefaultRestoreConfig("eventlargeattachmenttest").Location
-	evts := suite.its.ac.Events()
 	calendar, err := evts.CreateContainer(ctx, userID, "", folderName)
 	require.NoError(t, err, clues.ToCore(err))
 
-	tomorrow := time.Now().Add(24 * time.Hour)
-	evt := models.NewEvent()
-	sdtz := models.NewDateTimeTimeZone()
-	edtz := models.NewDateTimeTimeZone()
+	start.SetDateTime(ptr.To(dttm.Format(tomorrow)))
+	start.SetTimeZone(ptr.To("UTC"))
+	end.SetDateTime(ptr.To(dttm.Format(tomorrow.Add(30 * time.Minute))))
+	end.SetTimeZone(ptr.To("UTC"))
 
-	evt.SetSubject(ptr.To("Event with attachment"))
-	sdtz.SetDateTime(ptr.To(dttm.Format(tomorrow)))
-	sdtz.SetTimeZone(ptr.To("UTC"))
-	edtz.SetDateTime(ptr.To(dttm.Format(tomorrow.Add(30 * time.Minute))))
-	edtz.SetTimeZone(ptr.To("UTC"))
-	evt.SetStart(sdtz)
-	evt.SetEnd(edtz)
+	item = models.NewEvent()
+	item.SetSubject(ptr.To("Event with attachment"))
+	item.SetStart(start)
+	item.SetEnd(end)
 
-	item, err := evts.PostItem(ctx, userID, ptr.Val(calendar.GetId()), evt)
+	item, err = evts.PostItem(ctx, userID, ptr.Val(calendar.GetId()), item)
 	require.NoError(t, err, clues.ToCore(err))
 
 	id, err := evts.PostLargeAttachment(
@@ -269,10 +272,10 @@ func (suite *EventsAPIIntgSuite) TestEvents_RestoreLargeAttachment() {
 		userID,
 		ptr.Val(calendar.GetId()),
 		ptr.Val(item.GetId()),
-		"raboganm",
+		"rabognam",
 		[]byte("mangobar"))
 	require.NoError(t, err, clues.ToCore(err))
-	require.NotEmpty(t, id, "empty id for large attachment")
+	require.NotEmpty(t, id, "attachment should have an id after uploading")
 }
 
 func (suite *EventsAPIIntgSuite) TestEvents_canFindNonStandardFolder() {
