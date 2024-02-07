@@ -143,6 +143,105 @@ func getICalData(ctx context.Context, data models.Messageable) (string, error) {
 	return ics.FromEventable(ctx, event)
 }
 
+func getFileAttachment(ctx context.Context, attachment models.Attachmentable) (*mail.File, error) {
+	kind := ptr.Val(attachment.GetContentType())
+
+	bytes, err := attachment.GetBackingStore().Get("contentBytes")
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "failed to get attachment bytes").
+			With("kind", kind)
+	}
+
+	if bytes == nil {
+		// TODO(meain): Handle non file attachments
+		// https://github.com/alcionai/corso/issues/4772
+		logger.Ctx(ctx).
+			With("attachment_id", ptr.Val(attachment.GetId()),
+				"attachment_type", ptr.Val(attachment.GetOdataType())).
+			Info("no contentBytes for attachment")
+
+		return nil, nil
+	}
+
+	bts, ok := bytes.([]byte)
+	if !ok {
+		return nil, clues.WrapWC(ctx, err, "invalid content bytes").
+			With("kind", kind).
+			With("interface_type", fmt.Sprintf("%T", bytes))
+	}
+
+	name := ptr.Val(attachment.GetName())
+
+	contentID, err := attachment.GetBackingStore().Get("contentId")
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "getting content id for attachment").
+			With("kind", kind)
+	}
+
+	if contentID != nil {
+		cids, _ := str.AnyToString(contentID)
+		if len(cids) > 0 {
+			name = cids
+		}
+	}
+
+	return &mail.File{
+		// cannot use filename as inline attachment will not get mapped properly
+		Name:     name,
+		MimeType: kind,
+		Data:     bts,
+		Inline:   ptr.Val(attachment.GetIsInline()),
+	}, nil
+}
+
+func getItemAttachment(ctx context.Context, attachment models.Attachmentable) (*mail.File, error) {
+	it, err := attachment.GetBackingStore().Get("item")
+	if err != nil {
+		return nil, clues.WrapWC(ctx, err, "getting item for attachment").
+			With("attachment_id", ptr.Val(attachment.GetId()))
+	}
+
+	switch it := it.(type) {
+	case *models.Message:
+		cb, err := FromMessageable(ctx, it)
+		if err != nil {
+			return nil, clues.WrapWC(ctx, err, "converting item attachment to eml").
+				With("attachment_id", ptr.Val(attachment.GetId()))
+		}
+
+		return &mail.File{
+			Name:     ptr.Val(attachment.GetName()),
+			MimeType: "message/rfc822",
+			Data:     []byte(cb),
+		}, nil
+	default:
+		logger.Ctx(ctx).
+			With("attachment_id", ptr.Val(attachment.GetId()),
+				"attachment_type", ptr.Val(attachment.GetOdataType())).
+			Info("unknown item attachment type")
+	}
+
+	return nil, nil
+}
+
+func getMailAttachment(ctx context.Context, att models.Attachmentable) (*mail.File, error) {
+	otyp := ptr.Val(att.GetOdataType())
+
+	switch otyp {
+	case "#microsoft.graph.fileAttachment":
+		return getFileAttachment(ctx, att)
+	case "#microsoft.graph.itemAttachment":
+		return getItemAttachment(ctx, att)
+	default:
+		logger.Ctx(ctx).
+			With("attachment_id", ptr.Val(att.GetId()),
+				"attachment_type", otyp).
+			Info("unknown attachment type")
+
+		return nil, nil
+	}
+}
+
 // FromJSON converts a Messageable (as json) to .eml format
 func FromJSON(ctx context.Context, body []byte) (string, error) {
 	ctx = clues.Add(ctx, "body_len", len(body))
@@ -152,6 +251,11 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		return "", clues.WrapWC(ctx, err, "converting to messageble")
 	}
 
+	return FromMessageable(ctx, data)
+}
+
+// Converts a Messageable to .eml format
+func FromMessageable(ctx context.Context, data models.Messageable) (string, error) {
 	ctx = clues.Add(ctx, "item_id", ptr.Val(data.GetId()))
 
 	email := mail.NewMSG()
@@ -229,54 +333,16 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 
 	if data.GetAttachments() != nil {
 		for _, attachment := range data.GetAttachments() {
-			kind := ptr.Val(attachment.GetContentType())
-
-			bytes, err := attachment.GetBackingStore().Get("contentBytes")
+			att, err := getMailAttachment(ctx, attachment)
 			if err != nil {
-				return "", clues.WrapWC(ctx, err, "failed to get attachment bytes").
-					With("kind", kind)
+				return "", clues.WrapWC(ctx, err, "getting mail attachment")
 			}
 
-			if bytes == nil {
-				// TODO(meain): Handle non file attachments
-				// https://github.com/alcionai/corso/issues/4772
-				logger.Ctx(ctx).
-					With("attachment_id", ptr.Val(attachment.GetId()),
-						"attachment_type", ptr.Val(attachment.GetOdataType())).
-					Info("no contentBytes for attachment")
-
-				continue
+			// There are known cases where we just wanna log and
+			// ignore instead of erroring out
+			if att != nil {
+				email.Attach(att)
 			}
-
-			bts, ok := bytes.([]byte)
-			if !ok {
-				return "", clues.WrapWC(ctx, err, "invalid content bytes").
-					With("kind", kind).
-					With("interface_type", fmt.Sprintf("%T", bytes))
-			}
-
-			name := ptr.Val(attachment.GetName())
-
-			contentID, err := attachment.GetBackingStore().Get("contentId")
-			if err != nil {
-				return "", clues.WrapWC(ctx, err, "getting content id for attachment").
-					With("kind", kind)
-			}
-
-			if contentID != nil {
-				cids, _ := str.AnyToString(contentID)
-				if len(cids) > 0 {
-					name = cids
-				}
-			}
-
-			email.Attach(&mail.File{
-				// cannot use filename as inline attachment will not get mapped properly
-				Name:     name,
-				MimeType: kind,
-				Data:     bts,
-				Inline:   ptr.Val(attachment.GetIsInline()),
-			})
 		}
 	}
 
@@ -298,7 +364,7 @@ func FromJSON(ctx context.Context, body []byte) (string, error) {
 		}
 	}
 
-	if err = email.GetError(); err != nil {
+	if err := email.GetError(); err != nil {
 		return "", clues.WrapWC(ctx, err, "converting to eml")
 	}
 
