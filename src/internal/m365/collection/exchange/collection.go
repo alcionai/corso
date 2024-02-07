@@ -300,6 +300,19 @@ func (col *prefetchCollection) streamItems(
 						id,
 						map[string]any{"parentPath": parentPath}))
 					atomic.AddInt64(&success, 1)
+				case graph.IsErrCorruptData(err):
+					// These items cannot be downloaded, graph error indicates that the item
+					// data is corrupted. Add to skipped list.
+					logger.
+						CtxErr(ctx, err).
+						With("skipped_reason", fault.SkipCorruptData).
+						Info("inaccessible email")
+					errs.AddSkip(ctx, fault.EmailSkip(
+						fault.SkipCorruptData,
+						user,
+						id,
+						map[string]any{"parentPath": parentPath}))
+					atomic.AddInt64(&success, 1)
 				default:
 					col.Counter.Inc(count.StreamItemsErred)
 					el.AddRecoverable(ctx, clues.Wrap(err, "fetching item").Label(fault.LabelForceNoBackupCreation))

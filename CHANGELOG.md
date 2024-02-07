@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (beta)
 
+### Fixed
+- Handle the case where an email or event cannot be retrieved from Exchange due to an `ErrorCorruptData` error. Corso will skip over the item but report it in the backup summary.
+
 ## [v0.19.0] (beta) - 2024-02-06
 
 ### Added
