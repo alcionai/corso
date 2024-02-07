@@ -41,7 +41,7 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    uses: alcionai/canario/.github/workflows/accSelector.yaml@main
 
   # ----------------------------------------------------------------------------------------------------
   # --- Nightly Testing -------------------------------------------------------------------

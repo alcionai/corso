@@ -1,6 +1,6 @@
 name: Build/Release Corso
 env:
-  IMAGE_NAME: ghcr.io/alcionai/corso
+  IMAGE_NAME: ghcr.io/alcionai/canario
 on:
   workflow_dispatch:
 
@@ -30,7 +30,7 @@ jobs:
   # --- Prechecks and Checkouts ------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
   Precheck:
-    uses: alcionai/corso/.github/workflows/_filechange_checker.yml@main
+    uses: alcionai/canario/.github/workflows/_filechange_checker.yml@main
 
   Checkout:
     needs: [Precheck]
@@ -52,7 +52,7 @@ jobs:
 
   # SetM365App will decide which M365 app to use for this CI run
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    uses: alcionai/canario/.github/workflows/accSelector.yaml@main
 
   SetEnv:
     environment: Testing
@@ -571,6 +571,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Publish Binary
+        # canario should never publish
+        if: false
         uses: ./.github/actions/publish-binary
         with:
           version: ${{ needs.SetEnv.outputs.version }}
@@ -582,7 +584,9 @@ jobs:
     needs: [Test-Suite-Trusted, Source-Code-Linting, Website-Linting, SetEnv]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     defaults:
       run:
         working-directory: build
@@ -635,7 +639,9 @@ jobs:
     needs: [Publish-Binary, Publish-Image, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     env:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
@@ -665,7 +671,9 @@ jobs:
     needs: [Publish-Binary, Publish-Image, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     env:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
@@ -687,7 +695,9 @@ jobs:
     needs: [Publish-Binary, Publish-Image, SetEnv]
     environment: Testing
     runs-on: macos-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     env:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
@@ -709,7 +719,9 @@ jobs:
     needs: [Publish-Binary, Publish-Image, SetEnv]
     environment: Testing
     runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     env:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:
@@ -730,6 +742,8 @@ jobs:
       - uses: actions/checkout@v4 # need to checkout to make the action available
 
       - name: Publish website
+        # canario should never publish
+        if: false
         uses: ./.github/actions/publish-website
         with:
           aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
@@ -740,12 +754,16 @@ jobs:
     needs: [SetEnv, Validate-Linux-Artifacts, Validate-MacOS-Artifacts, Validate-Docker-Artifacts, Validate-Windows-Artifacts]
     environment: ${{ needs.SetEnv.outputs.environment }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - uses: actions/checkout@v4 # need to checkout to make the action available
 
       - name: Publish website
+        # canario should never publish
+        if: false
         uses: ./.github/actions/publish-website
         with:
           aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}
@@ -756,7 +774,9 @@ jobs:
     needs: [Publish-Website-Prod, SetEnv]
     environment: Testing
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # canario should never publish
+    if: false
+    # if: startsWith(github.ref, 'refs/tags/')
     env:
       CORSO_VERSION: ${{ needs.SetEnv.outputs.version }}
     steps:

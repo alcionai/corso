@@ -28,9 +28,9 @@ import (
 // ------------------------------------------------------------------------------------------
 
 // The root-level command.
-// `corso <command> [<subcommand>] [<service>] [<flag>...]`
-var corsoCmd = &cobra.Command{
-	Use:               "corso",
+// `canario <command> [<subcommand>] [<service>] [<flag>...]`
+var canarioCmd = &cobra.Command{
+	Use:               "canario",
 	Short:             "Free, Secure, Open-Source Backup for M365.",
 	Long:              `Free, Secure, and Open-Source Backup for Microsoft 365.`,
 	RunE:              handleCorsoCmd,
@@ -54,7 +54,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	avoidTheseCommands := []string{
-		"corso", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
+		"canario", "env", "help", "backup", "details", "list", "restore", "export", "delete", "repo", "init", "connect",
 	}
 
 	if len(logger.ResolvedLogFile) > 0 && !slices.Contains(avoidTheseCommands, cc.Use) {
@@ -62,7 +62,7 @@ func preRun(cc *cobra.Command, args []string) error {
 	}
 
 	// handle deprecated user flag in Backup exchange command
-	if cc.CommandPath() == "corso backup create exchange" {
+	if cc.CommandPath() == "canario backup create exchange" {
 		handleMailBoxFlag(ctx, cc, flagSl)
 	}
 
@@ -83,8 +83,8 @@ func handleMailBoxFlag(ctx context.Context, c *cobra.Command, flagNames []string
 	}
 }
 
-// Handler for flat calls to `corso`.
-// Produces the same output as `corso --help`.
+// Handler for flat calls to `canario`.
+// Produces the same output as `canario --help`.
 func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 	v, _ := cmd.Flags().GetBool("version")
 	if v {
@@ -99,7 +99,7 @@ func handleCorsoCmd(cmd *cobra.Command, args []string) error {
 // The command tree is built and attached to the returned command.
 func CorsoCommand() *cobra.Command {
 	c := &cobra.Command{}
-	*c = *corsoCmd
+	*c = *canarioCmd
 	BuildCommandTree(c)
 
 	return c
@@ -118,7 +118,7 @@ func BuildCommandTree(cmd *cobra.Command) {
 	observe.AddProgressBarFlags(cmd)
 	print.AddOutputFlag(cmd)
 	flags.AddGlobalOperationFlags(cmd)
-	cmd.SetUsageTemplate(indentExamplesTemplate(corsoCmd.UsageTemplate()))
+	cmd.SetUsageTemplate(indentExamplesTemplate(canarioCmd.UsageTemplate()))
 
 	cmd.CompletionOptions.DisableDefaultCmd = true
 
@@ -139,10 +139,10 @@ func Handle() {
 	//nolint:forbidigo
 	ctx := config.Seed(context.Background())
 	ctx, log := logger.Seed(ctx, logger.PreloadLoggingFlags(os.Args[1:]))
-	ctx = print.SetRootCmd(ctx, corsoCmd)
+	ctx = print.SetRootCmd(ctx, canarioCmd)
 	ctx = observe.SeedObserver(ctx, print.StderrWriter(ctx), observe.PreloadFlags())
 
-	BuildCommandTree(corsoCmd)
+	BuildCommandTree(canarioCmd)
 
 	defer func() {
 		observe.Flush(ctx) // flush the progress bars
@@ -150,7 +150,7 @@ func Handle() {
 		_ = log.Sync() // flush all logs in the buffer
 	}()
 
-	if err := corsoCmd.ExecuteContext(ctx); err != nil {
+	if err := canarioCmd.ExecuteContext(ctx); err != nil {
 		logger.CtxErr(ctx, err).Error("cli execution")
 		os.Exit(1)
 	}

@@ -1,5 +1,5 @@
 dist/
-corso
+canario
 
 # Test binary, built with `go test -c`
 *.test
@@ -14,8 +14,8 @@ testlog/
 *.swp
 
 # Standard configuration file names
-.corso_test.toml
-.corso.toml
+.canario_test.toml
+.canario.toml
 
 # Logging
 *.log

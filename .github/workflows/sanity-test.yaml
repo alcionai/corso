@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    uses: alcionai/canario/.github/workflows/accSelector.yaml@main
 
   Sanity-Tests:
     needs: [ SetM365App ]
@@ -56,7 +56,7 @@ jobs:
         with:
           go-version-file: src/go.mod
 
-      - run: go build -o corso
+      - run: go build -o canario
         timeout-minutes: 10
 
       - run: go build -o sanity-test ./cmd/sanity_test
@@ -114,7 +114,7 @@ jobs:
       - name: Version Test
         timeout-minutes: 10
         run: |
-          ./corso --version | grep -c 'Corso version:'
+          ./canario --version | grep -c 'Corso version:'
 
       - name: Repo init test
         timeout-minutes: 10
@@ -123,7 +123,7 @@ jobs:
           set -euo pipefail
           prefix=$(date +"%Y-%m-%d-%T")
           echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
-          ./corso repo init s3 \
+          ./canario repo init s3 \
             --no-stats \
             --hide-progress \
             --prefix $prefix \
@@ -143,7 +143,7 @@ jobs:
         run: |
           set -euo pipefail
           echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
-          ./corso repo connect s3 \
+          ./canario repo connect s3 \
             --no-stats \
             --hide-progress \
             --prefix ${{ steps.repo-init.outputs.result }} \
@@ -163,7 +163,7 @@ jobs:
         run: |
           set -euo pipefail
           echo -e "\nRepo maintenance test\n" >> ${{ env.CORSO_LOG_FILE }}
-          ./corso repo maintenance \
+          ./canario repo maintenance \
             --no-stats \
             --hide-progress \
             --mode complete \

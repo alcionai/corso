@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	corsoWrapperAlertNamespace = "corso-kopia-wrapper"
+	corsoWrapperAlertNamespace = "canario-kopia-wrapper"
 
 	defaultKopiaConfigDir   = "/tmp/"
 	kopiaConfigFileTemplate = "repository-%s.config"

@@ -9,7 +9,7 @@ BAD_LINT_MSG := "Missing golangci-lint version $(WANTED_LINT_VERSION). Visit $(I
 .PHONY: check-lint check-lint-version lint load-test
 
 build:
-	go build -o corso
+	go build -o canario
 
 lint: check-lint-version
 	golangci-lint run

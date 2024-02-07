@@ -49,6 +49,8 @@ jobs:
 
   Publish-Website:
     needs: [Website-Linting]
+    # canario should never publish
+    if: false
     environment: Production
     runs-on: ubuntu-latest
     defaults:
@@ -59,6 +61,8 @@ jobs:
       - uses: actions/checkout@v4 # need to checkout to make the action available
 
       - name: Publish website
+        # canario should never publish
+        if: false
         uses: ./.github/actions/publish-website
         with:
           aws-iam-role: ${{ secrets.AWS_IAM_ROLE }}

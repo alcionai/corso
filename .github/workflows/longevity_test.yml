@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   SetM365App:
-    uses: alcionai/corso/.github/workflows/accSelector.yaml@main
+    uses: alcionai/canario/.github/workflows/accSelector.yaml@main
 
   Longevity-Tests:
     needs: [ SetM365App ]
@@ -76,7 +76,8 @@ jobs:
           git checkout ${{ steps.version.outputs.version }}
           git checkout ${{ github.ref }} -- .github
 
-      - run: go build -o corso
+      - run: 
+      
         timeout-minutes: 10
       
       - run: mkdir ${CORSO_LOG_DIR}
@@ -97,7 +98,7 @@ jobs:
       - name: Version Test
         timeout-minutes: 10
         run: |
-          ./corso --version | grep -c 'Corso version:'
+          ./canario --version | grep -c 'Corso version:'
 
       - name: Repo init test
         id: repo-init
@@ -105,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           echo -e "\nRepo init test\n" >> ${{ env.CORSO_LOG_FILE }}
-          ./corso repo init s3 \
+          ./canario repo init s3 \
             --no-stats \
             --hide-progress \
             --retention-mode $(echo "${{ env.RETENTION_MODE }}" | tr '[:upper:]' '[:lower:]') \
@@ -127,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           echo -e "\nRepo connect test\n" >> ${{ env.CORSO_LOG_FILE }}
-          ./corso repo connect s3 \
+          ./canario repo connect s3 \
             --no-stats \
             --hide-progress \
             --prefix ${{ env.PREFIX }} \
@@ -148,7 +149,7 @@ jobs:
         timeout-minutes: 30
         run: |
           echo -e "\nBackup Exchange test\n" >> ${CORSO_LOG_FILE}
-          ./corso backup create exchange \
+          ./canario backup create exchange \
           --no-stats \
           --mailbox "${TEST_USER}" \
           --hide-progress \
@@ -174,7 +175,7 @@ jobs:
         run: |
           set -euo pipefail
           echo -e "\nBackup OneDrive test\n" >> ${CORSO_LOG_FILE}
-          ./corso backup create onedrive \
+          ./canario backup create onedrive \
           --no-stats \
           --hide-progress \
           --user "${TEST_USER}" \
@@ -200,7 +201,7 @@ jobs:
           set -euo pipefail
           echo -e "\nBackup SharePoint test\n" >> ${CORSO_LOG_FILE}
 
-          ./corso backup create sharepoint \
+          ./canario backup create sharepoint \
           --no-stats \
           --hide-progress \
           --site "${{ vars.CORSO_M365_TEST_SITE_URL }}" \
@@ -265,9 +266,9 @@ jobs:
           echo -e "\Export OneDrive test\n" >> ${CORSO_LOG_FILE}
 
           echo -e "\Export OneDrive test - first entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+          ./canario backup list onedrive 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
               while read -r line; do
-                  ./corso export onedrive \
+                  ./canario export onedrive \
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
@@ -275,9 +276,9 @@ jobs:
               done
 
           echo -e "\Export OneDrive test - last entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
+          ./canario backup list onedrive 2>/dev/null | tail -n1 | awk '{print $1}' |
               while read -r line; do
-                  ./corso export onedrive \
+                  ./canario export onedrive \
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
@@ -293,9 +294,9 @@ jobs:
           echo -e "\Export SharePoint test\n" >> ${CORSO_LOG_FILE}
 
           echo -e "\Export SharePoint test - first entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
+          ./canario backup list sharepoint 2>/dev/null | tail -n+2 | head -n1 | awk '{print $1}' |
               while read -r line; do
-                  ./corso export sharepoint \
+                  ./canario export sharepoint \
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
@@ -303,9 +304,9 @@ jobs:
               done
 
           echo -e "\Export SharePoint test - last entry\n" >> ${CORSO_LOG_FILE}
-          ./corso backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
+          ./canario backup list sharepoint 2>/dev/null | tail -n1 | awk '{print $1}' |
               while read -r line; do
-                  ./corso export sharepoint \
+                  ./canario export sharepoint \
                     "/tmp/corso-export--$line" \
                     --no-stats \
                     --backup "$line" \
@@ -324,7 +325,7 @@ jobs:
           # Run with the force flag so it doesn't fail if the github runner
           # hostname isn't what's expected. This is only safe because we can
           # guarantee only one runner will be executing maintenance at a time.
-          ./corso repo  maintenance --mode metadata \
+          ./canario repo  maintenance --mode metadata \
           --no-stats \
           --hide-progress \
           --force \
@@ -339,7 +340,7 @@ jobs:
             set -euo pipefail
             echo -e "\n Maintenance test Weekly\n" >> ${CORSO_LOG_FILE}
 
-            ./corso repo  maintenance --mode complete \
+            ./canario repo  maintenance --mode complete \
             --no-stats \
             --hide-progress \
             --force \

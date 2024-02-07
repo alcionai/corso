@@ -30,7 +30,7 @@ Darwin) GOOS="darwin" ;;
 esac
 
 PLATFORMS="$GOOS/$GOARCH" # default platform
-TAG="alcionai/corso"      # default image tag
+TAG="alcionai/canario"      # default image tag
 
 MODE="binary"
 case "$1" in
@@ -68,13 +68,13 @@ if [ "$MODE" == "binary" ]; then
 			--env GOOS=${GOOS} --env GOARCH=${GOARCH} \
 			--workdir "/app/src" \
 			golang:${GOVER} \
-			go build -o corso -ldflags "${CORSO_BUILD_LDFLAGS}"
+			go build -o canario -ldflags "${CORSO_BUILD_LDFLAGS}"
 
-		OUTFILE="corso"
-		[ "$GOOS" == "windows" ] && OUTFILE="corso.exe"
+		OUTFILE="canario"
+		[ "$GOOS" == "windows" ] && OUTFILE="canario.exe"
 
 		mkdir -p "${ROOT}/bin/${GOOS}-${GOARCH}"
-		mv "${ROOT}/src/corso" "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
+		mv "${ROOT}/src/canario" "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
 		echo Corso $platform binary available in "${ROOT}/bin/${GOOS}-${GOARCH}/${OUTFILE}"
 	done
 else

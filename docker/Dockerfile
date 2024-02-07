@@ -17,13 +17,13 @@ COPY ./src .
 FROM base AS build
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /corso .
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /canario .
 
 ## Deploy
 FROM ubuntu:22.10
 
-COPY --from=build /corso /
+COPY --from=build /canario /
 
 USER nobody
 
-ENTRYPOINT ["/corso"]
+ENTRYPOINT ["/canario"]

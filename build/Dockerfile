@@ -4,21 +4,21 @@ WORKDIR /go/src/app
 COPY src .
 
 ARG CORSO_BUILD_LDFLAGS=""
-RUN go build -o corso -ldflags "$CORSO_BUILD_LDFLAGS"
+RUN go build -o canario -ldflags "$CORSO_BUILD_LDFLAGS"
 
 FROM alpine:3
 
-LABEL org.opencontainers.image.title="Corso"
+LABEL org.opencontainers.image.title="Canario"
 LABEL org.opencontainers.image.description="Free, Secure, and Open-Source Backup for Microsoft 365"
 LABEL org.opencontainers.image.url="https://github.com/alcionai/canario"
 LABEL org.opencontainers.image.source="https://github.com/alcionai/canario"
 LABEL org.opencontainers.image.vendor="Alcion, Inc."
 
-COPY --from=builder /go/src/app/corso /corso
+COPY --from=builder /go/src/app/canario /canario
 
 RUN apk add --no-cache ca-certificates
 
-ENV CORSO_HOME=/app/corso
+ENV CORSO_HOME=/app/canario
 ENV CORSO_CONFIG_DIR=$CORSO_HOME \
 	KOPIA_CONFIG_PATH=$CORSO_HOME/kopia/config/repository.config \
 	KOPIA_LOG_DIR=$CORSO_HOME/kopia/logs \
@@ -26,4 +26,4 @@ ENV CORSO_CONFIG_DIR=$CORSO_HOME \
 	KOPIA_PERSIST_CREDENTIALS_ON_CONNECT=false \
 	KOPIA_CHECK_FOR_UPDATES=false
 
-ENTRYPOINT ["/corso"]
+ENTRYPOINT ["/canario"]

@@ -9,7 +9,7 @@ if you have Go installed on your system.
 
 ```bash
 # run from within `./src`
-go build -o corso 
+go build -o canario 
 ```
 
 :::info

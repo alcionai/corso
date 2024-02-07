@@ -59,7 +59,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-backup-${{inputs.kind }}.log
-        ./corso backup create '${{ inputs.service }}' \
+        ./canario backup create '${{ inputs.service }}' \
             --no-stats --hide-progress --json \
             ${{ inputs.backup-args }} |
             tee /dev/stderr | # for printing logs
@@ -80,7 +80,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
-        ./corso restore '${{ inputs.service }}' \
+        ./canario restore '${{ inputs.service }}' \
             --no-stats \
             --hide-progress \
             --collisions ${{ inputs.on-collision }} \
@@ -128,7 +128,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
-        ./corso export '${{ inputs.service }}' \
+        ./canario export '${{ inputs.service }}' \
             /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }} \
             --no-stats \
             --hide-progress \
@@ -170,7 +170,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-${{ inputs.service }}${CATEGORY_SUFFIX}-restore-${{inputs.kind }}.log
-        ./corso export '${{ inputs.service }}' \
+        ./canario export '${{ inputs.service }}' \
             /tmp/export-${{ inputs.service }}${CATEGORY_SUFFIX}-${{inputs.kind }}-archive \
             --no-stats \
             --hide-progress \
@@ -213,7 +213,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-${{ inputs.service }}${CATEGORY_SUFFIX}-list-${{inputs.kind }}.log
-        ./corso backup list ${{ inputs.service }} \
+        ./canario backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
           2>&1 |
@@ -237,7 +237,7 @@ runs:
         CATEGORY_SUFFIX=""
         [[ -n "${{ inputs.category }}" ]] && CATEGORY_SUFFIX="-${{ inputs.category }}"
         CORSO_LOG_FILE=${{ inputs.log-dir }}/gotest-backup-list-${{ inputs.service }}${CATEGORY_SUFFIX}-single-${{inputs.kind }}.log
-        ./corso backup list ${{ inputs.service }} \
+        ./canario backup list ${{ inputs.service }} \
           --no-stats \
           --hide-progress \
           --backup "${{ steps.backup.outputs.result }}" \

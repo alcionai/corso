@@ -22,7 +22,7 @@ import (
 func StubRootCmd(args ...string) *cobra.Command {
 	id := uuid.NewString()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	cmdArg := "testing-corso"
+	cmdArg := "testing-canario"
 	c := &cobra.Command{
 		Use:   cmdArg,
 		Short: id,
