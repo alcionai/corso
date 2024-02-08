@@ -201,11 +201,28 @@ func (c Events) NewEventsDeltaPager(
 	userID, containerID, prevDeltaLink string,
 	selectProps ...string,
 ) pagers.DeltaHandler[models.Eventable] {
+	return c.newEventsDeltaPagerWithPageSize(
+		ctx,
+		userID,
+		containerID,
+		prevDeltaLink,
+		c.options.DeltaPageSize,
+		selectProps...)
+}
+
+func (c Events) newEventsDeltaPagerWithPageSize(
+	ctx context.Context,
+	userID string,
+	containerID string,
+	prevDeltaLink string,
+	pageSize int32,
+	selectProps ...string,
+) pagers.DeltaHandler[models.Eventable] {
 	options := &users.ItemCalendarsItemEventsDeltaRequestBuilderGetRequestConfiguration{
 		// do NOT set Top.  It limits the total items received.
 		QueryParameters: &users.ItemCalendarsItemEventsDeltaRequestBuilderGetQueryParameters{},
 		Headers: newPreferHeaders(
-			preferPageSize(c.options.DeltaPageSize),
+			preferPageSize(pageSize),
 			preferImmutableIDs(c.options.ToggleFeatures.ExchangeImmutableIDs)),
 	}
 
