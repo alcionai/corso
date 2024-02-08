@@ -23,7 +23,7 @@ runs:
       uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: ${{ inputs.aws-iam-role }}
-        role-session-name: integration-testing
+        role-session-name: canario-integration-testing
         aws-region: us-east-1
 
     - name: Add rotbots.txt

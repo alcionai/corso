@@ -1,13 +1,23 @@
 name: CI Test Cleanup
 on:
-  workflow_dispatch:
-  schedule:
-    # every half hour
-    - cron: "*/30 * * * *"
+  # neither of the jobs are currently running (corso already runs them),
+  # so this action is turned off until we decide it's needed.
+  # workflow_dispatch:
+  #   schedule:
+  #   every half hour
+  #   - cron: "*/30 * * * *"
+  # 
+  push:
+    branches:
+      does-not-exist-this-forces-the-action-to-not-run
 
 jobs:
   Test-User-Data-Cleanup:
     environment: Testing
+    # forced off - this is already running in corso
+    # we may need to turn this back on if we elect different
+    # test users compared to the corso repo
+    if: false
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -43,6 +53,10 @@ jobs:
 
   Test-Site-Data-Cleanup:
     environment: Testing
+    # forced off - this is already running in corso
+    # we may need to turn this back on if we elect different
+    # test users compared to the corso repo
+    if: false
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:

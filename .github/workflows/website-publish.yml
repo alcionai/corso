@@ -1,6 +1,10 @@
 name: Publish website
 on:
-  workflow_dispatch:
+   # workflow_dispatch:
+   # turned off for now, since canario should not publish the website
+   push:
+     branches:
+       does-not-exist-this-forces-the-action-to-not-run
 
 permissions:
   # required to retrieve AWS credentials

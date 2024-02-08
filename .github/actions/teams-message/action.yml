@@ -43,49 +43,49 @@ runs:
         curl -X POST \
         -H "Content-Type: application/json" \
         -d '{
-           "type":"message",
-           "attachments":[
-              {
-                 "contentType":"application/vnd.microsoft.card.adaptive",
-                 "contentUrl":null,
-                 "content":{
-                    "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type":"AdaptiveCard",
-                    "body": [
-                        {
-                            "type": "TextBlock",
-                            "size": "Medium",
-                            "weight": "Bolder",
-                            "text": "${{ inputs.msg }}",
-                            "color": "Attention"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "${{ env.JOB }} :: ${{ env.STEP }}",
-                            "wrap": true
-                        }
-                    ],
-                    "actions": [
-                        {
-                            "type": "Action.OpenUrl",
-                            "title": "Action",
-                            "url": "${{ env.LOGS }}"
-                        },
-                        {
-                            "type": "Action.OpenUrl",
-                            "title": "Commit",
-                            "url": "${{ env.COMMIT }}"
-                        },
-                        {
-                            "type": "Action.OpenUrl",
-                            "title": "Ref",
-                            "url": "${{ env.REF }}"
-                        }
-                    ],
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "version": "1.5"
-                 }
+          "type":"message",
+          "attachments":[
+            {
+              "contentType":"application/vnd.microsoft.card.adaptive",
+              "contentUrl":null,
+              "content":{
+                "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
+                "type":"AdaptiveCard",
+                "body": [
+                  {
+                    "type": "TextBlock",
+                    "size": "Medium",
+                    "weight": "Bolder",
+                    "text": "Canario - ${{ inputs.msg }}",
+                    "color": "Attention"
+                  },
+                  {
+                    "type": "TextBlock",
+                    "text": "${{ env.JOB }} :: ${{ env.STEP }}",
+                    "wrap": true
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Action.OpenUrl",
+                    "title": "Action",
+                    "url": "${{ env.LOGS }}"
+                  },
+                  {
+                    "type": "Action.OpenUrl",
+                    "title": "Commit",
+                    "url": "${{ env.COMMIT }}"
+                  },
+                  {
+                    "type": "Action.OpenUrl",
+                    "title": "Ref",
+                    "url": "${{ env.REF }}"
+                  }
+                ],
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "version": "1.5"
               }
-           ]
+            }
+          ]
         }' \
         ${{ inputs.teams_url }}

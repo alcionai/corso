@@ -1,15 +1,15 @@
-name: Build/Release Corso
-env:
-  IMAGE_NAME: ghcr.io/alcionai/canario
+name: Build Canario
+# holdover from corso
+# canario should not build any images
+#env:
+#  IMAGE_NAME: ghcr.io/alcionai/canario
 on:
   workflow_dispatch:
-
+  merge_group:
   pull_request:
-
   push:
     branches: [main]
     tags: ["v*.*.*"]
-
   repository_dispatch:
     types: [ok-to-test-command]
 
@@ -101,7 +101,22 @@ jobs:
             echo "website-cfid=ESFTEIYTIP7Y3" | tee -a $GITHUB_OUTPUT
           fi
 
-
+  Seeing-Things:
+    environment: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash
+        run: echo "github.ref"
+      - shell: bash
+        run: echo ${{ github.ref }}
+      - shell: bash
+        run: echo "github.event.merge_queue.head.repo.full_name"
+      - shell: bash
+        run: echo ${{ github.event.merge_queue.head.repo.full_name }}
+      - shell: bash
+        run: echo "github.repository"
+      - shell: bash
+        run: echo ${{ github.repository }}
   # ----------------------------------------------------------------------------------------------------
   # --- Website Linting -----------------------------------------------------------------------------------
   # ----------------------------------------------------------------------------------------------------
@@ -130,7 +145,16 @@ jobs:
     environment: Testing
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name == github.repository)
+    if: |
+      (
+        startsWith(github.ref, 'refs/tags/')
+        || github.ref == 'refs/heads/gh-readonly-queue/main'
+        || github.ref == 'refs/heads/main'
+      )
+      || (
+        needs.precheck.outputs.srcfileschanged == 'true'
+        && github.event.pull_request.head.repo.full_name == github.repository
+      )
     defaults:
       run:
         working-directory: src
@@ -160,7 +184,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
+          role-session-name: canario-integration-testing
           aws-region: us-east-1
 
       # run the tests
@@ -231,7 +255,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
+          role-session-name: canario-integration-testing
           aws-region: us-east-1
 
       # run the tests
@@ -325,7 +349,9 @@ jobs:
   Test-Suite-Fork:
     needs: [Precheck]
     environment: Testing
-    if: (!startsWith(github.ref , 'refs/tags/') && github.ref != 'refs/heads/main') && (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name != github.repository)
+    # test-suite-fork is a corso build artifact.
+    if: false
+    # if: (!startsWith(github.ref , 'refs/tags/') && github.ref != 'refs/heads/main') && (needs.precheck.outputs.srcfileschanged == 'true' && github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -380,7 +406,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: integration-testing
+          role-session-name: canario-integration-testing
           aws-region: us-east-1
 
       # run the tests
