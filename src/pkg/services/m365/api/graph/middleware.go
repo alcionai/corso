@@ -164,7 +164,15 @@ func (mw RetryMiddleware) Intercept(
 		mw.isRetriableRespCode(ctx, resp)
 
 	if !retriable {
-		return resp, stackReq(ctx, req, resp, err).OrNil()
+		// Returning a response and an error causes output from either some part of
+		// the middleware/graph/golang or the mocking library used for testing.
+		// Return one or the other to avoid this.
+		err := stackReq(ctx, req, resp, err).OrNil()
+		if err != nil {
+			return nil, err
+		}
+
+		return resp, nil
 	}
 
 	exponentialBackOff := backoff.NewExponentialBackOff()

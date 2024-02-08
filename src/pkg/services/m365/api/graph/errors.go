@@ -111,6 +111,11 @@ const (
 	LabelsSkippable = "skippable_errors"
 )
 
+// ErrServiceUnavailableEmptyResp indicates the remote service returned a 503
+// with an empty response body. This can sometimes happen if a request times out
+// during processing.
+var ErrServiceUnavailableEmptyResp = clues.New("service unavailable and no returned content")
+
 // ---------------------------------------------------------------------------
 // error categorization
 // ---------------------------------------------------------------------------
@@ -395,6 +400,21 @@ func stackReq(
 	resp *http.Response,
 	e error,
 ) *clues.Err {
+	// For service unavailable stack an error we can check against. We can't check
+	// this at higher layers because we won't have the content length or server
+	// response code thanks to graph SDK. We do need to check this before checking
+	// if there was no error though because the status code itself doesn't count
+	// as an error.
+	//
+	// Returning an error here is non-standard, but if we don't return something
+	// then all we get from graph SDK is an error saying "content is empty" which
+	// isn't particularly useful.
+	if resp != nil &&
+		resp.ContentLength == 0 &&
+		resp.StatusCode == http.StatusServiceUnavailable {
+		e = clues.Stack(ErrServiceUnavailableEmptyResp, e)
+	}
+
 	if e == nil {
 		return nil
 	}
