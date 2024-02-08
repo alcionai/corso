@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	maxNonDeltaPageSize = int32(999)
-	maxDeltaPageSize    = int32(500)
+	maxNonDeltaPageSize    = int32(999)
+	maxDeltaPageSize       = int32(500)
+	minEventsDeltaPageSize = int32(10)
 )
 
 // selectable values, case insensitive

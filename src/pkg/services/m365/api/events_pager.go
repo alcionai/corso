@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/alcionai/clues"
@@ -9,6 +10,7 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/pagers"
@@ -276,10 +278,44 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		containerID,
 		prevDeltaLink,
 		idAnd()...)
+
+	// Experiments showed that non-delta endpoint didn't have the same performance
+	// degradation that delta endpoint did so a larger page size should be ok.
 	pager := c.NewEventsPager(
 		userID,
 		containerID,
 		idAnd(lastModifiedDateTime)...)
+
+	// Try running the query with the given limits. If we fail to do a delta
+	// enumeration with a 5xx error try rerunning the query with a smaller page
+	// size. We've seen some resources where this consistently happens but a small
+	// page size allows us to make progress.
+	addedRemoved, err := pagers.GetAddedAndRemovedItemIDs[models.Eventable](
+		ctx,
+		pager,
+		deltaPager,
+		prevDeltaLink,
+		config.CanMakeDeltaQueries,
+		config.LimitResults,
+		pagers.AddedAndRemovedByAddtlData[models.Eventable])
+	if err == nil || !errors.Is(err, graph.ErrServiceUnavailableEmptyResp) {
+		return addedRemoved, clues.Stack(err).OrNil()
+	}
+
+	effectivePageSize := minEventsDeltaPageSize
+
+	logger.Ctx(ctx).Infow(
+		"retrying event item query with reduced page size",
+		"delta_pager_effective_page_size", effectivePageSize,
+		"delta_pager_default_page_size", c.options.DeltaPageSize)
+
+	deltaPager = c.newEventsDeltaPagerWithPageSize(
+		ctx,
+		userID,
+		containerID,
+		prevDeltaLink,
+		effectivePageSize,
+		idAnd()...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](
 		ctx,
