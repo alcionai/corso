@@ -313,9 +313,12 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), atts))
 
-				interceptV1Path("users", "user", "messages", mid, "attachments", aid).
-					Reply(200).
-					JSON(graphTD.ParseableToMap(suite.T(), attch))
+				// TODO(pandeyabs): This does not test getAttachmentsIterated code path.
+				// We need a separate test for that.
+				// For that we'd need to fail /attachments call(above) with an error.
+				// This would trigger a /attachments?$select=id,size call, followed by
+				// an $expand=microsoft.graph.itemAttachment/item call for each attachment.
+				// These paths need to be added to the gock intercepts.
 			},
 			attachmentCount: 1,
 			size:            200,
@@ -349,11 +352,8 @@ func (suite *MailAPIIntgSuite) TestMail_attachmentListDownload() {
 					Reply(200).
 					JSON(graphTD.ParseableToMap(suite.T(), atts))
 
-				for i := 0; i < 5; i++ {
-					interceptV1Path("users", "user", "messages", mid, "attachments", aid).
-						Reply(200).
-						JSON(graphTD.ParseableToMap(suite.T(), attch))
-				}
+				// TODO(pandeyabs): This does not test getAttachmentsIterated code path.
+				// We need a separate test for that.
 			},
 			attachmentCount: 5,
 			size:            1000,
