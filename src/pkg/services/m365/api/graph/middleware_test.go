@@ -43,8 +43,9 @@ func newMWReturns(code int, body []byte, err error) mwReturns {
 	}
 
 	resp := &http.Response{
-		StatusCode: code,
-		Body:       brc,
+		ContentLength: int64(len(body)),
+		StatusCode:    code,
+		Body:          brc,
 	}
 
 	if code == 0 {

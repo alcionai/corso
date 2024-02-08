@@ -38,6 +38,7 @@ func gockClient(creds account.M365Config, counter *count.Bus) (Client, error) {
 		Credentials: creds,
 		Stable:      s,
 		LargeItem:   li,
+		options:     control.DefaultOptions(),
 	}, nil
 }
 
