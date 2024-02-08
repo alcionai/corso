@@ -6,6 +6,7 @@ import (
 	"github.com/alcionai/clues"
 	"github.com/h2non/gock"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
+	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 
 	"github.com/alcionai/corso/src/pkg/account"
@@ -34,6 +35,9 @@ func NewGockService(
 	counter *count.Bus,
 	opts ...Option,
 ) (*Service, error) {
+	// Need to initialize the concurrency limiter else we'll get an error.
+	InitializeConcurrencyLimiter(context.Background(), true, 4)
+
 	a, err := CreateGockAdapter(
 		creds.AzureTenantID,
 		creds.AzureClientID,
@@ -54,11 +58,27 @@ func CreateGockAdapter(
 	counter *count.Bus,
 	opts ...Option,
 ) (abstractions.RequestAdapter, error) {
-	httpClient, cc := KiotaHTTPClient(counter, opts...)
+	cc := populateConfig(opts...)
+	// We need to manufacture our own graph client since gock.InterceptClient
+	// replaces the transport which replaces all the middleware we add. Start with
+	// a client without any middleware and then replace the transport completely
+	// with the mocked one since there's no real in between that we could use.
+	clientOptions := msgraphsdkgo.GetDefaultClientOptions()
+	middlewares := kiotaMiddlewares(&clientOptions, cc, counter)
 
-	// This makes sure that we are able to intercept any requests via
-	// gock. Only necessary for testing.
-	gock.InterceptClient(httpClient)
+	//nolint:lll
+	// This is lifted from
+	// https://github.com/microsoft/kiota-http-go/blob/e32eb086c8d28002dcba922f3271d56327ba8b03/pipeline.go#L75
+	// which was found by following
+	// https://github.com/microsoftgraph/msgraph-sdk-go-core/blob/93a2c8acb7dfff7f3e2791670f51ccb001d7b127/graph_client_factory.go#L26
+	httpClient := khttp.GetDefaultClient()
+	httpClient.Transport = khttp.NewCustomTransportWithParentTransport(
+		// gock's default transport isn't quite the same as the default graph uses
+		// but since we're mocking things it's probably ok.
+		gock.NewTransport(),
+		middlewares...)
+
+	cc.apply(httpClient)
 
 	ng, err := msgraphsdkgo.NewGraphRequestAdapterWithParseNodeFactoryAndSerializationWriterFactoryAndHttpClient(
 		// Use our own mock auth instance. This allows us to completely avoid having
