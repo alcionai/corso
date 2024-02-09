@@ -115,6 +115,13 @@ func (hw httpWrapper) Request(
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
+	if hw.config.requesterAuth != nil {
+		err := hw.config.requesterAuth.addAuthToHeaders(ctx, url, req.Header)
+		if err != nil {
+			return nil, clues.Wrap(err, "setting request auth headers")
+		}
+	}
+
 	retriedErrors := []string{}
 
 	var e error

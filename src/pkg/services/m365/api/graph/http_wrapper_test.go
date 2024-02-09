@@ -76,6 +76,54 @@ func (mw *mwForceResp) Intercept(
 	return mw.resp, mw.err
 }
 
+func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper_withAuth() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	a := tconfig.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	azureAuth, err := NewAzureAuth(m365)
+	require.NoError(t, err, clues.ToCore(err))
+
+	hw := NewHTTPWrapper(count.New(), AuthorizeRequester(azureAuth))
+
+	// any request that requires authorization will do
+	resp, err := hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://graph.microsoft.com/v1.0/users",
+		nil,
+		nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// also validate that non-auth'd endpoints succeed
+	resp, err = hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://www.corsobackup.io",
+		nil,
+		nil)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+// ---------------------------------------------------------------------------
+// unit
+// ---------------------------------------------------------------------------
+
 type HTTPWrapperUnitSuite struct {
 	tester.Suite
 }

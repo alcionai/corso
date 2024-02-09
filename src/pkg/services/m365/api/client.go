@@ -123,12 +123,18 @@ func newLargeItemService(
 	creds account.M365Config,
 	counter *count.Bus,
 ) (*graph.Service, error) {
-	a, err := NewService(creds, counter, graph.NoTimeout())
+	azureAuth, err := graph.NewAzureAuth(creds)
 	if err != nil {
-		return nil, clues.Wrap(err, "generating no-timeout graph adapter")
+		return nil, clues.Wrap(err, "generating azure authorizer")
 	}
 
-	return a, nil
+	a, err := NewService(
+		creds,
+		counter,
+		graph.NoTimeout(),
+		graph.AuthorizeRequester(azureAuth))
+
+	return a, clues.Wrap(err, "generating no-timeout graph adapter").OrNil()
 }
 
 type Getter interface {

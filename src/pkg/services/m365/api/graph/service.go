@@ -5,11 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/alcionai/clues"
 	abstractions "github.com/microsoft/kiota-abstractions-go"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
-	kauth "github.com/microsoft/kiota-authentication-azure-go"
 	khttp "github.com/microsoft/kiota-http-go"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	msgraphgocore "github.com/microsoftgraph/msgraph-sdk-go-core"
@@ -126,23 +124,6 @@ func CreateAdapter(
 	return wrapAdapter(adpt, cc), nil
 }
 
-func GetAuth(tenant string, client string, secret string) (*kauth.AzureIdentityAuthenticationProvider, error) {
-	// Client Provider: Uses Secret for access to tenant-level data
-	cred, err := azidentity.NewClientSecretCredential(tenant, client, secret, nil)
-	if err != nil {
-		return nil, clues.Wrap(err, "creating m365 client identity")
-	}
-
-	auth, err := kauth.NewAzureIdentityAuthenticationProviderWithScopes(
-		cred,
-		[]string{"https://graph.microsoft.com/.default"})
-	if err != nil {
-		return nil, clues.Wrap(err, "creating azure authentication")
-	}
-
-	return auth, nil
-}
-
 // KiotaHTTPClient creates a httpClient with middlewares and timeout configured
 // for use in the graph adapter.
 //
@@ -191,6 +172,11 @@ type clientConfig struct {
 	maxRetries int
 	// The minimum delay in seconds between retries
 	minDelay time.Duration
+	// requesterAuth sets the authorization step for requester-compliant clients.
+	// if non-nil, it will ensure calls are authorized before querying.
+	// does not get consumed by the standard graph client, which already comes
+	// packaged with an auth protocol.
+	requesterAuth authorizer
 
 	appendMiddleware []khttp.Middleware
 }
@@ -275,6 +261,12 @@ func MaxConnectionRetries(max int) Option {
 		}
 
 		c.maxConnectionRetries = max
+	}
+}
+
+func AuthorizeRequester(a authorizer) Option {
+	return func(c *clientConfig) {
+		c.requesterAuth = a
 	}
 }
 
