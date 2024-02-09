@@ -17,6 +17,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/common/str"
+	"github.com/alcionai/corso/src/internal/converters/ics/tzdata"
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/logger"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
@@ -32,8 +33,9 @@ import (
 // TODO locations: https://github.com/alcionai/corso/issues/5003
 
 const (
-	ICalDateTimeFormat = "20060102T150405Z"
-	ICalDateFormat     = "20060102"
+	ICalDateTimeFormat    = "20060102T150405"
+	ICalDateTimeFormatUTC = "20060102T150405Z"
+	ICalDateFormat        = "20060102"
 )
 
 func keyValues(key, value string) *ics.KeyValues {
@@ -173,6 +175,17 @@ func getRecurrencePattern(
 		recurComponents = append(recurComponents, "BYDAY="+prefix+strings.Join(dowComponents, ","))
 	}
 
+	// This is necessary to compute when weekly events recur
+	fdow := pat.GetFirstDayOfWeek()
+	if fdow != nil {
+		icalday, ok := GraphToICalDOW[fdow.String()]
+		if !ok {
+			return "", clues.NewWC(ctx, "unknown first day of week").With("day", fdow)
+		}
+
+		recurComponents = append(recurComponents, "WKST="+icalday)
+	}
+
 	rrange := recurrence.GetRangeEscaped()
 	if rrange != nil {
 		switch ptr.Val(rrange.GetTypeEscaped()) {
@@ -196,7 +209,7 @@ func getRecurrencePattern(
 					return "", clues.WrapWC(ctx, err, "parsing end time")
 				}
 
-				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(ICalDateTimeFormat))
+				recurComponents = append(recurComponents, "UNTIL="+endTime.Format(ICalDateTimeFormatUTC))
 			}
 		case models.NOEND_RECURRENCERANGETYPE:
 			// Nothing to do
@@ -225,10 +238,15 @@ func FromEventable(ctx context.Context, event models.Eventable) (string, error) 
 	cal := ics.NewCalendar()
 	cal.SetProductId("-//Alcion//Corso") // Does this have to be customizable?
 
+	err := addTimeZoneComponents(ctx, cal, event)
+	if err != nil {
+		return "", clues.Wrap(err, "adding timezone components")
+	}
+
 	id := ptr.Val(event.GetId())
 	iCalEvent := cal.AddEvent(id)
 
-	err := updateEventProperties(ctx, event, iCalEvent)
+	err = updateEventProperties(ctx, event, iCalEvent)
 	if err != nil {
 		return "", clues.Wrap(err, "updating event properties")
 	}
@@ -259,7 +277,7 @@ func FromEventable(ctx context.Context, event models.Eventable) (string, error) 
 		exICalEvent := cal.AddEvent(id)
 		start := exception.GetOriginalStart() // will always be in UTC
 
-		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(ICalDateTimeFormat))
+		exICalEvent.AddProperty(ics.ComponentProperty(ics.PropertyRecurrenceId), start.Format(ICalDateTimeFormatUTC))
 
 		err = updateEventProperties(ctx, exception, exICalEvent)
 		if err != nil {
@@ -268,6 +286,91 @@ func FromEventable(ctx context.Context, event models.Eventable) (string, error) 
 	}
 
 	return cal.Serialize(), nil
+}
+
+func getTZDataKeyValues(ctx context.Context, timezone string) (map[string]string, error) {
+	template, ok := tzdata.TZData[timezone]
+	if !ok {
+		return nil, clues.NewWC(ctx, "timezone not found in tz database").
+			With("timezone", timezone)
+	}
+
+	keyValues := map[string]string{}
+
+	for _, line := range strings.Split(template, "\n") {
+		splits := strings.SplitN(line, ":", 2)
+		if len(splits) != 2 {
+			return nil, clues.NewWC(ctx, "invalid tzdata line").
+				With("line", line).
+				With("timezone", timezone)
+		}
+
+		keyValues[splits[0]] = splits[1]
+	}
+
+	return keyValues, nil
+}
+
+func addTimeZoneComponents(ctx context.Context, cal *ics.Calendar, event models.Eventable) error {
+	// Handling of timezone get a bit tricky when we have to deal with
+	// relative recurrence. The issue comes up when we set a recurrence
+	// to be something like "repeat every 3rd Tuesday". Tuesday in UTC
+	// and in IST will be different and so we cannot just always use UTC.
+	//
+	// The way this is solved is by using the timezone in the
+	// recurrence for start and end timezones as we have to use UTC
+	// for UNTIL(mostly).
+	// https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10
+	timezone, err := getRecurrenceTimezone(ctx, event)
+	if err != nil {
+		return clues.Stack(err)
+	}
+
+	if timezone != time.UTC {
+		kvs, err := getTZDataKeyValues(ctx, timezone.String())
+		if err != nil {
+			return clues.Stack(err)
+		}
+
+		tz := cal.AddTimezone(timezone.String())
+
+		for k, v := range kvs {
+			tz.AddProperty(ics.ComponentProperty(k), v)
+		}
+	}
+
+	return nil
+}
+
+// getRecurrenceTimezone get the timezone specified by the recurrence
+// in the calendar.  It does a normalization pass where we always convert
+// the timezone to the value in tzdb If we don't have a recurrence
+// timezone, we don't have to use a specific timezone in the export and
+// is safe to return UTC from this method.
+func getRecurrenceTimezone(ctx context.Context, event models.Eventable) (*time.Location, error) {
+	if event.GetRecurrence() != nil {
+		timezone := ptr.Val(event.GetRecurrence().GetRangeEscaped().GetRecurrenceTimeZone())
+
+		ctz, ok := GraphTimeZoneToTZ[timezone]
+		if ok {
+			timezone = ctz
+		}
+
+		cannon, ok := CanonicalTimeZoneMap[timezone]
+		if ok {
+			timezone = cannon
+		}
+
+		loc, err := time.LoadLocation(timezone)
+		if err != nil {
+			return nil, clues.WrapWC(ctx, err, "unknown timezone").
+				With("timezone", timezone)
+		}
+
+		return loc, nil
+	}
+
+	return time.UTC, nil
 }
 
 func isASCII(s string) bool {
@@ -299,6 +402,11 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 		iCalEvent.SetModifiedAt(ptr.Val(modified))
 	}
 
+	timezone, err := getRecurrenceTimezone(ctx, event)
+	if err != nil {
+		return err
+	}
+
 	// DTSTART - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.4
 	allDay := ptr.Val(event.GetIsAllDay())
 	startString := event.GetStart().GetDateTime()
@@ -310,11 +418,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 			return clues.WrapWC(ctx, err, "parsing start time")
 		}
 
-		if allDay {
-			iCalEvent.SetStartAt(start, ics.WithValue(string(ics.ValueDataTypeDate)))
-		} else {
-			iCalEvent.SetStartAt(start)
-		}
+		addTime(iCalEvent, ics.ComponentPropertyDtStart, start, allDay, timezone)
 	}
 
 	// DTEND - https://www.rfc-editor.org/rfc/rfc5545#section-3.8.2.2
@@ -327,11 +431,7 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 			return clues.WrapWC(ctx, err, "parsing end time")
 		}
 
-		if allDay {
-			iCalEvent.SetEndAt(end, ics.WithValue(string(ics.ValueDataTypeDate)))
-		} else {
-			iCalEvent.SetEndAt(end)
-		}
+		addTime(iCalEvent, ics.ComponentPropertyDtEnd, end, allDay, timezone)
 	}
 
 	recurrence := event.GetRecurrence()
@@ -628,6 +728,26 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 	}
 
 	return nil
+}
+
+func addTime(iCalEvent *ics.VEvent, prop ics.ComponentProperty, tm time.Time, allDay bool, tzLoc *time.Location) {
+	if allDay {
+		if tzLoc == time.UTC {
+			iCalEvent.SetProperty(prop, tm.Format(ICalDateFormat), ics.WithValue(string(ics.ValueDataTypeDate)))
+		} else {
+			iCalEvent.SetProperty(
+				prop,
+				tm.In(tzLoc).Format(ICalDateFormat),
+				ics.WithValue(string(ics.ValueDataTypeDate)),
+				keyValues("TZID", tzLoc.String()))
+		}
+	} else {
+		if tzLoc == time.UTC {
+			iCalEvent.SetProperty(prop, tm.Format(ICalDateTimeFormatUTC))
+		} else {
+			iCalEvent.SetProperty(prop, tm.In(tzLoc).Format(ICalDateTimeFormat), keyValues("TZID", tzLoc.String()))
+		}
+	}
 }
 
 func getCancelledDates(ctx context.Context, event models.Eventable) ([]time.Time, error) {

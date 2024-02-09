@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	ics "github.com/arran4/golang-ical"
 	"github.com/microsoft/kiota-abstractions-go/serialization"
 	kjson "github.com/microsoft/kiota-serialization-json-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -21,6 +22,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/alcionai/corso/src/internal/common/ptr"
+	"github.com/alcionai/corso/src/internal/converters/ics/tzdata"
 	"github.com/alcionai/corso/src/internal/tester"
 )
 
@@ -32,7 +34,7 @@ func TestICSUnitSuite(t *testing.T) {
 	suite.Run(t, &ICSUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *ICSUnitSuite) TestGetLocationString() {
+func (s *ICSUnitSuite) TestGetLocationString() {
 	table := []struct {
 		name   string
 		loc    func() models.Locationable
@@ -110,13 +112,13 @@ func (suite *ICSUnitSuite) TestGetLocationString() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			assert.Equal(suite.T(), tt.expect, getLocationString(tt.loc()))
+		s.Run(tt.name, func() {
+			assert.Equal(s.T(), tt.expect, getLocationString(tt.loc()))
 		})
 	}
 }
 
-func (suite *ICSUnitSuite) TestGetUTCTime() {
+func (s *ICSUnitSuite) TestGetUTCTime() {
 	table := []struct {
 		name      string
 		timestamp string
@@ -162,18 +164,18 @@ func (suite *ICSUnitSuite) TestGetUTCTime() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
+		s.Run(tt.name, func() {
 			t, err := GetUTCTime(tt.timestamp, tt.timezone)
-			tt.errCheck(suite.T(), err)
+			tt.errCheck(s.T(), err)
 
 			if !tt.time.Equal(time.Time{}) {
-				assert.Equal(suite.T(), tt.time, t)
+				assert.Equal(s.T(), tt.time, t)
 			}
 		})
 	}
 }
 
-func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
+func (s *ICSUnitSuite) TestGetRecurrencePattern() {
 	table := []struct {
 		name       string
 		recurrence func() models.PatternedRecurrenceable
@@ -187,16 +189,37 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("daily")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rec.SetPattern(pat)
 
 				return rec
 			},
-			expect:   "FREQ=DAILY;INTERVAL=1",
+			expect:   "FREQ=DAILY;INTERVAL=1;WKST=SU",
+			errCheck: require.NoError,
+		},
+		{
+			name: "daily different start of week",
+			recurrence: func() models.PatternedRecurrenceable {
+				rec := models.NewPatternedRecurrence()
+				pat := models.NewRecurrencePattern()
+
+				typ, err := models.ParseRecurrencePatternType("daily")
+				require.NoError(s.T(), err)
+
+				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
+				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.MONDAY_DAYOFWEEK))
+
+				rec.SetPattern(pat)
+
+				return rec
+			},
+			expect:   "FREQ=DAILY;INTERVAL=1;WKST=MO",
 			errCheck: require.NoError,
 		},
 		{
@@ -206,15 +229,16 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("daily")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rng := models.NewRecurrenceRange()
 
 				rrtype, err := models.ParseRecurrenceRangeType("endDate")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				rng.SetTypeEscaped(rrtype.(*models.RecurrenceRangeType))
 
@@ -227,7 +251,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=DAILY;INTERVAL=1;UNTIL=20210101T182959Z",
+			expect:   "FREQ=DAILY;INTERVAL=1;WKST=SU;UNTIL=20210101T182959Z",
 			errCheck: require.NoError,
 		},
 		{
@@ -237,16 +261,17 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("weekly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rec.SetPattern(pat)
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;WKST=SU",
 			errCheck: require.NoError,
 		},
 		{
@@ -256,15 +281,16 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("weekly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rng := models.NewRecurrenceRange()
 
 				rrtype, err := models.ParseRecurrenceRangeType("endDate")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				rng.SetTypeEscaped(rrtype.(*models.RecurrenceRangeType))
 
@@ -277,7 +303,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1;UNTIL=20210101T235959Z",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;WKST=SU;UNTIL=20210101T235959Z",
 			errCheck: require.NoError,
 		},
 		{
@@ -287,15 +313,16 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("weekly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rng := models.NewRecurrenceRange()
 
 				rrtype, err := models.ParseRecurrenceRangeType("numbered")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				rng.SetTypeEscaped(rrtype.(*models.RecurrenceRangeType))
 
@@ -307,7 +334,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1;COUNT=10",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;WKST=SU;COUNT=10",
 			errCheck: require.NoError,
 		},
 		{
@@ -317,10 +344,11 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("weekly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				days := []models.DayOfWeek{
 					models.MONDAY_DAYOFWEEK,
@@ -334,7 +362,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,TH",
+			expect:   "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,TH;WKST=SU",
 			errCheck: require.NoError,
 		},
 		{
@@ -344,16 +372,17 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("daily")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(2)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				rec.SetPattern(pat)
 
 				return rec
 			},
-			expect:   "FREQ=DAILY;INTERVAL=2",
+			expect:   "FREQ=DAILY;INTERVAL=2;WKST=SU",
 			errCheck: require.NoError,
 		},
 		{
@@ -363,10 +392,11 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("absoluteMonthly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				pat.SetDayOfMonth(ptr.To(int32(5)))
 
@@ -374,7 +404,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=5",
+			expect:   "FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=5;WKST=SU",
 			errCheck: require.NoError,
 		},
 		{
@@ -384,10 +414,11 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("absoluteYearly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(3)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				pat.SetMonth(ptr.To(int32(8)))
 
@@ -395,7 +426,7 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 
 				return rec
 			},
-			expect:   "FREQ=YEARLY;INTERVAL=3;BYMONTH=8",
+			expect:   "FREQ=YEARLY;INTERVAL=3;BYMONTH=8;WKST=SU",
 			errCheck: require.NoError,
 		},
 		{
@@ -405,37 +436,38 @@ func (suite *ICSUnitSuite) TestGetRecurrencePattern() {
 				pat := models.NewRecurrencePattern()
 
 				typ, err := models.ParseRecurrencePatternType("relativeYearly")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
 
 				pat.SetMonth(ptr.To(int32(8)))
 				pat.SetDaysOfWeek([]models.DayOfWeek{models.FRIDAY_DAYOFWEEK})
 
 				wi, err := models.ParseWeekIndex("first")
-				require.NoError(suite.T(), err)
+				require.NoError(s.T(), err)
 				pat.SetIndex(wi.(*models.WeekIndex))
 
 				rec.SetPattern(pat)
 
 				return rec
 			},
-			expect:   "FREQ=YEARLY;INTERVAL=1;BYMONTH=8;BYDAY=1FR",
+			expect:   "FREQ=YEARLY;INTERVAL=1;BYMONTH=8;BYDAY=1FR;WKST=SU",
 			errCheck: require.NoError,
 		},
 		// TODO(meain): could still use more tests for edge cases of time
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			ctx, flush := tester.NewContext(suite.T())
+		s.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(s.T())
 			defer flush()
 
 			rec, err := getRecurrencePattern(ctx, tt.recurrence())
-			tt.errCheck(suite.T(), err)
+			tt.errCheck(s.T(), err)
 
-			assert.Equal(suite.T(), tt.expect, rec)
+			assert.Equal(s.T(), tt.expect, rec)
 		})
 	}
 }
@@ -460,8 +492,8 @@ func baseEvent() *models.Event {
 	return e
 }
 
-func (suite *ICSUnitSuite) TestEventConversion() {
-	t := suite.T()
+func (s *ICSUnitSuite) TestEventConversion() {
+	t := s.T()
 
 	table := []struct {
 		name  string
@@ -546,14 +578,19 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 
 				rec := models.NewPatternedRecurrence()
 				pat := models.NewRecurrencePattern()
+				rng := models.NewRecurrenceRange()
 
 				typ, err := models.ParseRecurrencePatternType("daily")
 				require.NoError(t, err)
 
 				pat.SetTypeEscaped(typ.(*models.RecurrencePatternType))
 				pat.SetInterval(ptr.To(int32(1)))
+				pat.SetFirstDayOfWeek(ptr.To(models.SUNDAY_DAYOFWEEK))
+
+				rng.SetRecurrenceTimeZone(ptr.To("UTC"))
 
 				rec.SetPattern(pat)
+				rec.SetRangeEscaped(rng)
 
 				e.SetRecurrence(rec)
 
@@ -830,8 +867,8 @@ func (suite *ICSUnitSuite) TestEventConversion() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			t := suite.T()
+		s.Run(tt.name, func() {
+			t := s.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -881,8 +918,8 @@ func checkAttendee(t *testing.T, out, check, msg string) {
 	assert.ElementsMatch(t, as, bs, fmt.Sprintf("fields %s", msg))
 }
 
-func (suite *ICSUnitSuite) TestAttendees() {
-	t := suite.T()
+func (s *ICSUnitSuite) TestAttendees() {
+	t := s.T()
 
 	table := []struct {
 		name  string
@@ -949,8 +986,8 @@ func (suite *ICSUnitSuite) TestAttendees() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			t := suite.T()
+		s.Run(tt.name, func() {
+			t := s.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -1071,8 +1108,8 @@ func checkAttachment(t *testing.T, out, check, msg string) {
 	assert.ElementsMatch(t, as, bs, fmt.Sprintf("fields %s", msg))
 }
 
-func (suite *ICSUnitSuite) TestAttachments() {
-	t := suite.T()
+func (s *ICSUnitSuite) TestAttachments() {
+	t := s.T()
 
 	type attachment struct {
 		cid     string // contentid
@@ -1128,8 +1165,8 @@ func (suite *ICSUnitSuite) TestAttachments() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			t := suite.T()
+		s.Run(tt.name, func() {
+			t := s.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -1172,7 +1209,7 @@ func (suite *ICSUnitSuite) TestAttachments() {
 	}
 }
 
-func (suite *ICSUnitSuite) TestCancellations() {
+func (s *ICSUnitSuite) TestCancellations() {
 	table := []struct {
 		name         string
 		cancelledIds []string
@@ -1196,8 +1233,8 @@ func (suite *ICSUnitSuite) TestCancellations() {
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			t := suite.T()
+		s.Run(tt.name, func() {
+			t := s.T()
 
 			ctx, flush := tester.NewContext(t)
 			defer flush()
@@ -1260,7 +1297,7 @@ func eventToJSON(e *models.Event) ([]byte, error) {
 	return bts, err
 }
 
-func (suite *ICSUnitSuite) TestEventExceptions() {
+func (s *ICSUnitSuite) TestEventExceptions() {
 	table := []struct {
 		name  string
 		event func() *models.Event
@@ -1282,7 +1319,7 @@ func (suite *ICSUnitSuite) TestEventExceptions() {
 				exception.SetEnd(newEnd)
 
 				parsed, err := eventToMap(exception)
-				require.NoError(suite.T(), err, "parsing exception")
+				require.NoError(s.T(), err, "parsing exception")
 
 				// add exception event to additional data
 				e.SetAdditionalData(map[string]any{
@@ -1301,15 +1338,15 @@ func (suite *ICSUnitSuite) TestEventExceptions() {
 					}
 				}
 
-				assert.Equal(suite.T(), 2, events, "number of events")
+				assert.Equal(s.T(), 2, events, "number of events")
 
-				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id")
+				assert.Contains(s.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id")
 
-				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
-				assert.Contains(suite.T(), out, "SUMMARY:Exception", "exception event")
+				assert.Contains(s.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(s.T(), out, "SUMMARY:Exception", "exception event")
 
-				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time")
-				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time")
+				assert.Contains(s.T(), out, "DTSTART:20210101T130000Z", "new start time")
+				assert.Contains(s.T(), out, "DTEND:20210101T140000Z", "new end time")
 			},
 		},
 		{
@@ -1338,10 +1375,10 @@ func (suite *ICSUnitSuite) TestEventExceptions() {
 				exception2.SetEnd(newEnd)
 
 				parsed1, err := eventToMap(exception1)
-				require.NoError(suite.T(), err, "parsing exception 1")
+				require.NoError(s.T(), err, "parsing exception 1")
 
 				parsed2, err := eventToMap(exception2)
-				require.NoError(suite.T(), err, "parsing exception 2")
+				require.NoError(s.T(), err, "parsing exception 2")
 
 				// add exception event to additional data
 				e.SetAdditionalData(map[string]any{
@@ -1360,36 +1397,211 @@ func (suite *ICSUnitSuite) TestEventExceptions() {
 					}
 				}
 
-				assert.Equal(suite.T(), 3, events, "number of events")
+				assert.Equal(s.T(), 3, events, "number of events")
 
-				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id 1")
-				assert.Contains(suite.T(), out, "RECURRENCE-ID:20210102T120000Z", "recurrence id 2")
+				assert.Contains(s.T(), out, "RECURRENCE-ID:20210101T120000Z", "recurrence id 1")
+				assert.Contains(s.T(), out, "RECURRENCE-ID:20210102T120000Z", "recurrence id 2")
 
-				assert.Contains(suite.T(), out, "SUMMARY:Subject", "original event")
-				assert.Contains(suite.T(), out, "SUMMARY:Exception 1", "exception event 1")
-				assert.Contains(suite.T(), out, "SUMMARY:Exception 2", "exception event 2")
+				assert.Contains(s.T(), out, "SUMMARY:Subject", "original event")
+				assert.Contains(s.T(), out, "SUMMARY:Exception 1", "exception event 1")
+				assert.Contains(s.T(), out, "SUMMARY:Exception 2", "exception event 2")
 
-				assert.Contains(suite.T(), out, "DTSTART:20210101T130000Z", "new start time 1")
-				assert.Contains(suite.T(), out, "DTEND:20210101T140000Z", "new end time 1")
+				assert.Contains(s.T(), out, "DTSTART:20210101T130000Z", "new start time 1")
+				assert.Contains(s.T(), out, "DTEND:20210101T140000Z", "new end time 1")
 
-				assert.Contains(suite.T(), out, "DTSTART:20210102T130000Z", "new start time 2")
-				assert.Contains(suite.T(), out, "DTEND:20210102T140000Z", "new end time 2")
+				assert.Contains(s.T(), out, "DTSTART:20210102T130000Z", "new start time 2")
+				assert.Contains(s.T(), out, "DTEND:20210102T140000Z", "new end time 2")
 			},
 		},
 	}
 
 	for _, tt := range table {
-		suite.Run(tt.name, func() {
-			ctx, flush := tester.NewContext(suite.T())
+		s.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(s.T())
 			defer flush()
 
 			bts, err := eventToJSON(tt.event())
-			require.NoError(suite.T(), err, "getting serialized content")
+			require.NoError(s.T(), err, "getting serialized content")
 
 			out, err := FromJSON(ctx, bts)
-			require.NoError(suite.T(), err, "converting to ics")
+			require.NoError(s.T(), err, "converting to ics")
 
 			tt.check(out)
+		})
+	}
+}
+
+func (s *ICSUnitSuite) TestGetRecurrenceTimezone() {
+	table := []struct {
+		name  string
+		intz  string
+		outtz string
+	}{
+		{
+			name:  "empty",
+			intz:  "",
+			outtz: "UTC",
+		},
+		{
+			name:  "utc",
+			intz:  "UTC",
+			outtz: "UTC",
+		},
+		{
+			name:  "simple",
+			intz:  "Asia/Kolkata",
+			outtz: "Asia/Kolkata",
+		},
+		{
+			name:  "windows tz",
+			intz:  "India Standard Time",
+			outtz: "Asia/Kolkata",
+		},
+		{
+			name:  "non canonical",
+			intz:  "Asia/Calcutta",
+			outtz: "Asia/Kolkata",
+		},
+	}
+
+	for _, tt := range table {
+		s.Run(tt.name, func() {
+			ctx, flush := tester.NewContext(s.T())
+			defer flush()
+
+			event := baseEvent()
+			if len(tt.intz) > 0 {
+				recur := models.NewPatternedRecurrence()
+				rp := models.NewRecurrenceRange()
+				rp.SetRecurrenceTimeZone(ptr.To(tt.intz))
+
+				recur.SetRangeEscaped(rp)
+				event.SetRecurrence(recur)
+			}
+
+			timezone, err := getRecurrenceTimezone(ctx, event)
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), tt.outtz, timezone.String())
+		})
+	}
+}
+
+func (s *ICSUnitSuite) TestAddTimezoneComponents() {
+	event := baseEvent()
+	recur := models.NewPatternedRecurrence()
+	rp := models.NewRecurrenceRange()
+	rp.SetRecurrenceTimeZone(ptr.To("Asia/Kolkata"))
+
+	recur.SetRangeEscaped(rp)
+	event.SetRecurrence(recur)
+
+	ctx, flush := tester.NewContext(s.T())
+	defer flush()
+
+	cal := ics.NewCalendar()
+
+	err := addTimeZoneComponents(ctx, cal, event)
+	require.NoError(s.T(), err)
+
+	text := cal.Serialize()
+	assert.Contains(s.T(), text, "BEGIN:VTIMEZONE", "beginning of timezone")
+	assert.Contains(s.T(), text, "TZID:Asia/Kolkata", "timezone id")
+	assert.Contains(s.T(), text, "END:VTIMEZONE", "end of timezone")
+}
+
+func (s *ICSUnitSuite) TestAddTime() {
+	locak, err := time.LoadLocation("Asia/Kolkata")
+	require.NoError(s.T(), err)
+
+	table := []struct {
+		name   string
+		prop   ics.ComponentProperty
+		time   time.Time
+		allDay bool
+		loc    *time.Location
+		exp    string
+	}{
+		{
+			name:   "utc",
+			prop:   ics.ComponentPropertyDtStart,
+			time:   time.Date(2021, 1, 2, 3, 4, 5, 0, time.UTC),
+			allDay: false,
+			loc:    time.UTC,
+			exp:    "DTSTART:20210102T030405Z",
+		},
+		{
+			name:   "local",
+			prop:   ics.ComponentPropertyDtStart,
+			time:   time.Date(2021, 1, 2, 3, 4, 5, 0, time.UTC),
+			allDay: false,
+			loc:    locak,
+			exp:    "DTSTART;TZID=Asia/Kolkata:20210102T083405",
+		},
+		{
+			name:   "all day",
+			prop:   ics.ComponentPropertyDtStart,
+			time:   time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+			allDay: true,
+			loc:    time.UTC,
+			exp:    "DTSTART;VALUE=DATE:20210102",
+		},
+		{
+			name:   "all day local",
+			prop:   ics.ComponentPropertyDtStart,
+			time:   time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+			allDay: true,
+			loc:    locak,
+			exp:    "DTSTART;VALUE=DATE;TZID=Asia/Kolkata:20210102",
+		},
+		{
+			name:   "end",
+			prop:   ics.ComponentPropertyDtEnd,
+			time:   time.Date(2021, 1, 2, 3, 4, 5, 0, time.UTC),
+			allDay: false,
+			loc:    time.UTC,
+			exp:    "DTEND:20210102T030405Z",
+		},
+		{
+			// This won't happen, but a good test to have to test loc handling
+			name:   "windows tz",
+			prop:   ics.ComponentPropertyDtStart,
+			time:   time.Date(2021, 1, 2, 3, 4, 5, 0, time.UTC),
+			allDay: false,
+			loc:    time.FixedZone("India Standard Time", 5*60*60+30*60),
+			exp:    "DTSTART;TZID=India Standard Time:20210102T083405",
+		},
+	}
+
+	for _, tt := range table {
+		s.Run(tt.name, func() {
+			cal := ics.NewCalendar()
+			evt := cal.AddEvent("id")
+
+			addTime(evt, tt.prop, tt.time, tt.allDay, tt.loc)
+
+			text := cal.Serialize()
+			assert.Contains(s.T(), text, tt.exp, "time")
+		})
+	}
+}
+
+// This tests and ensures that the generated data is int he format
+// that we expect
+func (s *ICSUnitSuite) TestGetTZDataKeyValues() {
+	for key := range tzdata.TZData {
+		s.Run(key, func() {
+			ctx, flush := tester.NewContext(s.T())
+			defer flush()
+
+			data, err := getTZDataKeyValues(ctx, key)
+			require.NoError(s.T(), err)
+
+			assert.NotEmpty(s.T(), data, "data")
+			assert.NotContains(s.T(), data, "BEGIN", "beginning of timezone") // should be stripped
+			assert.NotContains(s.T(), data, "END", "end of timezone")         // should be stripped
+			assert.NotContains(s.T(), data, "TZID", "timezone id")            // should be stripped
+			assert.Contains(s.T(), data, "DTSTART", "start time")
+			assert.Contains(s.T(), data, "TZOFFSETFROM", "offset from")
 		})
 	}
 }
