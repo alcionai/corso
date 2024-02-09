@@ -127,7 +127,7 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 		expectDeltaReset   assert.BoolAssertionFunc
 	}{
 		{
-			name: "NoPrevDelta",
+			name: "NoPrevDelta DeltaFallback",
 			configureMocks: func(t *testing.T, userID string, containerID string) {
 				reqPath := stdpath.Join(
 					"/beta",
@@ -154,7 +154,7 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 			expectDeltaReset: assert.True,
 		},
 		{
-			name:       "PrevDelta",
+			name:       "PrevDelta DeltaFallback",
 			inputDelta: prevDelta,
 			configureMocks: func(t *testing.T, userID string, containerID string) {
 				// Number of retries and delay between retries is handled by a kiota
