@@ -58,12 +58,8 @@ func NewHTTPWrapper(
 				transport:   defaultTransport(),
 			},
 		}
-		redirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
 		hc = &http.Client{
-			CheckRedirect: redirect,
-			Transport:     rt,
+			Transport: rt,
 		}
 	)
 

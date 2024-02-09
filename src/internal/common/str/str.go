@@ -59,6 +59,19 @@ func First(vs ...string) string {
 	return ""
 }
 
+// FirstIn returns the first entry in the map with a non-zero value
+// when iterating the provided list of keys.
+func FirstIn(m map[string]any, keys ...string) string {
+	for _, key := range keys {
+		v, err := AnyValueToString(key, m)
+		if err == nil && len(v) > 0 {
+			return v
+		}
+	}
+
+	return ""
+}
+
 // Preview reduces the string to the specified size.
 // If the string is longer than the size, the last three
 // characters are replaced with an ellipsis.  Size < 4

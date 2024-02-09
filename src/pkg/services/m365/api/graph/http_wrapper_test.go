@@ -132,26 +132,25 @@ func TestHTTPWrapperUnitSuite(t *testing.T) {
 	suite.Run(t, &HTTPWrapperUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
+func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_redirect() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	url := "https://graph.microsoft.com/fnords/beaux/regard"
-
-	hdr := http.Header{}
-	hdr.Set("Location", "localhost:99999999/smarfs")
+	respHdr := http.Header{}
+	respHdr.Set("Location", "localhost:99999999/smarfs")
 
 	toResp := &http.Response{
 		StatusCode: http.StatusFound,
-		Header:     hdr,
+		Header:     respHdr,
 	}
 
 	mwResp := mwForceResp{
 		resp: toResp,
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
 			if strings.HasSuffix(req.URL.String(), "smarfs") {
+				assert.Equal(t, req.Header.Get("X-Test-Val"), "should-be-copied-to-redirect")
 				return true, &http.Response{StatusCode: http.StatusOK}, nil
 			}
 
@@ -161,17 +160,21 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 
 	hw := NewHTTPWrapper(count.New(), appendMiddleware(&mwResp))
 
-	resp, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
+	resp, err := hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://graph.microsoft.com/fnords/beaux/regard",
+		nil,
+		map[string]string{"X-Test-Val": "should-be-copied-to-redirect"})
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
 
 	require.NotNil(t, resp)
-	// require.Equal(t, 1, calledCorrectly, "test server was called with expected path")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() {
+func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_http2StreamErrorRetries() {
 	var (
 		url       = "https://graph.microsoft.com/fnords/beaux/regard"
 		streamErr = http2.StreamError{

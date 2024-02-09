@@ -109,7 +109,11 @@ func (suite *ItemIntegrationSuite) TestItemReader_oneDrive() {
 	}
 
 	// Read data for the file
-	itemData, err := downloadItem(ctx, bh, custom.ToCustomDriveItem(driveItem))
+	itemData, err := downloadItem(
+		ctx,
+		bh,
+		suite.m365.User.DriveID,
+		custom.ToCustomDriveItem(driveItem))
 	require.NoError(t, err, clues.ToCore(err))
 
 	size, err := io.Copy(io.Discard, itemData)
@@ -448,7 +452,11 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 			mg := mockGetter{
 				GetFunc: test.GetFunc,
 			}
-			rc, err := downloadItem(ctx, mg, custom.ToCustomDriveItem(test.itemFunc()))
+			rc, err := downloadItem(
+				ctx,
+				mg,
+				"driveID",
+				custom.ToCustomDriveItem(test.itemFunc()))
 			test.errorExpected(t, err, clues.ToCore(err))
 			test.rcExpected(t, rc)
 		})
@@ -507,7 +515,11 @@ func (suite *ItemUnitTestSuite) TestDownloadItem_ConnectionResetErrorOnFirstRead
 	mg := mockGetter{
 		GetFunc: GetFunc,
 	}
-	rc, err := downloadItem(ctx, mg, custom.ToCustomDriveItem(itemFunc()))
+	rc, err := downloadItem(
+		ctx,
+		mg,
+		"driveID",
+		custom.ToCustomDriveItem(itemFunc()))
 	errorExpected(t, err, clues.ToCore(err))
 	rcExpected(t, rc)
 
