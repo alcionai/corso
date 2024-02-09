@@ -127,6 +127,31 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 		expectDeltaReset   assert.BoolAssertionFunc
 	}{
 		{
+			name: "NoPrevDelta",
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				reqPath := stdpath.Join(
+					"/beta",
+					"users",
+					userID,
+					"calendars",
+					containerID,
+					"events",
+					"delta")
+
+				gock.New(graphAPIHostURL).
+					Get(reqPath).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, maxDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectNextDeltaURL: nextDeltaURL,
+			// OK to be true for this since we didn't have a delta to start with.
+			expectDeltaReset: assert.True,
+		},
+		{
 			name: "NoPrevDelta DeltaFallback",
 			configureMocks: func(t *testing.T, userID string, containerID string) {
 				reqPath := stdpath.Join(
