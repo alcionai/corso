@@ -104,6 +104,19 @@
       "contentId": null,
       "contentLocation": null,
       "contentBytes": "W1BhdGhzXQpQcmVmaXggPSAuLgo="
+    },
+    {
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      "@odata.mediaContentType": "application/octet-stream",
+      "id": "ZZMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAEwbDEWAAABEgAQAD3rU0iyzCdHgz0xmOrWc9g=",
+      "lastModifiedDateTime": "2023-11-16T05:42:47Z",
+      "name": "qt2.conf",
+      "contentType": "application/octet-stream",
+      "size": 156,
+      "isInline": false,
+      "contentId": null,
+      "contentLocation": null,
+      "contentBytes": "Z1BhdGhzXQpQcmVmaXggPSAuLgo="
     }
   ]
 }

@@ -174,6 +174,32 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
 			},
 		},
+		{
+			name: "attachment with nil name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(nil)
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+			},
+		},
+		{
+			name: "multiple attachments without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
+				attachments[2].SetName(ptr.To(""))
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+				assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
+			},
+		},
 	}
 
 	for _, test := range tests {
