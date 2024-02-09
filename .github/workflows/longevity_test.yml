@@ -37,7 +37,7 @@ jobs:
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
       RESTORE_DEST_PFX: Corso_Test_Longevity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
-      PREFIX: 'longevity'
+      PREFIX: 'longevity_canario'
 
       # Options for retention.
       RETENTION_MODE: GOVERNANCE
