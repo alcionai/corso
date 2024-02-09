@@ -36,7 +36,82 @@ func (suite *PathEncoderSuite) TestEncodeDecode() {
 	assert.Equal(t, elements, decoded)
 }
 
-func (suite *PathEncoderSuite) TestEncodeAsPathDecode() {
+func (suite *PathEncoderSuite) TestEncodeAsPathDecodePath() {
+	table := []struct {
+		name     string
+		elements []string
+		expected []string
+	}{
+		{
+			name:     "MultipleElements",
+			elements: []string{"these", "are", "some", "path", "elements"},
+			expected: []string{"these", "are", "some", "path", "elements"},
+		},
+		{
+			name:     "SingleElement",
+			elements: []string{"elements"},
+			expected: []string{"elements"},
+		},
+		{
+			name:     "EmptyPath",
+			elements: []string{""},
+			expected: []string{""},
+		},
+		{
+			name:     "NilPath",
+			elements: nil,
+			// Gets "" back because individual elements are decoded and "" is the 0
+			// value for the decoder.
+			expected: []string{""},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+			encoded := encodeAsPath(test.elements...)
+
+			// Sanity check, first and last character should not be '/'.
+			assert.Equal(t, strings.Trim(encoded, "/"), encoded)
+
+			decoded, err := decodePath(encoded)
+			require.NoError(t, err, clues.ToCore(err))
+
+			assert.Equal(t, test.expected, decoded)
+		})
+	}
+}
+
+func (suite *PathEncoderSuite) TestEncodeAsPathDecodePath_Error() {
+	t := suite.T()
+
+	inputElements := []string{
+		"some",
+		"path",
+	}
+
+	encoded := encodeAsPath(inputElements...)
+	// Randomly add an extra character outside the allowed character set which
+	// will mess up decoding the final element of the path.
+	encoded += "."
+
+	decoded, err := decodePath(encoded)
+	assert.Error(t, err)
+
+	for i := 0; i < len(inputElements)-1; i++ {
+		assert.Equal(t, inputElements[i], decoded[i], "path element at index %d", i)
+	}
+
+	splitEncoded := strings.Split(encoded, "/")
+
+	assert.Equal(
+		t,
+		splitEncoded[len(splitEncoded)-1],
+		decoded[len(decoded)-1],
+		"final path element that failed to decode")
+}
+
+func (suite *PathEncoderSuite) TestEncodeAsPathDecodeElements() {
 	table := []struct {
 		name     string
 		elements []string

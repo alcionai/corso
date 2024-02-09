@@ -3,6 +3,7 @@ package kopia
 import (
 	"encoding/base64"
 	"path"
+	"strings"
 
 	"github.com/alcionai/clues"
 )
@@ -22,19 +23,42 @@ func encodeElements(elements ...string) []string {
 	return encoded
 }
 
+// decodePath splits inputPath on the path separator and returns the base64
+// decoding of each element in the path. If an error occurs then returns a mixed
+// set of encoded and decoded elements and an error with information about each
+// element that failed decoding.
+func decodePath(inputPath string) ([]string, error) {
+	res, err := decodeElements(strings.Split(inputPath, "/")...)
+	return res, clues.Stack(err).OrNil()
+}
+
+// decodeElements returns the base64 decoding of each input element. If any
+// element fails to decode it returns a mix of encoded (failed) decoded elements
+// and an error.
 func decodeElements(elements ...string) ([]string, error) {
-	decoded := make([]string, 0, len(elements))
+	var (
+		errs    *clues.Err
+		decoded = make([]string, 0, len(elements))
+	)
 
 	for _, e := range elements {
-		bs, err := encoder.DecodeString(e)
+		decodedBytes, err := encoder.DecodeString(e)
+		// Make an additional string variable so we can just assign to it if there
+		// was an error. This avoids a continue in the error check below.
+		decodedElement := string(decodedBytes)
+
 		if err != nil {
-			return nil, clues.Wrap(err, "decoding element").With("element", e)
+			errs = clues.Stack(
+				errs,
+				clues.Wrap(err, "decoding element").With("element", e))
+			// Set bs to the input value so it gets returned in its encoded form.
+			decodedElement = e
 		}
 
-		decoded = append(decoded, string(bs))
+		decoded = append(decoded, decodedElement)
 	}
 
-	return decoded, nil
+	return decoded, errs.OrNil()
 }
 
 // encodeAsPath takes a set of elements and returns the concatenated elements as

@@ -2,7 +2,6 @@ package kopia
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"runtime/trace"
 	"strings"
@@ -171,22 +170,16 @@ func (cp *corsoProgress) FinishedHashingFile(fname string, bs int64) {
 	// Pass the call through as well so we don't break expected functionality.
 	defer cp.UploadProgress.FinishedHashingFile(fname, bs)
 
-	sl := strings.Split(fname, "/")
-
-	for i := range sl {
-		rdt, err := base64.StdEncoding.DecodeString(sl[i])
-		if err != nil {
-			logger.Ctx(cp.ctx).Infow(
-				"unable to decode base64 path segment",
-				"segment", sl[i])
-		} else {
-			sl[i] = string(rdt)
-		}
+	decoded, err := decodePath(fname)
+	if err != nil {
+		logger.Ctx(cp.ctx).Infow(
+			"unable to decode base64 path elements",
+			"encoded_path", fname)
 	}
 
 	logger.Ctx(cp.ctx).Debugw(
 		"finished hashing file",
-		"path", clues.Hide(path.Elements(sl[2:])))
+		"path", clues.Hide(path.Elements(decoded)))
 
 	cp.counter.Add(count.PersistedHashedBytes, bs)
 	atomic.AddInt64(&cp.totalBytes, bs)
