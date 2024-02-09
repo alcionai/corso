@@ -162,6 +162,18 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 				require.NoError(suite.T(), err, "setting attachment content")
 			},
 		},
+		{
+			name: "attachment without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+			},
+		},
 	}
 
 	for _, test := range tests {
