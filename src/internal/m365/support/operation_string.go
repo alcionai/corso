@@ -11,11 +11,12 @@ func _() {
 	_ = x[OpUnknown-0]
 	_ = x[Backup-1]
 	_ = x[Restore-2]
+	_ = x[Export-3]
 }
 
-const _Operation_name = "OpUnknownBackupRestore"
+const _Operation_name = "OpUnknownBackupRestoreExport"
 
-var _Operation_index = [...]uint8{0, 9, 15, 22}
+var _Operation_index = [...]uint8{0, 9, 15, 22, 28}
 
 func (i Operation) String() string {
 	if i < 0 || i >= Operation(len(_Operation_index)-1) {

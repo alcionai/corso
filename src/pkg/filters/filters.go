@@ -13,7 +13,6 @@ import (
 
 type comparator string
 
-//go:generate stringer -type=comparator -linecomment
 const (
 	UnknownComparator comparator = ""
 	// norm(a) == norm(b)

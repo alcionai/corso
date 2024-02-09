@@ -475,6 +475,24 @@ jobs:
         with:
           go-version-file: src/go.mod
 
+      - name: Run go generate
+        run: |
+          # Install tools used for generate commands in the repo
+          go generate tools.go
+          # Actually run generate commands in the repo.
+          go generate ./...
+
+      - name: Check for uncommitted changes from generated code
+        run: |
+          changes=$(git status --porcelain)
+          if [[ -n "$changes" ]]; then
+            echo "Uncommitted changes detected:"
+            echo "$changes"
+            echo "Run 'go generate' from backend/functions and commit the changes."
+            exit 1
+          fi
+          echo "No uncommitted changes detected."
+
       - name: Go Lint
         uses: golangci/golangci-lint-action@v3
         with:

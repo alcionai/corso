@@ -33,19 +33,10 @@ import (
 	"github.com/alcionai/canario/src/pkg/services/m365/api/graph"
 )
 
-type DataCategory int
-
 // channel sizes
 const (
 	collectionChannelBufferSize = 50
 	fetchChannelSize            = 5
-)
-
-//go:generate stringer -type=DataCategory
-const (
-	Unknown DataCategory = 0
-	List    DataCategory = 1
-	Pages   DataCategory = 2
 )
 
 var (
