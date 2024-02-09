@@ -174,6 +174,35 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 			expectNextDeltaURL: nextDeltaURL,
 			expectDeltaReset:   assert.False,
 		},
+		{
+			name:       "PrevDelta SecondaryNonDeltaFallback",
+			inputDelta: prevDelta,
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				// Number of retries and delay between retries is handled by a kiota
+				// middleware. We can change the default config parameters when setting
+				// up the mock in a later PR.
+				configureFailedRequests(t, deltaPath, maxDeltaPageSize)
+
+				// Smaller page size delta fallback.
+				configureFailedRequests(t, deltaPath, minEventsDeltaPageSize)
+
+				// Non delta endpoint fallback
+				gock.New(graphAPIHostURL).
+					Get(v1APIURLPath(
+						"users",
+						userID,
+						"calendars",
+						containerID,
+						"events")).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, maxNonDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectDeltaReset: assert.True,
+		},
 	}
 
 	for _, deltaTest := range deltaTests {
