@@ -322,12 +322,44 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		containerID,
 		idAnd(lastModifiedDateTime)...)
 
-	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](
+	addedRemoved, err = pagers.GetAddedAndRemovedItemIDs[models.Eventable](
 		ctx,
 		pager,
 		deltaPager,
 		prevDeltaLink,
 		config.CanMakeDeltaQueries,
+		config.LimitResults,
+		pagers.AddedAndRemovedByAddtlData[models.Eventable])
+	if err == nil || !errors.Is(err, graph.ErrServiceUnavailableEmptyResp) {
+		return addedRemoved, clues.Stack(err).OrNil()
+	}
+
+	logger.Ctx(ctx).Infow(
+		"retrying list event item query with non-delta pager",
+		"effective_page_size", maxNonDeltaPageSize)
+
+	// Attempt yet another fallback by using the regular pager if we still can't
+	// get data with a smaller page size. Get new pagers just to make sure we
+	// don't have partial state in them.
+	deltaPager = c.newEventsDeltaPagerWithPageSize(
+		ctx,
+		userID,
+		containerID,
+		prevDeltaLink,
+		effectivePageSize,
+		idAnd()...)
+	pager = c.NewEventsPager(
+		userID,
+		containerID,
+		idAnd(lastModifiedDateTime)...)
+
+	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](
+		ctx,
+		pager,
+		deltaPager,
+		prevDeltaLink,
+		// Disable delta queries.
+		false,
 		config.LimitResults,
 		pagers.AddedAndRemovedByAddtlData[models.Eventable])
 }
