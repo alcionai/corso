@@ -171,6 +171,13 @@ func getFileAttachment(ctx context.Context, attachment models.Attachmentable) (*
 	}
 
 	name := ptr.Val(attachment.GetName())
+	if len(name) == 0 {
+		// Graph as of now does not let us create any attachments
+		// without a name, but we have run into instances where we have
+		// see attachments without a name, possibly from old
+		// data. This is for those cases.
+		name = "Unnamed"
+	}
 
 	contentID, err := attachment.GetBackingStore().Get("contentId")
 	if err != nil {
@@ -472,6 +479,9 @@ func FromJSONPostToEML(
 			}
 
 			name := ptr.Val(attachment.GetName())
+			if len(name) == 0 {
+				name = "Unnamed"
+			}
 
 			contentID, err := attachment.GetBackingStore().Get("contentId")
 			if err != nil {

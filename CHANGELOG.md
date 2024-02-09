@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle the case where an email or event cannot be retrieved from Exchange due to an `ErrorCorruptData` error. Corso will skip over the item but report it in the backup summary.
 - Emails attached within other emails are now correctly exported
 - Use correct timezone for event start and end times in Exchange exports (helps fix issues in relative recurrence patterns)
+- Gracefully handle email and post attachments without name when exporting to eml
 
 ## [v0.19.0] (beta) - 2024-02-06
 
