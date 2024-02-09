@@ -40,7 +40,7 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 	resp, err := hw.Request(
 		ctx,
 		http.MethodGet,
-		"https://www.corsobackup.io",
+		"https://www.google.com",
 		nil,
 		nil)
 	require.NoError(t, err, clues.ToCore(err))
@@ -109,7 +109,7 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper_withAuth() {
 	resp, err = hw.Request(
 		ctx,
 		http.MethodGet,
-		"https://www.corsobackup.io",
+		"https://www.google.com",
 		nil,
 		nil)
 	require.NoError(t, err, clues.ToCore(err))
