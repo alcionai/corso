@@ -228,11 +228,11 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	assert.Equal(
 		t,
-		msg.GetCreatedDateTime().Format(ics.ICalDateTimeFormat),
+		msg.GetCreatedDateTime().Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyCreated).Value)
 	assert.Equal(
 		t,
-		msg.GetLastModifiedDateTime().Format(ics.ICalDateTimeFormat),
+		msg.GetLastModifiedDateTime().Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyLastModified).Value)
 
 	st, err := ics.GetUTCTime(
@@ -247,11 +247,11 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	assert.Equal(
 		t,
-		st.Format(ics.ICalDateTimeFormat),
+		st.Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyDtStart).Value)
 	assert.Equal(
 		t,
-		et.Format(ics.ICalDateTimeFormat),
+		et.Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyDtEnd).Value)
 
 	tos := msg.GetToRecipients()
