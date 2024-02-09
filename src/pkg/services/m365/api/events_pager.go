@@ -305,10 +305,11 @@ func (c Events) GetAddedAndRemovedItemIDs(
 	effectivePageSize := minEventsDeltaPageSize
 
 	logger.Ctx(ctx).Infow(
-		"retrying event item query with reduced page size",
+		"retrying list event item query with reduced page size",
 		"delta_pager_effective_page_size", effectivePageSize,
 		"delta_pager_default_page_size", c.options.DeltaPageSize)
 
+	// Get new pagers just to make sure we don't have partial state in them.
 	deltaPager = c.newEventsDeltaPagerWithPageSize(
 		ctx,
 		userID,
@@ -316,6 +317,10 @@ func (c Events) GetAddedAndRemovedItemIDs(
 		prevDeltaLink,
 		effectivePageSize,
 		idAnd()...)
+	pager = c.NewEventsPager(
+		userID,
+		containerID,
+		idAnd(lastModifiedDateTime)...)
 
 	return pagers.GetAddedAndRemovedItemIDs[models.Eventable](
 		ctx,
