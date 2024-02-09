@@ -35,8 +35,8 @@ const sidebars = {
       type: 'category',
       label: 'Command line reference',
       link: {
-        slug: 'cli/corso',
-        description: 'Explore the commonly-used Corso CLI commands',
+        slug: 'cli/canario',
+        description: 'Explore the commonly-used Canario CLI commands',
         type: 'generated-index',
       },
       items: [
@@ -45,76 +45,76 @@ const sidebars = {
           label: 'Setup and maintenance',
           link: {
             slug: 'cli/setup',
-            description: 'Documentation for Corso setup and maintenance commands',
+            description: 'Documentation for Canario setup and maintenance commands',
           },
           items: [
-            'cli/corso-repo-init-s3',
-            'cli/corso-repo-connect-s3',
-            'cli/corso-repo-init-filesystem',
-            'cli/corso-repo-connect-filesystem',
-            'cli/corso-repo-maintenance',
-            'cli/corso-repo-update-passphrase',
-            'cli/corso-env']
+            'cli/canario-repo-init-s3',
+            'cli/canario-repo-connect-s3',
+            'cli/canario-repo-init-filesystem',
+            'cli/canario-repo-connect-filesystem',
+            'cli/canario-repo-maintenance',
+            'cli/canario-repo-update-passphrase',
+            'cli/canario-env']
         },
         {
           type: 'category',
           label: 'Exchange',
           link: {
             slug: 'cli/exchange',
-            description: 'Documentation for commonly-used Corso Exchange CLI commands',
+            description: 'Documentation for commonly-used Canario Exchange CLI commands',
           },
           items: [
-            'cli/corso-backup-create-exchange',
-            'cli/corso-backup-list-exchange',
-            'cli/corso-backup-details-exchange',
-            'cli/corso-backup-delete-exchange',
-            'cli/corso-restore-exchange',
-            'cli/corso-export-exchange']
+            'cli/canario-backup-create-exchange',
+            'cli/canario-backup-list-exchange',
+            'cli/canario-backup-details-exchange',
+            'cli/canario-backup-delete-exchange',
+            'cli/canario-restore-exchange',
+            'cli/canario-export-exchange']
         },
         {
           type: 'category',
           label: 'Groups & Teams',
           link: {
             slug: 'cli/groups',
-            description: 'Documentation for commonly-used Corso Groups & Teams CLI commands',
+            description: 'Documentation for commonly-used Canario Groups & Teams CLI commands',
           },
           items: [
-            'cli/corso-backup-create-groups',
-            'cli/corso-backup-list-groups',
-            'cli/corso-backup-details-groups',
-            'cli/corso-backup-delete-groups',
-            'cli/corso-restore-groups',
-            'cli/corso-export-groups']
+            'cli/canario-backup-create-groups',
+            'cli/canario-backup-list-groups',
+            'cli/canario-backup-details-groups',
+            'cli/canario-backup-delete-groups',
+            'cli/canario-restore-groups',
+            'cli/canario-export-groups']
         },
         {
           type: 'category',
           label: 'OneDrive',
           link: {
             slug: 'cli/onedrive',
-            description: 'Documentation for commonly-used Corso OneDrive CLI commands',
+            description: 'Documentation for commonly-used Canario OneDrive CLI commands',
           },
           items: [
-            'cli/corso-backup-create-onedrive',
-            'cli/corso-backup-list-onedrive',
-            'cli/corso-backup-details-onedrive',
-            'cli/corso-backup-delete-onedrive',
-            'cli/corso-restore-onedrive',
-            'cli/corso-export-onedrive']
+            'cli/canario-backup-create-onedrive',
+            'cli/canario-backup-list-onedrive',
+            'cli/canario-backup-details-onedrive',
+            'cli/canario-backup-delete-onedrive',
+            'cli/canario-restore-onedrive',
+            'cli/canario-export-onedrive']
         },
         {
           type: 'category',
           label: 'SharePoint',
           link: {
             slug: 'cli/sharepoint',
-            description: 'Documentation for commonly-used Corso SharePoint CLI commands',
+            description: 'Documentation for commonly-used Canario SharePoint CLI commands',
           },
           items: [
-            'cli/corso-backup-create-sharepoint',
-            'cli/corso-backup-list-sharepoint',
-            'cli/corso-backup-details-sharepoint',
-            'cli/corso-backup-delete-sharepoint',
-            'cli/corso-restore-sharepoint',
-            'cli/corso-export-sharepoint']
+            'cli/canario-backup-create-sharepoint',
+            'cli/canario-backup-list-sharepoint',
+            'cli/canario-backup-details-sharepoint',
+            'cli/canario-backup-delete-sharepoint',
+            'cli/canario-restore-sharepoint',
+            'cli/canario-export-sharepoint']
         }
       ]
     },

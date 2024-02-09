@@ -76,7 +76,7 @@ The two most commonly-used options are:
 ### Initialize a S3 repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init s3`. See the command details
-[here](../../cli/corso-repo-init-s3).
+[here](../../cli/canario-repo-init-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -113,7 +113,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ### Connect to a S3 repository
 
 If a repository already exists, you can connect to it with `corso repo connect s3`. See the command details
-[here](../../cli/corso-repo-connect-s3).
+[here](../../cli/canario-repo-connect-s3).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -158,7 +158,7 @@ need to use the following flag with the initial Corso `repo init` command:
 
 Corso also supports the use of object storage systems with no TLS certificate or with self-signed
 TLS certificates with the `--disable-tls` or `--disable-tls-verification` flags.
-[These flags](../../cli/corso-repo-init-s3) should only be used for testing.
+[These flags](../../cli/canario-repo-init-s3) should only be used for testing.
 
 ## Filesystem Storage
 
@@ -170,7 +170,7 @@ production.
 ### Initialize a filesystem repository
 
 Before first use, you need to initialize a Corso repository with `corso repo init filesystem`. See the command details
-[here](../../cli/corso-repo-init-filesystem). Corso will create the directory structure if necessary, including any
+[here](../../cli/canario-repo-init-filesystem). Corso will create the directory structure if necessary, including any
 missing parent directories.
 
 Filesystem repositories don't support the `--prefix` option but instead use the `--path` option. Repository directories
@@ -213,7 +213,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ### Connect to a filesystem repository
 
 If a repository already exists, you can connect to it with `corso repo connect filesystem`. See the command details
-[here](../../cli/corso-repo-connect-filesystem).
+[here](../../cli/canario-repo-connect-filesystem).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">

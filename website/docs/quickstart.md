@@ -118,7 +118,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ## Create your first backup
 
 Corso can do much more, but you can start by creating a backup of your Exchange mailbox. If it has been a while since
-you initialized the Corso repository, you might need to [connect to it again](../setup/repos#connect-to-a-repository).
+you initialized the Corso repository, you might need to [connect to it again](../setup/repos#connect-to-a-s3-repository).
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -202,7 +202,7 @@ docker run --env-file $HOME/.corso/corso.env \\
 ```
 
 Next, select one of the available backups and list all backed up emails. See
-[here](../cli/corso-backup-details-exchange) for more advanced filtering options.
+[here](../cli/canario-backup-details-exchange) for more advanced filtering options.
 
 <Tabs groupId="os">
 <TabItem value="win" label="Powershell">
@@ -339,5 +339,5 @@ See [here](../setup/restore-options) for more restoration options.
 The above tutorial only scratches the surface for Corso's capabilities. We encourage you to dig deeper by:
 
 * Learning about [Corso concepts and setup](../setup/concepts)
-* Explore Corso backup and restore options for M365 Applications in the [Command Line Reference](../cli/corso)
+* Explore Corso backup and restore options for M365 Applications in the [Command Line Reference](../cli/canario)
 * Leverage Corso's [Advanced Restoration Options](../setup/restore-options)
