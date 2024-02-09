@@ -37,7 +37,7 @@ func GetAuth(tenant, client, secret string) (*kauth.AzureIdentityAuthenticationP
 type authorizer interface {
 	addAuthToHeaders(
 		ctx context.Context,
-		url string,
+		urlStr string,
 		headers http.Header,
 	) error
 }
