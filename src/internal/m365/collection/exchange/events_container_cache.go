@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -89,9 +90,31 @@ func (ecc *eventContainerCache) Populate(
 		return clues.WrapWC(ctx, err, "enumerating containers")
 	}
 
+	var defaultCalendarOwner string
+
+	// Determine the owner for the default calendar. We'll use this to detect and
+	// skip shared calendars that are not owned by this user.
+	for _, c := range containers {
+		if ptr.Val(c.GetIsDefaultCalendar()) {
+			defaultCalendarOwner = ptr.Val(c.GetOwner().GetAddress())
+		}
+	}
+
 	for _, c := range containers {
 		if el.Failure() != nil {
 			return el.Failure()
+		}
+
+		// Skip shared calendars if we have enough information to determine the owner
+		if len(defaultCalendarOwner) > 0 &&
+			!strings.EqualFold(defaultCalendarOwner, ptr.Val(c.GetOwner().GetAddress())) {
+			logger.Ctx(ctx).Infow(
+				"Skipping shared calendar",
+				"name", ptr.Val(c.GetName()),
+				"owner", ptr.Val(c.GetOwner().GetAddress()),
+				"defaultCalendarOwner", defaultCalendarOwner)
+
+			continue
 		}
 
 		cacheFolder := graph.NewCacheFolder(
