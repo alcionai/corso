@@ -93,7 +93,7 @@ func (suite *GraphIntgSuite) TestHTTPClient() {
 			checkConfig: func(t *testing.T, c *clientConfig) {
 				assert.Equal(t, defaultDelay, c.minDelay, "default delay")
 				assert.Equal(t, defaultMaxRetries, c.maxRetries, "max retries")
-				assert.Equal(t, defaultMaxRetries, c.maxConnectionRetries, "max connection retries")
+				assert.Equal(t, adapterMaxRetries, c.maxConnectionRetries, "max connection retries")
 			},
 		},
 		{
@@ -221,43 +221,92 @@ func (suite *GraphIntgSuite) TestAdapterWrap_catchesPanic() {
 	require.Contains(t, err.Error(), "panic", clues.ToCore(err))
 }
 
-func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionClose() {
-	t := suite.T()
-
-	ctx, flush := tester.NewContext(t)
-	defer flush()
-
-	retryInc := 0
-
-	// the panics should get caught and returned as errors
-	alwaysECONNRESET := mwForceResp{
-		err: syscall.ECONNRESET,
-		alternate: func(req *http.Request) (bool, *http.Response, error) {
-			retryInc++
-			return false, nil, nil
+func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionInterruptions() {
+	table := []struct {
+		name             string
+		providedErr      error
+		expectRetryCount int
+		expectErr        assert.ErrorAssertionFunc
+	}{
+		{
+			name:             "ECONNRESET",
+			providedErr:      syscall.ECONNRESET,
+			expectRetryCount: 7,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "connection reset by peer",
+			providedErr:      clues.New("connection reset by peer what is love"),
+			expectRetryCount: 7,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "read: connection timed out",
+			providedErr:      clues.New("read: connection timed out baby don't hurt me"),
+			expectRetryCount: 7,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "unexpected EOF",
+			providedErr:      io.ErrUnexpectedEOF,
+			expectRetryCount: 7,
+			expectErr:        assert.Error,
+		},
+		{
+			name:             "nil error",
+			providedErr:      nil,
+			expectRetryCount: 1,
+			expectErr:        assert.NoError,
+		},
+		{
+			name:             "non retriable error",
+			providedErr:      clues.New("no more"),
+			expectRetryCount: 1,
+			expectErr:        assert.Error,
 		},
 	}
 
-	adpt, err := CreateAdapter(
-		suite.credentials.AzureTenantID,
-		suite.credentials.AzureClientID,
-		suite.credentials.AzureClientSecret,
-		count.New(),
-		appendMiddleware(&alwaysECONNRESET),
-		// Configure retry middlewares so that they don't retry on connection reset.
-		// Those middlewares have their own tests to verify retries.
-		MaxRetries(-1))
-	require.NoError(t, err, clues.ToCore(err))
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	// Retry delay doesn't really matter here since all requests will be intercepted
-	// by the test middleware. Set it to 0 to reduce test runtime.
-	aw := adpt.(*adapterWrap)
-	aw.retryDelay = 0
+			ctx, flush := tester.NewContext(t)
+			defer flush()
 
-	// the query doesn't matter
-	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
-	require.ErrorIs(t, err, syscall.ECONNRESET, clues.ToCore(err))
-	require.Equal(t, 4, retryInc, "number of retries")
+			retryInc := 0
+			forceErrMW := mwForceResp{
+				err: test.providedErr,
+				// send some dummy response, because kiota retry handler panics
+				// if err is nil and resp is nil.
+				resp: &http.Response{},
+				alternate: func(req *http.Request) (bool, *http.Response, error) {
+					retryInc++
+					return false, nil, nil
+				},
+			}
+
+			adpt, err := CreateAdapter(
+				suite.credentials.AzureTenantID,
+				suite.credentials.AzureClientID,
+				suite.credentials.AzureClientSecret,
+				count.New(),
+				appendMiddleware(&forceErrMW),
+				// Configure retry middlewares so that they don't retry on connection reset.
+				// Those middlewares have their own tests to verify retries.
+				MaxRetries(-1))
+			require.NoError(t, err, clues.ToCore(err))
+
+			// Retry delay doesn't really matter here since all requests will be intercepted
+			// by the test middleware. Set it to 0 to reduce test runtime.
+			aw := adpt.(*adapterWrap)
+			aw.retryDelay = 0
+
+			// the query doesn't matter
+			_, err = NewService(adpt).Client().Users().Get(ctx, nil)
+			test.expectErr(t, err, clues.ToCore(err))
+			require.Equal(t, test.expectRetryCount, retryInc, "number of retries")
+		})
+	}
 }
 
 func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
@@ -315,14 +364,14 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesBadJWTToken() {
 		NewItemCalendarsItemEventsDeltaRequestBuilder("https://graph.microsoft.com/fnords/beaux/regard", adpt).
 		Get(ctx, nil)
 	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
-	assert.Equal(t, 4, retryInc, "number of retries")
+	assert.Equal(t, adapterMaxRetries+1, retryInc, "number of retries")
 
 	retryInc = 0
 
 	// the query doesn't matter
 	_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 	assert.ErrorIs(t, err, core.ErrAuthTokenExpired, clues.ToCore(err))
-	assert.Equal(t, 4, retryInc, "number of retries")
+	assert.Equal(t, adapterMaxRetries+1, retryInc, "number of retries")
 }
 
 // TestAdapterWrap_retriesInvalidRequest tests adapter retries for graph 400
@@ -398,7 +447,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesInvalidRequest() {
 				_, err = NewService(adpt).Client().Users().Get(ctx, nil)
 				return err
 			},
-			expectedRetries: 4,
+			expectedRetries: adapterMaxRetries + 1,
 		},
 		{
 			name: "POST request, no retry",

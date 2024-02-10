@@ -23,13 +23,19 @@ import (
 
 // GockClient produces a new exchange api client that can be
 // mocked using gock.
-func gockClient(creds account.M365Config, counter *count.Bus) (Client, error) {
-	s, err := graph.NewGockService(creds, counter)
+func gockClient(
+	creds account.M365Config,
+	counter *count.Bus,
+	opts ...graph.Option,
+) (Client, error) {
+	s, err := graph.NewGockService(creds, counter, opts...)
 	if err != nil {
 		return Client{}, err
 	}
 
-	li, err := graph.NewGockService(creds, counter, graph.NoTimeout())
+	opts = append(opts, graph.NoTimeout())
+
+	li, err := graph.NewGockService(creds, counter, opts...)
 	if err != nil {
 		return Client{}, err
 	}
