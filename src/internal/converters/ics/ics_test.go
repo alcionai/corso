@@ -1579,8 +1579,27 @@ func (s *ICSUnitSuite) TestAddTime() {
 
 			addTime(evt, tt.prop, tt.time, tt.allDay, tt.loc)
 
+			expSplits := strings.FieldsFunc(tt.exp, func(c rune) bool {
+				return c == ':' || c == ';'
+			})
+
 			text := cal.Serialize()
-			assert.Contains(s.T(), text, tt.exp, "time")
+			checkLine := ""
+
+			for _, l := range strings.Split(text, "\r\n") {
+				if strings.HasPrefix(l, string(tt.prop)) {
+					checkLine = l
+					break
+				}
+			}
+
+			actSplits := strings.FieldsFunc(checkLine, func(c rune) bool {
+				return c == ':' || c == ';'
+			})
+
+			assert.Greater(s.T(), len(checkLine), 0, "line not found")
+			assert.Equal(s.T(), len(expSplits), len(actSplits), "length of fields")
+			assert.ElementsMatch(s.T(), expSplits, actSplits, "fields")
 		})
 	}
 }
