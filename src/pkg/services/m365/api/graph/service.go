@@ -382,6 +382,7 @@ func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapt
 	}
 }
 
+// Graph may abruptly close connections, which we should retry.
 var connectionEnded = filters.In([]string{
 	"connection reset by peer",
 	"client connection force closed",

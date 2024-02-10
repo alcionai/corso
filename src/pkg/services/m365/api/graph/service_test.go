@@ -236,13 +236,13 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionInterruptions() {
 		},
 		{
 			name:             "connection reset by peer",
-			providedErr:      clues.New("connection reset by peer"),
+			providedErr:      clues.New("connection reset by peer what is love"),
 			expectRetryCount: 7,
 			expectErr:        assert.Error,
 		},
 		{
 			name:             "read: connection timed out",
-			providedErr:      clues.New("read: connection timed out"),
+			providedErr:      clues.New("read: connection timed out baby don't hurt me"),
 			expectRetryCount: 7,
 			expectErr:        assert.Error,
 		},
@@ -260,7 +260,7 @@ func (suite *GraphIntgSuite) TestAdapterWrap_retriesConnectionInterruptions() {
 		},
 		{
 			name:             "non retriable error",
-			providedErr:      clues.New("non retriable error"),
+			providedErr:      clues.New("no more"),
 			expectRetryCount: 1,
 			expectErr:        assert.Error,
 		},
