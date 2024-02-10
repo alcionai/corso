@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -107,13 +108,10 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 			Reply(http.StatusOK).
 			JSON(validEventsListSingleNextLinkResponse)
 
-		// Number of retries and delay between retries is handled by a kiota
-		// middleware. We can change the default config parameters when setting
-		// up the mock in a later PR.
 		gock.New(graphAPIHostURL).
 			Get(nextLinkPath).
 			AddMatcher(pageSizeMatcher(t, expectedPageSize)).
-			Times(4).
+			Times(2). // retry count is configured to 1
 			Reply(http.StatusServiceUnavailable).
 			BodyString("").
 			Type("text/plain")
@@ -241,7 +239,9 @@ func (suite *EventsPagerUnitSuite) TestEventsList() {
 			creds, err := a.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
-			client, err := gockClient(creds, count.New())
+			// Run with a single retry since 503 retries are exponential and
+			// the test will take a long time to run.
+			client, err := gockClient(creds, count.New(), graph.MaxRetries(1))
 			require.NoError(t, err, clues.ToCore(err))
 
 			t.Cleanup(gock.Off)
