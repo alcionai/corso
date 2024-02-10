@@ -296,6 +296,7 @@ func (m mockGetter) Get(
 	ctx context.Context,
 	url string,
 	headers map[string]string,
+	requireAuth bool,
 ) (*http.Response, error) {
 	return m.GetFunc(ctx, url)
 }

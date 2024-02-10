@@ -65,14 +65,15 @@ func downloadItem(
 		url = str.FirstIn(item.GetAdditionalData(), downloadURLKeys...)
 	}
 
-	reader, err = downloadFile(ctx, getter, url)
+	reader, err = downloadFile(ctx, getter, url, ptr.Val(item.GetSize()) < largeFileDownloadLimit)
 
 	return reader, clues.StackWC(ctx, err).OrNil()
 }
 
 type downloadWithRetries struct {
-	getter api.Getter
-	url    string
+	getter      api.Getter
+	requireAuth bool
+	url         string
 }
 
 func (dg *downloadWithRetries) SupportsRange() bool {
@@ -88,7 +89,7 @@ func (dg *downloadWithRetries) Get(
 	// wouldn't work without it (get 416 responses instead of 206).
 	headers[acceptHeaderKey] = acceptHeaderValue
 
-	resp, err := dg.getter.Get(ctx, dg.url, headers)
+	resp, err := dg.getter.Get(ctx, dg.url, headers, dg.requireAuth)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting file")
 	}
@@ -120,6 +121,7 @@ func downloadFile(
 	ctx context.Context,
 	ag api.Getter,
 	url string,
+	requireAuth bool,
 ) (io.ReadCloser, error) {
 	if len(url) == 0 {
 		return nil, clues.NewWC(ctx, "empty file url")
@@ -143,8 +145,9 @@ func downloadFile(
 	rc, err := readers.NewResetRetryHandler(
 		ctx,
 		&downloadWithRetries{
-			getter: ag,
-			url:    url,
+			getter:      ag,
+			requireAuth: requireAuth,
+			url:         url,
 		})
 
 	return rc, clues.Stack(err).OrNil()

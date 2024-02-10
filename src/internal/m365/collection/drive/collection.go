@@ -426,7 +426,7 @@ func readItemContents(
 		return nil, core.ErrNotFound
 	}
 
-	rc, err := downloadFile(ctx, iaag, props.downloadURL)
+	rc, err := downloadFile(ctx, iaag, props.downloadURL, false)
 	if graph.IsErrUnauthorizedOrBadToken(err) {
 		logger.CtxErr(ctx, err).Debug("stale item in cache")
 	}

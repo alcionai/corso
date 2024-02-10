@@ -77,7 +77,8 @@ func (iw *largeItemWriter) Write(p []byte) (int, error) {
 		http.MethodPut,
 		iw.url,
 		bytes.NewReader(p),
-		headers)
+		headers,
+		false)
 	if err != nil {
 		return 0, clues.Wrap(err, "uploading item").With(
 			"upload_id", iw.parentID,
