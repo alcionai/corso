@@ -174,9 +174,15 @@ func KiotaHTTPClient(
 const (
 	defaultDelay             = 3 * time.Second
 	defaultHTTPClientTimeout = 1 * time.Hour
+
+	// Default retry count for retry middlewares
+	defaultMaxRetries = 3
+	// Retry count for graph adapter
+	//
 	// Bumping retries to 6 since we have noticed that auth token expiry errors
 	// may continue to persist even after 3 retries.
-	defaultMaxRetries = 6
+	adapterMaxRetries = 6
+
 	// FIXME: This should ideally be 0, but if we set to 0, graph
 	// client with automatically set the context timeout to 0 as
 	// well which will make the client unusable.
@@ -203,7 +209,7 @@ type Option func(*clientConfig)
 // populate constructs a clientConfig according to the provided options.
 func populateConfig(opts ...Option) *clientConfig {
 	cc := clientConfig{
-		maxConnectionRetries: defaultMaxRetries,
+		maxConnectionRetries: adapterMaxRetries,
 		maxRetries:           defaultMaxRetries,
 		minDelay:             defaultDelay,
 		timeout:              defaultHTTPClientTimeout,
@@ -376,7 +382,7 @@ func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapt
 	}
 }
 
-var connectionEnded = filters.Contains([]string{
+var connectionEnded = filters.In([]string{
 	"connection reset by peer",
 	"client connection force closed",
 	"read: connection timed out",
