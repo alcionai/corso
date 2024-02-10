@@ -186,8 +186,11 @@ func (c Contacts) GetItem(
 		Contacts().
 		ByContactId(itemID).
 		Get(ctx, options)
+	if err != nil {
+		return nil, nil, clues.Stack(err)
+	}
 
-	return cont, ContactInfo(cont), clues.Stack(err).OrNil()
+	return cont, ContactInfo(cont), nil
 }
 
 func (c Contacts) PostItem(
