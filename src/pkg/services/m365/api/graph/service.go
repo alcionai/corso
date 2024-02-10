@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -173,7 +174,9 @@ func KiotaHTTPClient(
 const (
 	defaultDelay             = 3 * time.Second
 	defaultHTTPClientTimeout = 1 * time.Hour
-	defaultMaxRetries        = 3
+	// Bumping retries to 6 since we have noticed that auth token expiry errors
+	// may continue to persist even after 3 retries.
+	defaultMaxRetries = 6
 	// FIXME: This should ideally be 0, but if we set to 0, graph
 	// client with automatically set the context timeout to 0 as
 	// well which will make the client unusable.
@@ -376,6 +379,7 @@ func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapt
 var connectionEnded = filters.Contains([]string{
 	"connection reset by peer",
 	"client connection force closed",
+	"read: connection timed out",
 })
 
 func (aw *adapterWrap) Send(
@@ -416,7 +420,9 @@ func (aw *adapterWrap) Send(
 		err = stackWithCoreErr(ictx, err, 1)
 		e = err
 
-		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
+		if IsErrConnectionReset(err) ||
+			connectionEnded.Compare(err.Error()) ||
+			errors.Is(err, io.ErrUnexpectedEOF) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
 		} else if errors.Is(err, core.ErrAuthTokenExpired) {
