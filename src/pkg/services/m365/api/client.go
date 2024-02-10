@@ -63,7 +63,12 @@ func NewClient(
 		return Client{}, err
 	}
 
-	rqr := graph.NewNoTimeoutHTTPWrapper(counter)
+	azureAuth, err := graph.NewAzureAuth(creds)
+	if err != nil {
+		return Client{}, clues.Wrap(err, "generating azure authorizer")
+	}
+
+	rqr := graph.NewNoTimeoutHTTPWrapper(counter, graph.AuthorizeRequester(azureAuth))
 
 	if co.DeltaPageSize < 1 || co.DeltaPageSize > maxDeltaPageSize {
 		co.DeltaPageSize = maxDeltaPageSize
@@ -123,17 +128,7 @@ func newLargeItemService(
 	creds account.M365Config,
 	counter *count.Bus,
 ) (*graph.Service, error) {
-	azureAuth, err := graph.NewAzureAuth(creds)
-	if err != nil {
-		return nil, clues.Wrap(err, "generating azure authorizer")
-	}
-
-	a, err := NewService(
-		creds,
-		counter,
-		graph.NoTimeout(),
-		graph.AuthorizeRequester(azureAuth))
-
+	a, err := NewService(creds, counter, graph.NoTimeout())
 	return a, clues.Wrap(err, "generating no-timeout graph adapter").OrNil()
 }
 

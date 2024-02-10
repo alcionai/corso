@@ -24,7 +24,7 @@ const (
 	acceptHeaderKey        = "Accept"
 	acceptHeaderValue      = "*/*"
 	gigabyte               = 1024 * 1024 * 1024
-	largeFileDownloadLimit = 50 * gigabyte
+	largeFileDownloadLimit = 15 * gigabyte
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -48,7 +48,7 @@ func downloadItem(
 		// the download could take longer than the lifespan of the download token in the cached
 		// url, which will cause us to timeout on every download request, even if we refresh the
 		// download url right before the query.
-		url    = "https://graph.microsoft.com/v1.0/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
+		url    = "https://graph.microsoft.com/v1.0/drives/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
 		reader io.ReadCloser
 		err    error
 	)
@@ -61,7 +61,7 @@ func downloadItem(
 	// smaller files will maintain our current behavior (prefetching the download url with the
 	// url cache).  That pattern works for us in general, and we only need to deviate for very
 	// large file sizes.
-	if ptr.Val(item.GetSize()) > largeFileDownloadLimit {
+	if ptr.Val(item.GetSize()) < largeFileDownloadLimit {
 		url = str.FirstIn(item.GetAdditionalData(), downloadURLKeys...)
 	}
 
