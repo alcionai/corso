@@ -137,98 +137,105 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 }
 
 func (suite *EMLUnitSuite) TestConvert_edge_cases() {
-	tests := []struct {
-		name      string
-		transform func(models.Messageable)
-	}{
-		{
-			name: "just a name",
-			transform: func(msg models.Messageable) {
-				msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
-				msg.GetFrom().GetEmailAddress().SetAddress(nil)
-			},
-		},
-		{
-			name: "incorrect address",
-			transform: func(msg models.Messageable) {
-				msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
-			},
-		},
-		{
-			name: "empty attachment",
-			transform: func(msg models.Messageable) {
-				attachments := msg.GetAttachments()
-				err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
-				require.NoError(suite.T(), err, "setting attachment content")
-			},
-		},
-		{
-			name: "attachment without name",
-			transform: func(msg models.Messageable) {
-				attachments := msg.GetAttachments()
-				attachments[1].SetName(ptr.To(""))
-
-				// This test has to be run on a non inline attachment
-				// as inline attachments use contentID instead of name
-				// even when there is a name.
-				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-			},
-		},
-		{
-			name: "attachment with nil name",
-			transform: func(msg models.Messageable) {
-				attachments := msg.GetAttachments()
-				attachments[1].SetName(nil)
-
-				// This test has to be run on a non inline attachment
-				// as inline attachments use contentID instead of name
-				// even when there is a name.
-				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-			},
-		},
-		{
-			name: "multiple attachments without name",
-			transform: func(msg models.Messageable) {
-				attachments := msg.GetAttachments()
-				attachments[1].SetName(ptr.To(""))
-				attachments[2].SetName(ptr.To(""))
-
-				// This test has to be run on a non inline attachment
-				// as inline attachments use contentID instead of name
-				// even when there is a name.
-				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-				assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
-			},
-		},
+	bodies := []string{
+		testdata.EmailWithAttachments,
+		testdata.EmailWithinEmail,
 	}
 
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
+	for _, b := range bodies {
+		tests := []struct {
+			name      string
+			transform func(models.Messageable)
+		}{
+			{
+				name: "just a name",
+				transform: func(msg models.Messageable) {
+					msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
+					msg.GetFrom().GetEmailAddress().SetAddress(nil)
+				},
+			},
+			{
+				name: "incorrect address",
+				transform: func(msg models.Messageable) {
+					msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
+				},
+			},
+			{
+				name: "empty attachment",
+				transform: func(msg models.Messageable) {
+					attachments := msg.GetAttachments()
+					err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
+					require.NoError(suite.T(), err, "setting attachment content")
+				},
+			},
+			{
+				name: "attachment without name",
+				transform: func(msg models.Messageable) {
+					attachments := msg.GetAttachments()
+					attachments[1].SetName(ptr.To(""))
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+					// This test has to be run on a non inline attachment
+					// as inline attachments use contentID instead of name
+					// even when there is a name.
+					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+				},
+			},
+			{
+				name: "attachment with nil name",
+				transform: func(msg models.Messageable) {
+					attachments := msg.GetAttachments()
+					attachments[1].SetName(nil)
 
-			body := []byte(testdata.EmailWithAttachments)
+					// This test has to be run on a non inline attachment
+					// as inline attachments use contentID instead of name
+					// even when there is a name.
+					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+				},
+			},
+			{
+				name: "multiple attachments without name",
+				transform: func(msg models.Messageable) {
+					attachments := msg.GetAttachments()
+					attachments[1].SetName(ptr.To(""))
+					attachments[2].SetName(ptr.To(""))
 
-			msg, err := api.BytesToMessageable(body)
-			require.NoError(t, err, "creating message")
+					// This test has to be run on a non inline attachment
+					// as inline attachments use contentID instead of name
+					// even when there is a name.
+					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+					assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
+				},
+			},
+		}
 
-			test.transform(msg)
+		for _, test := range tests {
+			suite.Run(test.name, func() {
+				t := suite.T()
 
-			writer := kjson.NewJsonSerializationWriter()
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-			defer writer.Close()
+				body := []byte(b)
 
-			err = writer.WriteObjectValue("", msg)
-			require.NoError(t, err, "serializing message")
+				msg, err := api.BytesToMessageable(body)
+				require.NoError(t, err, "creating message")
 
-			nbody, err := writer.GetSerializedContent()
-			require.NoError(t, err, "getting serialized content")
+				test.transform(msg)
 
-			_, err = FromJSON(ctx, nbody)
-			assert.NoError(t, err, "converting to eml")
-		})
+				writer := kjson.NewJsonSerializationWriter()
+
+				defer writer.Close()
+
+				err = writer.WriteObjectValue("", msg)
+				require.NoError(t, err, "serializing message")
+
+				nbody, err := writer.GetSerializedContent()
+				require.NoError(t, err, "getting serialized content")
+
+				_, err = FromJSON(ctx, nbody)
+				assert.NoError(t, err, "converting to eml")
+			})
+		}
 	}
 }
 
@@ -461,7 +468,7 @@ func (suite *EMLUnitSuite) TestConvert_message_in_messageble_to_eml() {
 	assert.Equal(t, formatAddress(msg.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
 
 	attachments := eml.Attachments
-	assert.Equal(t, 1, len(attachments), "attachment count in parent email")
+	assert.Equal(t, 3, len(attachments), "attachment count in parent email")
 
 	ieml, err := enmime.ReadEnvelope(strings.NewReader(string(attachments[0].Content)))
 	require.NoError(t, err, "reading created eml")
