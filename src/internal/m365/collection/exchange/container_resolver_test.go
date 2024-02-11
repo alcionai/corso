@@ -3,11 +3,13 @@ package exchange
 import (
 	"context"
 	"fmt"
+	"hash/crc32"
 	stdpath "path"
 	"testing"
 
 	"github.com/alcionai/clues"
 	"github.com/google/uuid"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1016,6 +1018,210 @@ func (suite *ConfiguredFolderCacheUnitSuite) TestAddToCache() {
 	assert.Equal(t, m.expectedPath, p.String(), "ID path")
 	assert.Equal(t, m.expectedLocation, l.String(), "location path")
 }
+
+// ---------------------------------------------------------------------------
+// EventContainerCache unit tests
+// ---------------------------------------------------------------------------
+
+var _ containerGetter = mockEventContainerGetter{}
+
+type mockEventContainerGetter struct {
+	// containerGetter returns graph.CalendarDisplayable, unlike containersEnumerator
+	// which returns models.Calendarable.
+	idToCalendar map[string]graph.CalendarDisplayable
+	err          error
+}
+
+func (m mockEventContainerGetter) GetContainerByID(
+	ctx context.Context,
+	userID string,
+	dirID string,
+) (graph.Container, error) {
+	return m.idToCalendar[dirID], m.err
+}
+
+var _ containersEnumerator[models.Calendarable] = mockEventContainersEnumerator{}
+
+type mockEventContainersEnumerator struct {
+	containers []models.Calendarable
+	err        error
+}
+
+func (m mockEventContainersEnumerator) EnumerateContainers(
+	ctx context.Context,
+	userID string,
+	baseDirID string,
+) ([]models.Calendarable, error) {
+	return m.containers, m.err
+}
+
+type EventsContainerUnitSuite struct {
+	tester.Suite
+}
+
+func TestEventsContainerUnitSuite(t *testing.T) {
+	suite.Run(t, &EventsContainerUnitSuite{
+		Suite: tester.NewUnitSuite(t),
+	})
+}
+
+func makeCalendar(
+	id, name, ownerEmail string,
+	isDefault bool,
+) *models.Calendar {
+	c := models.NewCalendar()
+
+	c.SetId(ptr.To(id))
+	c.SetName(ptr.To(name))
+	c.SetIsDefaultCalendar(ptr.To(isDefault))
+
+	if len(ownerEmail) > 0 {
+		email := models.NewEmailAddress()
+
+		email.SetAddress(ptr.To(ownerEmail))
+		// Set crc as the name for keeping this func simple.
+		eName := fmt.Sprintf("%d", crc32.ChecksumIEEE([]byte(ownerEmail)))
+		email.SetName(ptr.To(eName))
+		c.SetOwner(email)
+	}
+
+	return c
+}
+
+// Test if we skip backup of shared calendars. These will be backed up for
+// the resource owner that owns the calendar.
+func (suite *EventsContainerUnitSuite) TestPopulate_SkipSharedCalendars() {
+	// map of calendars
+	calendars := map[string]models.Calendarable{
+		// Default calendars Dx
+		"D0": makeCalendar(api.DefaultCalendar, api.DefaultCalendar, "owner@bar.com", true),
+		// Atypical, but creating another default calendar for testing purposes.
+		"D1": makeCalendar("D1", "D1", "owner@bar.com", true),
+		// Shared calendars Sx
+		"S0": makeCalendar("S0", "S0", "sharer@bar.com", false),
+		// Owned calendars, not default Ox
+		"O0": makeCalendar("O0", "O0", "owner@bar.com", false),
+		// Calendars with missing owner informaton
+		"M0": makeCalendar("M0", "M0", "", false),
+	}
+
+	// Always return default calendar from the getter.
+	getContainersByID := func() map[string]graph.CalendarDisplayable {
+		return map[string]graph.CalendarDisplayable{
+			api.DefaultCalendar: *graph.CreateCalendarDisplayable(calendars["D0"], "parentID"),
+		}
+	}
+
+	table := []struct {
+		name                string
+		enumerateContainers func() []models.Calendarable
+		expectErr           assert.ErrorAssertionFunc
+		assertFunc          func(t *testing.T, ecc *eventContainerCache)
+	}{
+		{
+			name: "one default calendar, one shared",
+			enumerateContainers: func() []models.Calendarable {
+				return []models.Calendarable{
+					calendars["D0"],
+					calendars["S0"],
+				}
+			},
+			expectErr: assert.NoError,
+			assertFunc: func(t *testing.T, ecc *eventContainerCache) {
+				assert.Len(t, ecc.cache, 1, "expected calendar count")
+				assert.NotNil(t, ecc.cache[api.DefaultCalendar], "missing default calendar")
+			},
+		},
+		{
+			name: "2 default calendars, 1 shared",
+			enumerateContainers: func() []models.Calendarable {
+				return []models.Calendarable{
+					calendars["D0"],
+					calendars["D1"],
+					calendars["S0"],
+				}
+			},
+			expectErr: assert.NoError,
+			assertFunc: func(t *testing.T, ecc *eventContainerCache) {
+				assert.Len(t, ecc.cache, 2, "expected calendar count")
+				assert.NotNil(t, ecc.cache[api.DefaultCalendar], "missing default calendar")
+				assert.NotNil(t, ecc.cache["D1"], "missing default calendar")
+			},
+		},
+		{
+			name: "1 default, 1 additional owned, 1 shared",
+			enumerateContainers: func() []models.Calendarable {
+				return []models.Calendarable{
+					calendars["D0"],
+					calendars["O0"],
+					calendars["S0"],
+				}
+			},
+			expectErr: assert.NoError,
+			assertFunc: func(t *testing.T, ecc *eventContainerCache) {
+				assert.Len(t, ecc.cache, 2, "expected calendar count")
+				assert.NotNil(t, ecc.cache[api.DefaultCalendar], "missing default calendar")
+				assert.NotNil(t, ecc.cache["O0"], "missing owned calendar")
+			},
+		},
+		{
+			name: "1 default, 1 with missing owner information",
+			enumerateContainers: func() []models.Calendarable {
+				return []models.Calendarable{
+					calendars["D0"],
+					calendars["M0"],
+				}
+			},
+
+			expectErr: assert.NoError,
+			assertFunc: func(t *testing.T, ecc *eventContainerCache) {
+				assert.Len(t, ecc.cache, 2, "expected calendar count")
+				assert.NotNil(t, ecc.cache[api.DefaultCalendar], "missing default calendar")
+				assert.NotNil(t, ecc.cache["M0"], "missing calendar with missing owner info")
+			},
+		},
+		{
+			// Unlikely to happen, but we should back up the calendar if the default owner
+			// cannot be determined, i.e. default calendar is missing.
+			name: "default owner info missing",
+			enumerateContainers: func() []models.Calendarable {
+				return []models.Calendarable{
+					calendars["S0"],
+				}
+			},
+			expectErr: assert.NoError,
+			assertFunc: func(t *testing.T, ecc *eventContainerCache) {
+				assert.Len(t, ecc.cache, 2, "expected calendar count")
+				assert.NotNil(t, ecc.cache[api.DefaultCalendar], "missing default calendar")
+				assert.NotNil(t, ecc.cache["S0"], "missing additional calendar")
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			ecc := &eventContainerCache{
+				userID: "test",
+				enumer: mockEventContainersEnumerator{containers: test.enumerateContainers()},
+				getter: mockEventContainerGetter{idToCalendar: getContainersByID()},
+			}
+
+			err := ecc.Populate(ctx, fault.New(true), "root", "root")
+			test.expectErr(t, err, clues.ToCore(err))
+
+			test.assertFunc(t, ecc)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// container resolver integration suite
+// ---------------------------------------------------------------------------
 
 type ContainerResolverIntgSuite struct {
 	tester.Suite

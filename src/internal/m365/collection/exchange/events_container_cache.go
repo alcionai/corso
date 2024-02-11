@@ -61,6 +61,16 @@ func (ecc *eventContainerCache) populateEventRoot(ctx context.Context) error {
 	return nil
 }
 
+func isSharedCalendar(defaultCalendarOwner string, c models.Calendarable) bool {
+	// If we can't determine the owner, assume the calendar is owned by the
+	// user.
+	if len(defaultCalendarOwner) == 0 || c.GetOwner() == nil {
+		return false
+	}
+
+	return !strings.EqualFold(defaultCalendarOwner, ptr.Val(c.GetOwner().GetAddress()))
+}
+
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
 // @param baseID: ignored. Present to conform to interface
@@ -95,8 +105,11 @@ func (ecc *eventContainerCache) Populate(
 	// Determine the owner for the default calendar. We'll use this to detect and
 	// skip shared calendars that are not owned by this user.
 	for _, c := range containers {
-		if ptr.Val(c.GetIsDefaultCalendar()) {
+		if ptr.Val(c.GetIsDefaultCalendar()) && c.GetOwner() != nil {
 			defaultCalendarOwner = ptr.Val(c.GetOwner().GetAddress())
+			ctx = clues.Add(ctx, "default_calendar_owner", defaultCalendarOwner)
+
+			break
 		}
 	}
 
@@ -106,13 +119,16 @@ func (ecc *eventContainerCache) Populate(
 		}
 
 		// Skip shared calendars if we have enough information to determine the owner
-		if len(defaultCalendarOwner) > 0 &&
-			!strings.EqualFold(defaultCalendarOwner, ptr.Val(c.GetOwner().GetAddress())) {
+		if isSharedCalendar(defaultCalendarOwner, c) {
+			var ownerEmail string
+			if c.GetOwner() != nil {
+				ownerEmail = ptr.Val(c.GetOwner().GetAddress())
+			}
+
 			logger.Ctx(ctx).Infow(
-				"Skipping shared calendar",
+				"skipping shared calendar",
 				"name", ptr.Val(c.GetName()),
-				"owner", ptr.Val(c.GetOwner().GetAddress()),
-				"defaultCalendarOwner", defaultCalendarOwner)
+				"owner", ownerEmail)
 
 			continue
 		}
