@@ -142,73 +142,73 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 		testdata.EmailWithinEmail,
 	}
 
-	for _, b := range bodies {
-		tests := []struct {
-			name      string
-			transform func(models.Messageable)
-		}{
-			{
-				name: "just a name",
-				transform: func(msg models.Messageable) {
-					msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
-					msg.GetFrom().GetEmailAddress().SetAddress(nil)
-				},
+	tests := []struct {
+		name      string
+		transform func(models.Messageable)
+	}{
+		{
+			name: "just a name",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetName(ptr.To("alphabob"))
+				msg.GetFrom().GetEmailAddress().SetAddress(nil)
 			},
-			{
-				name: "incorrect address",
-				transform: func(msg models.Messageable) {
-					msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
-				},
+		},
+		{
+			name: "incorrect address",
+			transform: func(msg models.Messageable) {
+				msg.GetFrom().GetEmailAddress().SetAddress(ptr.To("invalid"))
 			},
-			{
-				name: "empty attachment",
-				transform: func(msg models.Messageable) {
-					attachments := msg.GetAttachments()
-					err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
-					require.NoError(suite.T(), err, "setting attachment content")
-				},
+		},
+		{
+			name: "empty attachment",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				err := attachments[0].GetBackingStore().Set("contentBytes", []uint8{})
+				require.NoError(suite.T(), err, "setting attachment content")
 			},
-			{
-				name: "attachment without name",
-				transform: func(msg models.Messageable) {
-					attachments := msg.GetAttachments()
-					attachments[1].SetName(ptr.To(""))
+		},
+		{
+			name: "attachment without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
 
-					// This test has to be run on a non inline attachment
-					// as inline attachments use contentID instead of name
-					// even when there is a name.
-					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-				},
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
 			},
-			{
-				name: "attachment with nil name",
-				transform: func(msg models.Messageable) {
-					attachments := msg.GetAttachments()
-					attachments[1].SetName(nil)
+		},
+		{
+			name: "attachment with nil name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(nil)
 
-					// This test has to be run on a non inline attachment
-					// as inline attachments use contentID instead of name
-					// even when there is a name.
-					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-				},
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
 			},
-			{
-				name: "multiple attachments without name",
-				transform: func(msg models.Messageable) {
-					attachments := msg.GetAttachments()
-					attachments[1].SetName(ptr.To(""))
-					attachments[2].SetName(ptr.To(""))
+		},
+		{
+			name: "multiple attachments without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
+				attachments[2].SetName(ptr.To(""))
 
-					// This test has to be run on a non inline attachment
-					// as inline attachments use contentID instead of name
-					// even when there is a name.
-					assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
-					assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
-				},
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+				assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
 			},
-		}
+		},
+	}
 
-		for _, test := range tests {
+	for _, test := range tests {
+		for _, b := range bodies {
 			suite.Run(test.name, func() {
 				t := suite.T()
 
