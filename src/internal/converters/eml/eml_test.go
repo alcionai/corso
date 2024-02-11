@@ -207,8 +207,8 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 		},
 	}
 
-	for _, test := range tests {
-		for _, b := range bodies {
+	for _, b := range bodies {
+		for _, test := range tests {
 			suite.Run(test.name, func() {
 				t := suite.T()
 
