@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/alcionai/clues"
@@ -60,6 +61,16 @@ func (ecc *eventContainerCache) populateEventRoot(ctx context.Context) error {
 	return nil
 }
 
+func isSharedCalendar(defaultCalendarOwner string, c models.Calendarable) bool {
+	// If we can't determine the owner, assume the calendar is owned by the
+	// user.
+	if len(defaultCalendarOwner) == 0 || c.GetOwner() == nil {
+		return false
+	}
+
+	return !strings.EqualFold(defaultCalendarOwner, ptr.Val(c.GetOwner().GetAddress()))
+}
+
 // Populate utility function for populating eventCalendarCache.
 // Executes 1 additional Graph Query
 // @param baseID: ignored. Present to conform to interface
@@ -89,9 +100,37 @@ func (ecc *eventContainerCache) Populate(
 		return clues.WrapWC(ctx, err, "enumerating containers")
 	}
 
+	var defaultCalendarOwner string
+
+	// Determine the owner for the default calendar. We'll use this to detect and
+	// skip shared calendars that are not owned by this user.
+	for _, c := range containers {
+		if ptr.Val(c.GetIsDefaultCalendar()) && c.GetOwner() != nil {
+			defaultCalendarOwner = ptr.Val(c.GetOwner().GetAddress())
+			ctx = clues.Add(ctx, "default_calendar_owner", defaultCalendarOwner)
+
+			break
+		}
+	}
+
 	for _, c := range containers {
 		if el.Failure() != nil {
 			return el.Failure()
+		}
+
+		// Skip shared calendars if we have enough information to determine the owner
+		if isSharedCalendar(defaultCalendarOwner, c) {
+			var ownerEmail string
+			if c.GetOwner() != nil {
+				ownerEmail = ptr.Val(c.GetOwner().GetAddress())
+			}
+
+			logger.Ctx(ctx).Infow(
+				"skipping shared calendar",
+				"name", ptr.Val(c.GetName()),
+				"owner", ownerEmail)
+
+			continue
 		}
 
 		cacheFolder := graph.NewCacheFolder(
