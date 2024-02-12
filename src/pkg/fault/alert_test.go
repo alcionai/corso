@@ -48,6 +48,26 @@ func (suite *AlertUnitSuite) TestNewAlert() {
 	a := fault.NewAlert("message-to-show", "ns", "item_id", "item_name", addtl)
 
 	expect := fault.Alert{
+		Type: fault.AlertTypeUserVisible,
+		Item: fault.Item{
+			Namespace:  "ns",
+			ID:         "item_id",
+			Name:       "item_name",
+			Additional: addtl,
+		},
+		Message: "message-to-show",
+	}
+
+	assert.Equal(t, expect, *a)
+}
+
+func (suite *AlertUnitSuite) TestNewTelemetryAlert() {
+	t := suite.T()
+	addtl := map[string]any{"foo": "bar"}
+	a := fault.NewTelemetryAlert("message-to-show", "ns", "item_id", "item_name", addtl)
+
+	expect := fault.Alert{
+		Type: fault.AlertTypeInternalTelemetry,
 		Item: fault.Item{
 			Namespace:  "ns",
 			ID:         "item_id",

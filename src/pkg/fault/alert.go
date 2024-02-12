@@ -8,6 +8,14 @@ const (
 	AlertPreviousPathCollision = "previous_path_collision"
 )
 
+type alertType string
+
+const (
+	AlertTypeUnknown           = ""
+	AlertTypeUserVisible       = "user_visible"
+	AlertTypeInternalTelemetry = "internal_telemetry"
+)
+
 var _ print.Printable = &Alert{}
 
 // Alerts are informational-only notifications.  The purpose of alerts is to
@@ -17,8 +25,9 @@ var _ print.Printable = &Alert{}
 // be in use.  IE: Errors do not also get alerts, since the error itself is a
 // form of end-user communication already.
 type Alert struct {
-	Item    Item   `json:"item"`
-	Message string `json:"message"`
+	Type    alertType `json:"type"`
+	Item    Item      `json:"item"`
+	Message string    `json:"message"`
 }
 
 // String complies with the stringer interface.
@@ -62,12 +71,39 @@ func (a Alert) Values(bool) []string {
 	return []string{"Alert", a.Message, cn, a.Item.Name, a.Item.ID}
 }
 
-func NewAlert(message, namespace, itemID, name string, addtl map[string]any) *Alert {
+// NewAlert produces a USER VISIBLE alert.  Use this if you want the end user
+// to see the alert at the end of the run.
+func NewAlert(
+	message, namespace, entityID, name string,
+	addtl map[string]any,
+) *Alert {
 	return &Alert{
+		Type:    AlertTypeUserVisible,
 		Message: message,
 		Item: Item{
 			Namespace:  namespace,
-			ID:         itemID,
+			ID:         entityID,
+			Name:       name,
+			Additional: addtl,
+		},
+	}
+}
+
+// NewTelemetryAlert produces a NON-USER VISIBLE alert.  Use this if you want
+// to create an alert event for additional tracking and telemetry without the
+// user seeing the details at the end of the run.  Note that this data is still
+// accessible from the backup metadata, so it will be possible for users to
+// see it, if wanted/necessary.  But they do have to go looking for it specifically.
+func NewTelemetryAlert(
+	message, namespace, entityID, name string,
+	addtl map[string]any,
+) *Alert {
+	return &Alert{
+		Type:    AlertTypeInternalTelemetry,
+		Message: message,
+		Item: Item{
+			Namespace:  namespace,
+			ID:         entityID,
 			Name:       name,
 			Additional: addtl,
 		},
