@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alcionai/clues"
+	"github.com/h2non/gock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,73 @@ import (
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+type GraphUnitSuite struct {
+	tester.Suite
+}
+
+func TestGraphUnitSuite(t *testing.T) {
+	suite.Run(t, &GraphUnitSuite{
+		Suite: tester.NewUnitSuite(t),
+	})
+}
+
+func (suite *GraphUnitSuite) TestRetryNoContent404() {
+	const (
+		host    = "https://graph.microsoft.com"
+		retries = 3
+
+		emptyUserList = `{
+"@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users",
+"value": []
+}`
+	)
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	t.Cleanup(flush)
+
+	a := tconfig.NewFakeM365Account(t)
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Run with a single retry since 503 retries are exponential and
+	// the test will take a long time to run.
+	service, err := NewGockService(
+		creds,
+		count.New(),
+		MaxRetries(1),
+		MaxConnectionRetries(retries))
+	require.NoError(t, err, clues.ToCore(err))
+
+	t.Cleanup(gock.Off)
+
+	gock.New(host).
+		Get("/v1.0/users").
+		Times(retries - 1).
+		Reply(http.StatusNotFound).
+		BodyString("").
+		Type("text/plain")
+
+	gock.New(host).
+		Get("/v1.0/users").
+		Reply(http.StatusOK).
+		JSON(emptyUserList)
+
+	// Since we're retrying all 404s with no content the endpoint we use doesn't
+	// matter.
+	_, err = service.Client().Users().Get(ctx, nil)
+	assert.NoError(t, err, clues.ToCore(err))
+}
+
+// ---------------------------------------------------------------------------
+// Integration tests
+// ---------------------------------------------------------------------------
 
 type GraphIntgSuite struct {
 	tester.Suite

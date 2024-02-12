@@ -114,7 +114,14 @@ const (
 // ErrServiceUnavailableEmptyResp indicates the remote service returned a 503
 // with an empty response body. This can sometimes happen if a request times out
 // during processing.
-var ErrServiceUnavailableEmptyResp = clues.New("service unavailable and no returned content")
+//
+// TODO(ashmrtn): Either make a separate error struct for empty responses and
+// implement Is() on it or start using tags on errors for the different status
+// codes.
+var (
+	ErrServiceUnavailableEmptyResp = clues.New("service unavailable and no returned content")
+	ErrNotFoundEmptyResp           = clues.New("not found and no returned content")
+)
 
 // ---------------------------------------------------------------------------
 // error categorization
@@ -410,9 +417,14 @@ func stackReq(
 	// then all we get from graph SDK is an error saying "content is empty" which
 	// isn't particularly useful.
 	if resp != nil &&
-		resp.ContentLength == 0 &&
-		resp.StatusCode == http.StatusServiceUnavailable {
-		e = clues.Stack(ErrServiceUnavailableEmptyResp, e)
+		resp.ContentLength == 0 {
+		switch resp.StatusCode {
+		case http.StatusServiceUnavailable:
+			e = clues.Stack(ErrServiceUnavailableEmptyResp, e)
+
+		case http.StatusNotFound:
+			e = clues.Stack(ErrNotFoundEmptyResp, e)
+		}
 	}
 
 	if e == nil {
