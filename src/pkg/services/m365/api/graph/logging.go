@@ -6,6 +6,7 @@ import (
 	"net/http/httputil"
 	"os"
 
+	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -68,4 +69,16 @@ func getRespDump(ctx context.Context, resp *http.Response, getBody bool) string 
 	}
 
 	return string(respDump)
+}
+
+func getReqCtx(req *http.Request) context.Context {
+	if req == nil {
+		return context.Background()
+	}
+
+	return clues.Add(
+		req.Context(),
+		"method", req.Method,
+		"url", LoggableURL(req.URL.String()),
+		"request_content_len", req.ContentLength)
 }

@@ -125,10 +125,7 @@ func (mw *LoggingMiddleware) Intercept(
 	}
 
 	ctx := clues.Add(
-		req.Context(),
-		"method", req.Method,
-		"url", LoggableURL(req.URL.String()),
-		"request_content_len", req.ContentLength,
+		getReqCtx(req),
 		"resp_status", resp.Status,
 		"resp_status_code", resp.StatusCode,
 		"resp_content_len", resp.ContentLength)
@@ -156,7 +153,7 @@ func (mw RetryMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	ctx := req.Context()
+	ctx := getReqCtx(req)
 	resp, err := pipeline.Next(req, middlewareIndex)
 
 	retriable := IsErrTimeout(err) ||
@@ -249,7 +246,9 @@ func (mw RetryMiddleware) retryRequest(
 				return resp, Wrap(ctx, err, "resetting request body reader")
 			}
 		} else {
-			logger.Ctx(ctx).Error("body is not an io.Seeker: unable to reset request body")
+			logger.
+				Ctx(getReqCtx(req)).
+				Error("body is not an io.Seeker: unable to reset request body")
 		}
 	}
 
