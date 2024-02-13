@@ -26,6 +26,8 @@ type backupHandler interface {
 	previewIncludeContainers() []string
 	previewExcludeContainers() []string
 	NewContainerCache(userID string) (string, graph.ContainerResolver)
+
+	canSkipItemFailurer
 }
 
 type addedAndRemovedItemGetter interface {
@@ -55,6 +57,14 @@ func BackupHandlers(ac api.Client) map[path.CategoryType]backupHandler {
 		path.EmailCategory:    newMailBackupHandler(ac),
 		path.EventsCategory:   newEventBackupHandler(ac),
 	}
+}
+
+type canSkipItemFailurer interface {
+	CanSkipItemFailure(
+		err error,
+		resourceID, itemID string,
+		opts control.Options,
+	) (fault.SkipCause, bool)
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,12 @@
 package exchange
 
 import (
+	"errors"
+	"slices"
+
+	"github.com/alcionai/clues"
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -51,4 +57,23 @@ func (h eventBackupHandler) NewContainerCache(
 		enumer: h.ac,
 		getter: h.ac,
 	}
+}
+
+func (h eventBackupHandler) CanSkipItemFailure(
+	err error,
+	resourceID, itemID string,
+	opts control.Options,
+) (fault.SkipCause, bool) {
+	// yes, this is intentionally a todo.  I'll get back to it.
+	if !errors.Is(err, clues.New("todo fix me")) {
+		return "", false
+	}
+
+	itemIDs, ok := opts.SkipTheseEventsOnInstance503[resourceID]
+	if !ok {
+		return "", false
+	}
+
+	// strict equals required here.  ids are case sensitive.
+	return fault.SkipKnownEventInstance503s, slices.Contains(itemIDs, itemID)
 }
