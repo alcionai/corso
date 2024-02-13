@@ -240,7 +240,7 @@ func (mw *RateLimiterMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	QueueRequest(req.Context())
+	QueueRequest(getReqCtx(req))
 	return pipeline.Next(req, middlewareIndex)
 }
 
@@ -339,7 +339,7 @@ func (mw *throttlingMiddleware) Intercept(
 	middlewareIndex int,
 	req *http.Request,
 ) (*http.Response, error) {
-	err := mw.tf.Block(req.Context())
+	err := mw.tf.Block(getReqCtx(req))
 	if err != nil {
 		return nil, err
 	}
