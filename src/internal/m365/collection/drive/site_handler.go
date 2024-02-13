@@ -93,8 +93,9 @@ func (h siteBackupHandler) Get(
 	ctx context.Context,
 	url string,
 	headers map[string]string,
+	requireAuth bool,
 ) (*http.Response, error) {
-	return h.ac.Get(ctx, url, headers)
+	return h.ac.Get(ctx, url, headers, requireAuth)
 }
 
 func (h siteBackupHandler) PathPrefix(

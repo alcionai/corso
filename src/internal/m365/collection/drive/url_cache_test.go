@@ -154,7 +154,8 @@ func (suite *URLCacheIntegrationSuite) TestURLCacheBasic() {
 				http.MethodGet,
 				props.downloadURL,
 				nil,
-				nil)
+				nil,
+				false)
 			require.NoError(t, err, clues.ToCore(err))
 
 			require.NotNil(t, resp)

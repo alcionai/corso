@@ -366,7 +366,7 @@ func downloadContent(
 	itemID := ptr.Val(item.GetId())
 	ctx = clues.Add(ctx, "item_id", itemID)
 
-	content, err := downloadItem(ctx, iaag, item)
+	content, err := downloadItem(ctx, iaag, driveID, item)
 	if err == nil {
 		return content, nil
 	} else if !graph.IsErrUnauthorizedOrBadToken(err) {
@@ -395,7 +395,7 @@ func downloadContent(
 
 	cdi := custom.ToCustomDriveItem(di)
 
-	content, err = downloadItem(ctx, iaag, cdi)
+	content, err = downloadItem(ctx, iaag, driveID, cdi)
 	if err != nil {
 		return nil, clues.Wrap(err, "content download retry")
 	}
@@ -426,7 +426,7 @@ func readItemContents(
 		return nil, core.ErrNotFound
 	}
 
-	rc, err := downloadFile(ctx, iaag, props.downloadURL)
+	rc, err := downloadFile(ctx, iaag, props.downloadURL, false)
 	if graph.IsErrUnauthorizedOrBadToken(err) {
 		logger.CtxErr(ctx, err).Debug("stale item in cache")
 	}

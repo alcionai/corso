@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	acceptHeaderKey   = "Accept"
-	acceptHeaderValue = "*/*"
+	acceptHeaderKey        = "Accept"
+	acceptHeaderValue      = "*/*"
+	gigabyte               = 1024 * 1024 * 1024
+	largeFileDownloadLimit = 15 * gigabyte
 )
 
 // downloadUrlKeys is used to find the download URL in a DriveItem response.
@@ -33,7 +35,8 @@ var downloadURLKeys = []string{
 
 func downloadItem(
 	ctx context.Context,
-	ag api.Getter,
+	getter api.Getter,
+	driveID string,
 	item *custom.DriveItem,
 ) (io.ReadCloser, error) {
 	if item == nil {
@@ -41,36 +44,37 @@ func downloadItem(
 	}
 
 	var (
-		rc     io.ReadCloser
-		isFile = item.GetFile() != nil
-		err    error
+		// very large file content needs to be downloaded through a different endpoint, or else
+		// the download could take longer than the lifespan of the download token in the cached
+		// url, which will cause us to timeout on every download request, even if we refresh the
+		// download url right before the query.
+		url         = "https://graph.microsoft.com/v1.0/drives/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
+		reader      io.ReadCloser
+		err         error
+		isLargeFile = ptr.Val(item.GetSize()) > largeFileDownloadLimit
 	)
 
-	if isFile {
-		var (
-			url string
-			ad  = item.GetAdditionalData()
-		)
-
-		for _, key := range downloadURLKeys {
-			if v, err := str.AnyValueToString(key, ad); err == nil {
-				url = v
-				break
-			}
-		}
-
-		rc, err = downloadFile(ctx, ag, url)
-		if err != nil {
-			return nil, clues.Stack(err)
-		}
+	// if this isn't a file, no content is available for download
+	if item.GetFile() == nil {
+		return reader, nil
 	}
 
-	return rc, nil
+	// smaller files will maintain our current behavior (prefetching the download url with the
+	// url cache).  That pattern works for us in general, and we only need to deviate for very
+	// large file sizes.
+	if !isLargeFile {
+		url = str.FirstIn(item.GetAdditionalData(), downloadURLKeys...)
+	}
+
+	reader, err = downloadFile(ctx, getter, url, isLargeFile)
+
+	return reader, clues.StackWC(ctx, err).OrNil()
 }
 
 type downloadWithRetries struct {
-	getter api.Getter
-	url    string
+	getter      api.Getter
+	requireAuth bool
+	url         string
 }
 
 func (dg *downloadWithRetries) SupportsRange() bool {
@@ -86,7 +90,7 @@ func (dg *downloadWithRetries) Get(
 	// wouldn't work without it (get 416 responses instead of 206).
 	headers[acceptHeaderKey] = acceptHeaderValue
 
-	resp, err := dg.getter.Get(ctx, dg.url, headers)
+	resp, err := dg.getter.Get(ctx, dg.url, headers, dg.requireAuth)
 	if err != nil {
 		return nil, clues.Wrap(err, "getting file")
 	}
@@ -96,7 +100,7 @@ func (dg *downloadWithRetries) Get(
 			resp.Body.Close()
 		}
 
-		return nil, clues.New("malware detected").Label(graph.LabelsMalware)
+		return nil, clues.NewWC(ctx, "malware detected").Label(graph.LabelsMalware)
 	}
 
 	if resp != nil && (resp.StatusCode/100) != 2 {
@@ -107,7 +111,7 @@ func (dg *downloadWithRetries) Get(
 		// upstream error checks can compare the status with
 		// clues.HasLabel(err, graph.LabelStatus(http.KnownStatusCode))
 		return nil, clues.
-			Wrap(clues.New(resp.Status), "non-2xx http response").
+			Wrap(clues.NewWC(ctx, resp.Status), "non-2xx http response").
 			Label(graph.LabelStatus(resp.StatusCode))
 	}
 
@@ -118,6 +122,7 @@ func downloadFile(
 	ctx context.Context,
 	ag api.Getter,
 	url string,
+	requireAuth bool,
 ) (io.ReadCloser, error) {
 	if len(url) == 0 {
 		return nil, clues.NewWC(ctx, "empty file url")
@@ -141,8 +146,9 @@ func downloadFile(
 	rc, err := readers.NewResetRetryHandler(
 		ctx,
 		&downloadWithRetries{
-			getter: ag,
-			url:    url,
+			getter:      ag,
+			requireAuth: requireAuth,
+			url:         url,
 		})
 
 	return rc, clues.Stack(err).OrNil()

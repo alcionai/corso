@@ -36,6 +36,7 @@ type Requester interface {
 		method, url string,
 		body io.Reader,
 		headers map[string]string,
+		requireAuth bool,
 	) (*http.Response, error)
 }
 
@@ -58,12 +59,8 @@ func NewHTTPWrapper(
 				transport:   defaultTransport(),
 			},
 		}
-		redirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
 		hc = &http.Client{
-			CheckRedirect: redirect,
-			Transport:     rt,
+			Transport: rt,
 		}
 	)
 
@@ -100,6 +97,7 @@ func (hw httpWrapper) Request(
 	method, url string,
 	body io.Reader,
 	headers map[string]string,
+	requireAuth bool,
 ) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
@@ -115,7 +113,11 @@ func (hw httpWrapper) Request(
 	// See https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online#how-to-decorate-your-http-traffic
 	req.Header.Set("User-Agent", "ISV|Alcion|Corso/"+version.Version)
 
-	if hw.config.requesterAuth != nil {
+	if requireAuth {
+		if hw.config.requesterAuth == nil {
+			return nil, clues.Wrap(err, "http wrapper misconfigured: missing required authorization")
+		}
+
 		err := hw.config.requesterAuth.addAuthToHeaders(ctx, url, req.Header)
 		if err != nil {
 			return nil, clues.Wrap(err, "setting request auth headers")
