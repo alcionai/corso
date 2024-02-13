@@ -19,6 +19,7 @@ import (
 	"github.com/alcionai/corso/src/internal/m365/support"
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/count"
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -68,21 +69,21 @@ func getItemAndInfo(
 	ctx context.Context,
 	getter itemGetterSerializer,
 	userID string,
-	id string,
+	itemID string,
 	useImmutableIDs bool,
 	parentPath string,
 ) ([]byte, *details.ExchangeInfo, error) {
 	item, info, err := getter.GetItem(
 		ctx,
 		userID,
-		id,
+		itemID,
 		fault.New(true)) // temporary way to force a failFast error
 	if err != nil {
 		return nil, nil, clues.WrapWC(ctx, err, "fetching item").
 			Label(fault.LabelForceNoBackupCreation)
 	}
 
-	itemData, err := getter.Serialize(ctx, item, userID, id)
+	itemData, err := getter.Serialize(ctx, item, userID, itemID)
 	if err != nil {
 		return nil, nil, clues.WrapWC(ctx, err, "serializing item")
 	}
@@ -108,6 +109,7 @@ func NewCollection(
 	bc data.BaseCollection,
 	user string,
 	items itemGetterSerializer,
+	canSkipFailChecker canSkipItemFailurer,
 	origAdded map[string]time.Time,
 	origRemoved []string,
 	validModTimes bool,
@@ -140,6 +142,7 @@ func NewCollection(
 			added:          added,
 			removed:        removed,
 			getter:         items,
+			skipChecker:    canSkipFailChecker,
 			statusUpdater:  statusUpdater,
 		}
 	}
@@ -150,6 +153,7 @@ func NewCollection(
 		added:          added,
 		removed:        removed,
 		getter:         items,
+		skipChecker:    canSkipFailChecker,
 		statusUpdater:  statusUpdater,
 		counter:        counter,
 	}
@@ -167,7 +171,8 @@ type prefetchCollection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter itemGetterSerializer
+	getter      itemGetterSerializer
+	skipChecker canSkipItemFailurer
 
 	statusUpdater support.StatusUpdater
 }
@@ -194,11 +199,12 @@ func (col *prefetchCollection) streamItems(
 		wg              sync.WaitGroup
 		progressMessage chan<- struct{}
 		user            = col.user
+		dataCategory    = col.Category().String()
 	)
 
 	ctx = clues.Add(
 		ctx,
-		"category", col.Category().String())
+		"category", dataCategory)
 
 	defer func() {
 		close(stream)
@@ -227,7 +233,7 @@ func (col *prefetchCollection) streamItems(
 	defer close(semaphoreCh)
 
 	// delete all removed items
-	for id := range col.removed {
+	for itemID := range col.removed {
 		semaphoreCh <- struct{}{}
 
 		wg.Add(1)
@@ -247,7 +253,7 @@ func (col *prefetchCollection) streamItems(
 			if progressMessage != nil {
 				progressMessage <- struct{}{}
 			}
-		}(id)
+		}(itemID)
 	}
 
 	var (
@@ -256,7 +262,7 @@ func (col *prefetchCollection) streamItems(
 	)
 
 	// add any new items
-	for id := range col.added {
+	for itemID := range col.added {
 		if el.Failure() != nil {
 			break
 		}
@@ -277,8 +283,24 @@ func (col *prefetchCollection) streamItems(
 				col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath)
 			if err != nil {
+				// pulled outside the switch due to multiple return values.
+				cause, canSkip := col.skipChecker.CanSkipItemFailure(
+					err,
+					user,
+					id,
+					col.BaseCollection.Opts())
+
 				// Handle known error cases
 				switch {
+				case canSkip:
+					// this is a special case handler that allows the item to be skipped
+					// instead of producing an error.
+					errs.AddSkip(ctx, fault.FileSkip(
+						cause,
+						dataCategory,
+						id,
+						id,
+						nil))
 				case errors.Is(err, core.ErrNotFound):
 					// Don't report errors for deleted items as there's no way for us to
 					// back up data that is gone. Record it as a "success", since there's
@@ -349,7 +371,7 @@ func (col *prefetchCollection) streamItems(
 			if progressMessage != nil {
 				progressMessage <- struct{}{}
 			}
-		}(id)
+		}(itemID)
 	}
 
 	wg.Wait()
@@ -377,7 +399,8 @@ type lazyFetchCollection struct {
 	// removed is a list of item IDs that were deleted from, or moved out, of a container
 	removed map[string]struct{}
 
-	getter itemGetterSerializer
+	getter      itemGetterSerializer
+	skipChecker canSkipItemFailurer
 
 	statusUpdater support.StatusUpdater
 
@@ -404,8 +427,7 @@ func (col *lazyFetchCollection) streamItems(
 	var (
 		success         int64
 		progressMessage chan<- struct{}
-
-		user = col.user
+		user            = col.user
 	)
 
 	defer func() {
@@ -459,10 +481,13 @@ func (col *lazyFetchCollection) streamItems(
 			&lazyItemGetter{
 				userID:       user,
 				itemID:       id,
+				category:     col.FullPath().Category(),
 				getter:       col.getter,
 				modTime:      modTime,
 				immutableIDs: col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath:   parentPath,
+				skipChecker:  col.skipChecker,
+				opts:         col.BaseCollection.Opts(),
 			},
 			id,
 			modTime,
@@ -481,9 +506,12 @@ type lazyItemGetter struct {
 	getter       itemGetterSerializer
 	userID       string
 	itemID       string
+	category     path.CategoryType
 	parentPath   string
 	modTime      time.Time
 	immutableIDs bool
+	skipChecker  canSkipItemFailurer
+	opts         control.Options
 }
 
 func (lig *lazyItemGetter) GetData(
@@ -498,6 +526,24 @@ func (lig *lazyItemGetter) GetData(
 		lig.immutableIDs,
 		lig.parentPath)
 	if err != nil {
+		cause, canSkip := lig.skipChecker.CanSkipItemFailure(
+			err,
+			lig.userID,
+			lig.itemID,
+			lig.opts)
+		if canSkip {
+			errs.AddSkip(ctx, fault.FileSkip(
+				cause,
+				lig.category.String(),
+				lig.itemID,
+				lig.itemID,
+				nil))
+
+			return nil, nil, false, clues.
+				NewWC(ctx, "error marked as skippable by handler").
+				Label(graph.LabelsSkippable)
+		}
+
 		// If an item was deleted then return an empty file so we don't fail
 		// the backup and return a sentinel error when asked for ItemInfo so
 		// we don't display the item in the backup.

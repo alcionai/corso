@@ -296,6 +296,7 @@ func populateCollections(
 				cl),
 			qp.ProtectedResource.ID(),
 			bh.itemHandler(),
+			bh,
 			addAndRem.Added,
 			addAndRem.Removed,
 			// TODO: produce a feature flag that allows selective

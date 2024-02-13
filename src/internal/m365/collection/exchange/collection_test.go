@@ -153,6 +153,7 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 							count.New()),
 						"u",
 						mock.DefaultItemGetSerialize(),
+						mock.NeverCanSkipFailChecker(),
 						nil,
 						nil,
 						colType.validModTimes,
@@ -298,6 +299,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 					count.New()),
 				"",
 				&mock.ItemGetSerialize{},
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				maps.Keys(test.removed),
 				false,
@@ -329,6 +331,126 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 				test.expectItemCount,
 				itemCount,
 				"should see all expected items")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
+	var (
+		t             = suite.T()
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	fullPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	locPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name               string
+		added              map[string]time.Time
+		removed            map[string]struct{}
+		expectItemCount    int
+		expectSkippedCount int
+	}{
+		{
+			name: "no items",
+		},
+		{
+			name: "only added items",
+			added: map[string]time.Time{
+				"fisher":    {},
+				"flannigan": {},
+				"fitzbog":   {},
+			},
+			expectItemCount:    0,
+			expectSkippedCount: 3,
+		},
+		{
+			name: "only removed items",
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+		},
+		{
+			name: "added and removed items",
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			col := NewCollection(
+				data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false,
+					count.New()),
+				"",
+				&mock.ItemGetSerialize{
+					SerializeErr: assert.AnError,
+				},
+				mock.AlwaysCanSkipFailChecker(),
+				test.added,
+				maps.Keys(test.removed),
+				false,
+				statusUpdater,
+				count.New())
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				_, rok := test.removed[item.ID()]
+				if rok {
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
+					dimt, ok := item.(data.ItemModTime)
+					require.True(t, ok, "item implements data.ItemModTime")
+					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+				}
+
+				_, aok := test.added[item.ID()]
+				if !rok && aok {
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+				}
+
+				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
+			}
+
+			assert.NoError(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+			assert.Len(t, errs.Skipped(), test.expectSkippedCount)
 		})
 	}
 }
@@ -398,6 +520,7 @@ func (suite *CollectionUnitSuite) TestCollection_SkippedErrors() {
 					count.New()),
 				"",
 				test.itemGetter,
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				nil,
 				false,
@@ -530,6 +653,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					count.New()),
 				"",
 				mlg,
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				maps.Keys(test.removed),
 				true,
@@ -585,6 +709,154 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				test.expectItemCount,
 				itemCount,
 				"should see all expected items")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
+	var (
+		t             = suite.T()
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	fullPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	locPath, err := path.Build("t", "pr", path.ExchangeService, path.EmailCategory, false, "fnords", "smarf")
+	require.NoError(t, err, clues.ToCore(err))
+
+	table := []struct {
+		name               string
+		added              map[string]time.Time
+		removed            map[string]struct{}
+		expectItemCount    int
+		expectSkippedCount int
+		expectReads        []string
+	}{
+		{
+			name: "no items",
+		},
+		{
+			name: "only added items",
+			added: map[string]time.Time{
+				"fisher":    start.Add(time.Minute),
+				"flannigan": start.Add(2 * time.Minute),
+				"fitzbog":   start.Add(3 * time.Minute),
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 2,
+			expectReads: []string{
+				"fisher",
+				"fitzbog",
+			},
+		},
+		{
+			name: "only removed items",
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+		},
+		{
+			name: "added and removed items",
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			mlg := &mockLazyItemGetterSerializer{
+				ItemGetSerialize: &mock.ItemGetSerialize{
+					SerializeErr: assert.AnError,
+				},
+			}
+			defer mlg.check(t, test.expectReads)
+
+			col := NewCollection(
+				data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					control.DefaultOptions(),
+					false,
+					count.New()),
+				"",
+				mlg,
+				mock.AlwaysCanSkipFailChecker(),
+				test.added,
+				maps.Keys(test.removed),
+				true,
+				statusUpdater,
+				count.New())
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				_, rok := test.removed[item.ID()]
+				if rok {
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
+					dimt, ok := item.(data.ItemModTime)
+					require.True(t, ok, "item implements data.ItemModTime")
+					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+				}
+
+				modTime, aok := test.added[item.ID()]
+				if !rok && aok {
+					// Item's mod time should be what's passed into the collection
+					// initializer.
+					assert.Implements(t, (*data.ItemModTime)(nil), item)
+					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
+
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+
+					// Check if the test want's us to read the item's data so the lazy
+					// data fetch is executed.
+					if slices.Contains(test.expectReads, item.ID()) {
+						r := item.ToReader()
+
+						_, err := io.ReadAll(r)
+						assert.Error(t, err, clues.ToCore(err))
+						assert.ErrorContains(t, err, "marked as skippable", clues.ToCore(err))
+						assert.True(t, clues.HasLabel(err, graph.LabelsSkippable), clues.ToCore(err))
+
+						r.Close()
+					}
+				}
+
+				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
+			}
+
+			assert.NoError(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+			assert.Len(t, errs.Skipped(), test.expectSkippedCount)
 		})
 	}
 }
