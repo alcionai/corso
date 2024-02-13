@@ -18,6 +18,7 @@ import (
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/tconfig"
 	"github.com/alcionai/corso/src/pkg/count"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 // ---------------------------------------------------------------------------
@@ -34,12 +35,22 @@ func TestEventsPagerUnitSuite(t *testing.T) {
 	})
 }
 
-func (suite *EventsPagerUnitSuite) TestGetAddedAndRemovedItemIDs_SendsCorrectDeltaPageSize() {
+func (suite *EventsPagerUnitSuite) TestEventsList() {
 	const (
-		validEmptyResponse = `{
+		nextLinkPath = "/next-link"
+		nextLinkURL  = graphAPIHostURL + nextLinkPath
+
+		nextDeltaURL = graphAPIHostURL + "/next-delta"
+
+		validEventsListSingleNextLinkResponse = `{
+  "@odata.context": "https://graph.microsoft.com/beta/$metadata#Collection(event)",
+  "value": [{"id":"foo"}],
+  "@odata.nextLink": "` + nextLinkURL + `"
+}`
+		validEventsListEmptyResponse = `{
   "@odata.context": "https://graph.microsoft.com/beta/$metadata#Collection(event)",
   "value": [],
-  "@odata.deltaLink": "link"
+  "@odata.deltaLink": "` + nextDeltaURL + `"
 }`
 
 		// deltaPath helps make gock matching a little easier since it splits out
@@ -52,26 +63,168 @@ func (suite *EventsPagerUnitSuite) TestGetAddedAndRemovedItemIDs_SendsCorrectDel
 		containerID = "container-id"
 	)
 
+	pageSizeMatcher := func(
+		t *testing.T,
+		expectedPageSize int32,
+	) func(*http.Request, *gock.Request) (bool, error) {
+		return func(got *http.Request, want *gock.Request) (bool, error) {
+			var (
+				found         bool
+				preferHeaders = got.Header.Values("Prefer")
+				expected      = fmt.Sprintf(
+					"odata.maxpagesize=%d",
+					expectedPageSize)
+			)
+
+			for _, header := range preferHeaders {
+				if strings.Contains(header, expected) {
+					found = true
+					break
+				}
+			}
+
+			assert.Truef(
+				t,
+				found,
+				"header %s not found in set %v",
+				expected,
+				preferHeaders)
+
+			return true, nil
+		}
+	}
+
+	// configureFailedRequests configures the HTTP mocker to return one successful
+	// request with a single item and then enough failed requests to exhaust the
+	// retries. This allows testing that results are not mixed between fallbacks.
+	configureFailedRequests := func(
+		t *testing.T,
+		reqPath string,
+		expectedPageSize int32,
+	) {
+		gock.New(graphAPIHostURL).
+			Get(reqPath).
+			AddMatcher(pageSizeMatcher(t, expectedPageSize)).
+			Reply(http.StatusOK).
+			JSON(validEventsListSingleNextLinkResponse)
+
+		gock.New(graphAPIHostURL).
+			Get(nextLinkPath).
+			AddMatcher(pageSizeMatcher(t, expectedPageSize)).
+			Times(2). // retry count is configured to 1
+			Reply(http.StatusServiceUnavailable).
+			BodyString("").
+			Type("text/plain")
+	}
+
 	deltaTests := []struct {
-		name       string
-		reqPath    string
-		inputDelta string
+		name               string
+		inputDelta         string
+		configureMocks     func(t *testing.T, userID string, containerID string)
+		expectNextDeltaURL string
+		expectDeltaReset   assert.BoolAssertionFunc
 	}{
 		{
 			name: "NoPrevDelta",
-			reqPath: stdpath.Join(
-				"/beta",
-				"users",
-				userID,
-				"calendars",
-				containerID,
-				"events",
-				"delta"),
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				reqPath := stdpath.Join(
+					"/beta",
+					"users",
+					userID,
+					"calendars",
+					containerID,
+					"events",
+					"delta")
+
+				gock.New(graphAPIHostURL).
+					Get(reqPath).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, maxDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectNextDeltaURL: nextDeltaURL,
+			// OK to be true for this since we didn't have a delta to start with.
+			expectDeltaReset: assert.True,
 		},
 		{
-			name:       "HasPrevDelta",
-			reqPath:    deltaPath,
+			name: "NoPrevDelta DeltaFallback",
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				reqPath := stdpath.Join(
+					"/beta",
+					"users",
+					userID,
+					"calendars",
+					containerID,
+					"events",
+					"delta")
+
+				configureFailedRequests(t, reqPath, maxDeltaPageSize)
+
+				gock.New(graphAPIHostURL).
+					Get(reqPath).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, minEventsDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectNextDeltaURL: nextDeltaURL,
+			// OK to be true for this since we didn't have a delta to start with.
+			expectDeltaReset: assert.True,
+		},
+		{
+			name:       "PrevDelta DeltaFallback",
 			inputDelta: prevDelta,
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				// Number of retries and delay between retries is handled by a kiota
+				// middleware. We can change the default config parameters when setting
+				// up the mock in a later PR.
+				configureFailedRequests(t, deltaPath, maxDeltaPageSize)
+
+				gock.New(graphAPIHostURL).
+					Get(deltaPath).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, minEventsDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectNextDeltaURL: nextDeltaURL,
+			expectDeltaReset:   assert.False,
+		},
+		{
+			name:       "PrevDelta SecondaryNonDeltaFallback",
+			inputDelta: prevDelta,
+			configureMocks: func(t *testing.T, userID string, containerID string) {
+				// Number of retries and delay between retries is handled by a kiota
+				// middleware. We can change the default config parameters when setting
+				// up the mock in a later PR.
+				configureFailedRequests(t, deltaPath, maxDeltaPageSize)
+
+				// Smaller page size delta fallback.
+				configureFailedRequests(t, deltaPath, minEventsDeltaPageSize)
+
+				// Non delta endpoint fallback
+				gock.New(graphAPIHostURL).
+					Get(v1APIURLPath(
+						"users",
+						userID,
+						"calendars",
+						containerID,
+						"events")).
+					SetMatcher(gock.NewMatcher()).
+					// Need a custom Matcher since the prefer header is also used for
+					// immutable ID behavior.
+					AddMatcher(pageSizeMatcher(t, maxNonDeltaPageSize)).
+					Reply(http.StatusOK).
+					JSON(validEventsListEmptyResponse)
+			},
+			expectDeltaReset: assert.True,
 		},
 	}
 
@@ -86,55 +239,16 @@ func (suite *EventsPagerUnitSuite) TestGetAddedAndRemovedItemIDs_SendsCorrectDel
 			creds, err := a.M365Config()
 			require.NoError(t, err, clues.ToCore(err))
 
-			client, err := gockClient(creds, count.New())
+			// Run with a single retry since 503 retries are exponential and
+			// the test will take a long time to run.
+			client, err := gockClient(creds, count.New(), graph.MaxRetries(1))
 			require.NoError(t, err, clues.ToCore(err))
 
 			t.Cleanup(gock.Off)
 
-			// Number of retries and delay between retries is handled by a kiota
-			// middleware. We can change the default config parameters when setting up
-			// the mock in a later PR.
-			gock.New(graphAPIHostURL).
-				Get(deltaTest.reqPath).
-				Times(4).
-				Reply(http.StatusServiceUnavailable).
-				BodyString("").
-				Type("text/plain")
+			deltaTest.configureMocks(t, userID, containerID)
 
-			gock.New(graphAPIHostURL).
-				Get(deltaTest.reqPath).
-				SetMatcher(gock.NewMatcher()).
-				// Need a custom Matcher since the prefer header is also used for
-				// immutable ID behavior.
-				AddMatcher(func(got *http.Request, want *gock.Request) (bool, error) {
-					var (
-						found         bool
-						preferHeaders = got.Header.Values("Prefer")
-						expected      = fmt.Sprintf(
-							"odata.maxpagesize=%d",
-							minEventsDeltaPageSize)
-					)
-
-					for _, header := range preferHeaders {
-						if strings.Contains(header, expected) {
-							found = true
-							break
-						}
-					}
-
-					assert.Truef(
-						t,
-						found,
-						"header %s not found in set %v",
-						expected,
-						preferHeaders)
-
-					return true, nil
-				}).
-				Reply(http.StatusOK).
-				JSON(validEmptyResponse)
-
-			_, err = client.Events().GetAddedAndRemovedItemIDs(
+			res, err := client.Events().GetAddedAndRemovedItemIDs(
 				ctx,
 				userID,
 				containerID,
@@ -142,7 +256,12 @@ func (suite *EventsPagerUnitSuite) TestGetAddedAndRemovedItemIDs_SendsCorrectDel
 				CallConfig{
 					CanMakeDeltaQueries: true,
 				})
+
 			require.NoError(t, err, clues.ToCore(err))
+			assert.Empty(t, res.Added, "added items")
+			assert.Empty(t, res.Removed, "removed items")
+			assert.Equal(t, deltaTest.expectNextDeltaURL, res.DU.URL, "next delta URL")
+			deltaTest.expectDeltaReset(t, res.DU.Reset, "delta reset")
 		})
 	}
 }

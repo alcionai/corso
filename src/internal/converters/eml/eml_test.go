@@ -137,6 +137,11 @@ func (suite *EMLUnitSuite) TestConvert_messageble_to_eml() {
 }
 
 func (suite *EMLUnitSuite) TestConvert_edge_cases() {
+	bodies := []string{
+		testdata.EmailWithAttachments,
+		testdata.EmailWithinEmail,
+	}
+
 	tests := []struct {
 		name      string
 		transform func(models.Messageable)
@@ -162,35 +167,75 @@ func (suite *EMLUnitSuite) TestConvert_edge_cases() {
 				require.NoError(suite.T(), err, "setting attachment content")
 			},
 		},
+		{
+			name: "attachment without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+			},
+		},
+		{
+			name: "attachment with nil name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(nil)
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+			},
+		},
+		{
+			name: "multiple attachments without name",
+			transform: func(msg models.Messageable) {
+				attachments := msg.GetAttachments()
+				attachments[1].SetName(ptr.To(""))
+				attachments[2].SetName(ptr.To(""))
+
+				// This test has to be run on a non inline attachment
+				// as inline attachments use contentID instead of name
+				// even when there is a name.
+				assert.False(suite.T(), ptr.Val(attachments[1].GetIsInline()))
+				assert.False(suite.T(), ptr.Val(attachments[2].GetIsInline()))
+			},
+		},
 	}
 
-	for _, test := range tests {
-		suite.Run(test.name, func() {
-			t := suite.T()
+	for _, b := range bodies {
+		for _, test := range tests {
+			suite.Run(test.name, func() {
+				t := suite.T()
 
-			ctx, flush := tester.NewContext(t)
-			defer flush()
+				ctx, flush := tester.NewContext(t)
+				defer flush()
 
-			body := []byte(testdata.EmailWithAttachments)
+				body := []byte(b)
 
-			msg, err := api.BytesToMessageable(body)
-			require.NoError(t, err, "creating message")
+				msg, err := api.BytesToMessageable(body)
+				require.NoError(t, err, "creating message")
 
-			test.transform(msg)
+				test.transform(msg)
 
-			writer := kjson.NewJsonSerializationWriter()
+				writer := kjson.NewJsonSerializationWriter()
 
-			defer writer.Close()
+				defer writer.Close()
 
-			err = writer.WriteObjectValue("", msg)
-			require.NoError(t, err, "serializing message")
+				err = writer.WriteObjectValue("", msg)
+				require.NoError(t, err, "serializing message")
 
-			nbody, err := writer.GetSerializedContent()
-			require.NoError(t, err, "getting serialized content")
+				nbody, err := writer.GetSerializedContent()
+				require.NoError(t, err, "getting serialized content")
 
-			_, err = FromJSON(ctx, nbody)
-			assert.NoError(t, err, "converting to eml")
-		})
+				_, err = FromJSON(ctx, nbody)
+				assert.NoError(t, err, "converting to eml")
+			})
+		}
 	}
 }
 
@@ -228,11 +273,11 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	assert.Equal(
 		t,
-		msg.GetCreatedDateTime().Format(ics.ICalDateTimeFormat),
+		msg.GetCreatedDateTime().Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyCreated).Value)
 	assert.Equal(
 		t,
-		msg.GetLastModifiedDateTime().Format(ics.ICalDateTimeFormat),
+		msg.GetLastModifiedDateTime().Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyLastModified).Value)
 
 	st, err := ics.GetUTCTime(
@@ -247,11 +292,11 @@ func (suite *EMLUnitSuite) TestConvert_eml_ics() {
 
 	assert.Equal(
 		t,
-		st.Format(ics.ICalDateTimeFormat),
+		st.Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyDtStart).Value)
 	assert.Equal(
 		t,
-		et.Format(ics.ICalDateTimeFormat),
+		et.Format(ics.ICalDateTimeFormatUTC),
 		event.GetProperty(ical.ComponentPropertyDtEnd).Value)
 
 	tos := msg.GetToRecipients()
@@ -423,7 +468,7 @@ func (suite *EMLUnitSuite) TestConvert_message_in_messageble_to_eml() {
 	assert.Equal(t, formatAddress(msg.GetFrom().GetEmailAddress()), eml.GetHeader("From"))
 
 	attachments := eml.Attachments
-	assert.Equal(t, 1, len(attachments), "attachment count in parent email")
+	assert.Equal(t, 3, len(attachments), "attachment count in parent email")
 
 	ieml, err := enmime.ReadEnvelope(strings.NewReader(string(attachments[0].Content)))
 	require.NoError(t, err, "reading created eml")

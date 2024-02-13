@@ -150,8 +150,8 @@ func runExchangeBackupCategoryTest(suite *BackupExchangeE2ESuite, category path.
 	result := recorder.String()
 	t.Log("backup results", result)
 
-	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.m365.User.ID)
+	// As an offhand check: the result should contain the m365 user's email.
+	assert.Contains(t, result, suite.m365.User.Provider.Name())
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_ServiceNotEnabled_email() {
@@ -183,8 +183,8 @@ func runExchangeBackupServiceNotEnabledTest(suite *BackupExchangeE2ESuite, categ
 	result := recorder.String()
 	t.Log("backup results", result)
 
-	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.m365.User.ID)
+	// As an offhand check: the result should contain the m365 user's email.
+	assert.Contains(t, result, suite.m365.User.Provider.Name())
 }
 
 func (suite *BackupExchangeE2ESuite) TestExchangeBackupCmd_userNotFound_email() {
@@ -282,8 +282,8 @@ func (suite *BackupExchangeE2ESuite) TestBackupCreateExchange_fromConfigFile() {
 	result := suite.dpnd.recorder.String()
 	t.Log("backup results", result)
 
-	// as an offhand check: the result should contain the m365 user id
-	assert.Contains(t, result, suite.m365.User.ID)
+	// As an offhand check: the result should contain the m365 user's email.
+	assert.Contains(t, result, suite.m365.User.Provider.Name())
 }
 
 // AWS flags

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -154,7 +155,15 @@ func KiotaHTTPClient(
 const (
 	defaultDelay             = 3 * time.Second
 	defaultHTTPClientTimeout = 1 * time.Hour
-	defaultMaxRetries        = 3
+
+	// Default retry count for retry middlewares
+	defaultMaxRetries = 3
+	// Retry count for graph adapter
+	//
+	// Bumping retries to 6 since we have noticed that auth token expiry errors
+	// may continue to persist even after 3 retries.
+	adapterMaxRetries = 6
+
 	// FIXME: This should ideally be 0, but if we set to 0, graph
 	// client with automatically set the context timeout to 0 as
 	// well which will make the client unusable.
@@ -186,7 +195,7 @@ type Option func(*clientConfig)
 // populate constructs a clientConfig according to the provided options.
 func populateConfig(opts ...Option) *clientConfig {
 	cc := clientConfig{
-		maxConnectionRetries: defaultMaxRetries,
+		maxConnectionRetries: adapterMaxRetries,
 		maxRetries:           defaultMaxRetries,
 		minDelay:             defaultDelay,
 		timeout:              defaultHTTPClientTimeout,
@@ -365,9 +374,11 @@ func wrapAdapter(gra *msgraphsdkgo.GraphRequestAdapter, cc *clientConfig) *adapt
 	}
 }
 
-var connectionEnded = filters.Contains([]string{
+// Graph may abruptly close connections, which we should retry.
+var connectionEnded = filters.In([]string{
 	"connection reset by peer",
 	"client connection force closed",
+	"read: connection timed out",
 })
 
 func (aw *adapterWrap) Send(
@@ -408,7 +419,9 @@ func (aw *adapterWrap) Send(
 		err = stackWithCoreErr(ictx, err, 1)
 		e = err
 
-		if IsErrConnectionReset(err) || connectionEnded.Compare(err.Error()) {
+		if IsErrConnectionReset(err) ||
+			connectionEnded.Compare(err.Error()) ||
+			errors.Is(err, io.ErrUnexpectedEOF) {
 			logger.Ctx(ictx).Debug("http connection error")
 			events.Inc(events.APICall, "connectionerror")
 		} else if errors.Is(err, core.ErrAuthTokenExpired) {
@@ -421,6 +434,13 @@ func (aw *adapterWrap) Send(
 			// to limit the scope of this fix.
 			logger.Ctx(ictx).Debug("invalid request")
 			events.Inc(events.APICall, "invalidgetrequest")
+		} else if requestInfo.Method.String() == http.MethodGet && errors.Is(err, ErrNotFoundEmptyResp) {
+			// We've started seeing 404s with no content being returned for messages
+			// message attachments, and events. Attempting to manually fetch the items
+			// succeeds. Therefore we want to retry these to see if we can work around
+			// the problem.
+			logger.Ctx(ictx).Debug("404 with no content")
+			events.Inc(events.APICall, "notfoundnocontent")
 		} else {
 			// exit most errors without retry
 			break

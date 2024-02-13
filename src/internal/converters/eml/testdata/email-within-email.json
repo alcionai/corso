@@ -77,6 +77,146 @@
         ],
         "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV%2FqAAABEgAQAEUyH0VS3HJBgHDlZdWZl0k%3D&exvsurl=1&viewmodel=ItemAttachment"
       }
+    },
+    {
+      "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV-qAAABEgAQAEUyH0VS3HJBgHDlZdWZl02=",
+      "@odata.type": "#microsoft.graph.itemAttachment",
+      "item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('7ceb8e03-bdc5-4509-a136-457526165ec0')/messages('')",
+      "item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('7ceb8e03-bdc5-4509-a136-457526165ec0')/messages('')/$ref",
+      "isInline": false,
+      "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+      "name": "Purpose of life part 2",
+      "size": 11840,
+      "item": {
+        "id": "",
+        "@odata.type": "#microsoft.graph.message",
+        "createdDateTime": "2024-02-05T09:33:24Z",
+        "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+        "attachments": [
+          {
+            "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV-qAAACEgAQAEUyH0VS3HJBgHDlZdWZl0kSABAAjBhd4-oQaUS969pTkS-gzA==",
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "@odata.mediaContentType": "text/calendar",
+            "contentType": "text/calendar",
+            "isInline": false,
+            "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+            "name": "Abidjan.ics",
+            "size": 573,
+            "contentBytes": "QkVHSU46VkNBTEVOREFSDQpQUk9ESUQ6LS8vdHp1cmwub3JnLy9OT05TR01MIE9sc29uIDIwMjNkLy9FTg0KVkVSU0lPTjoyLjANCkJFR0lOOlZUSU1FWk9ORQ0KVFpJRDpBZnJpY2EvQWJpZGphbg0KTEFTVC1NT0RJRklFRDoyMDIzMTIyMlQyMzMzNThaDQpUWlVSTDpodHRwczovL3d3dy50enVybC5vcmcvem9uZWluZm8vQWZyaWNhL0FiaWRqYW4NClgtTElDLUxPQ0FUSU9OOkFmcmljYS9BYmlkamFuDQpYLVBST0xFUFRJQy1UWk5BTUU6TE1UDQpCRUdJTjpTVEFOREFSRA0KVFpOQU1FOkdNVA0KVFpPRkZTRVRGUk9NOi0wMDE2MDgNClRaT0ZGU0VUVE86KzAwMDANCkRUU1RBUlQ6MTkxMjAxMDFUMDAwMDAwDQpFTkQ6U1RBTkRBUkQNCkVORDpWVElNRVpPTkUNCkVORDpWQ0FMRU5EQVINCg=="
+          }
+        ],
+        "body": {
+          "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none;\"> P {margin-top:0;margin-bottom:0;} </style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);\">I just realized the purpose of my life is to be a test case. Good to know.<br></div></body></html>",
+          "contentType": "html"
+        },
+        "bodyPreview": "I just realized the purpose of my life is to be a test case. Good to know.",
+        "conversationId": "AAQkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNAAQAFEnxDqYmbJEm8d2l3qfS6A=",
+        "conversationIndex": "AQHaWBYiUSfEOpiZskSbx3aXep9LoA==",
+        "flag": {
+          "flagStatus": "notFlagged"
+        },
+        "from": {
+          "emailAddress": {
+            "address": "JohannaL@10rqc2.onmicrosoft.com",
+            "name": "Johanna Lorenz"
+          }
+        },
+        "hasAttachments": true,
+        "importance": "normal",
+        "internetMessageId": "<SJ0PR04MB7294108E381BCCE5C207B6DEBC472@SJ0PR04MB7294.namprd04.prod.outlook.com>",
+        "isDeliveryReceiptRequested": false,
+        "isDraft": false,
+        "isRead": true,
+        "isReadReceiptRequested": false,
+        "receivedDateTime": "2024-02-05T09:33:12Z",
+        "sender": {
+          "emailAddress": {
+            "address": "JohannaL@10rqc2.onmicrosoft.com",
+            "name": "Johanna Lorenz"
+          }
+        },
+        "sentDateTime": "2024-02-05T09:33:11Z",
+        "subject": "Purpose of life",
+        "toRecipients": [
+          {
+            "emailAddress": {
+              "address": "PradeepG@10rqc2.onmicrosoft.com",
+              "name": "Pradeep Gupta"
+            }
+          }
+        ],
+        "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV%2FqAAABEgAQAEUyH0VS3HJBgHDlZdWZl02%3D&exvsurl=1&viewmodel=ItemAttachment"
+      }
+    },
+    {
+      "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV-qAAABEgAQAEUyH0VS3HJBgHDlZdWZl03=",
+      "@odata.type": "#microsoft.graph.itemAttachment",
+      "item@odata.navigationLink": "https://graph.microsoft.com/v1.0/users('7ceb8e03-bdc5-4509-a136-457526165ec0')/messages('')",
+      "item@odata.associationLink": "https://graph.microsoft.com/v1.0/users('7ceb8e03-bdc5-4509-a136-457526165ec0')/messages('')/$ref",
+      "isInline": false,
+      "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+      "name": "Purpose of life part 3",
+      "size": 11840,
+      "item": {
+        "id": "",
+        "@odata.type": "#microsoft.graph.message",
+        "createdDateTime": "2024-02-05T09:33:24Z",
+        "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+        "attachments": [
+          {
+            "id": "AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV-qAAACEgAQAEUyH0VS3HJBgHDlZdWZl0kSABAAjBhd4-oQaUS969pTkS-gzA==",
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "@odata.mediaContentType": "text/calendar",
+            "contentType": "text/calendar",
+            "isInline": false,
+            "lastModifiedDateTime": "2024-02-05T09:33:46Z",
+            "name": "Abidjan.ics",
+            "size": 573,
+            "contentBytes": "QkVHSU46VkNBTEVOREFSDQpQUk9ESUQ6LS8vdHp1cmwub3JnLy9OT05TR01MIE9sc29uIDIwMjNkLy9FTg0KVkVSU0lPTjoyLjANCkJFR0lOOlZUSU1FWk9ORQ0KVFpJRDpBZnJpY2EvQWJpZGphbg0KTEFTVC1NT0RJRklFRDoyMDIzMTIyMlQyMzMzNThaDQpUWlVSTDpodHRwczovL3d3dy50enVybC5vcmcvem9uZWluZm8vQWZyaWNhL0FiaWRqYW4NClgtTElDLUxPQ0FUSU9OOkFmcmljYS9BYmlkamFuDQpYLVBST0xFUFRJQy1UWk5BTUU6TE1UDQpCRUdJTjpTVEFOREFSRA0KVFpOQU1FOkdNVA0KVFpPRkZTRVRGUk9NOi0wMDE2MDgNClRaT0ZGU0VUVE86KzAwMDANCkRUU1RBUlQ6MTkxMjAxMDFUMDAwMDAwDQpFTkQ6U1RBTkRBUkQNCkVORDpWVElNRVpPTkUNCkVORDpWQ0FMRU5EQVINCg=="
+          }
+        ],
+        "body": {
+          "content": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none;\"> P {margin-top:0;margin-bottom:0;} </style></head><body dir=\"ltr\"><div class=\"elementToProof\" style=\"font-family: Aptos, Aptos_EmbeddedFont, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 12pt; color: rgb(0, 0, 0);\">I just realized the purpose of my life is to be a test case. Good to know.<br></div></body></html>",
+          "contentType": "html"
+        },
+        "bodyPreview": "I just realized the purpose of my life is to be a test case. Good to know.",
+        "conversationId": "AAQkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNAAQAFEnxDqYmbJEm8d2l3qfS6A=",
+        "conversationIndex": "AQHaWBYiUSfEOpiZskSbx3aXep9LoA==",
+        "flag": {
+          "flagStatus": "notFlagged"
+        },
+        "from": {
+          "emailAddress": {
+            "address": "JohannaL@10rqc2.onmicrosoft.com",
+            "name": "Johanna Lorenz"
+          }
+        },
+        "hasAttachments": true,
+        "importance": "normal",
+        "internetMessageId": "<SJ0PR04MB7294108E381BCCE5C207B6DEBC472@SJ0PR04MB7294.namprd04.prod.outlook.com>",
+        "isDeliveryReceiptRequested": false,
+        "isDraft": false,
+        "isRead": true,
+        "isReadReceiptRequested": false,
+        "receivedDateTime": "2024-02-05T09:33:12Z",
+        "sender": {
+          "emailAddress": {
+            "address": "JohannaL@10rqc2.onmicrosoft.com",
+            "name": "Johanna Lorenz"
+          }
+        },
+        "sentDateTime": "2024-02-05T09:33:11Z",
+        "subject": "Purpose of life",
+        "toRecipients": [
+          {
+            "emailAddress": {
+              "address": "PradeepG@10rqc2.onmicrosoft.com",
+              "name": "Pradeep Gupta"
+            }
+          }
+        ],
+        "webLink": "https://outlook.office365.com/owa/?AttachmentItemID=AAMkAGJiZmE2NGU4LTQ4YjktNDI1Mi1iMWQzLTQ1MmMxODJkZmQyNABGAAAAAABFdiK7oifWRb4ADuqgSRcnBwBBFDg0JJk7TY1fmsJrh7tNAAAAAAEJAABBFDg0JJk7TY1fmsJrh7tNAAFnbV%2FqAAABEgAQAEUyH0VS3HJBgHDlZdWZl03%3D&exvsurl=1&viewmodel=ItemAttachment"
+      }
     }
   ],
   "bccRecipients": [],

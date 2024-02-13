@@ -171,6 +171,13 @@ func getFileAttachment(ctx context.Context, attachment models.Attachmentable) (*
 	}
 
 	name := ptr.Val(attachment.GetName())
+	if len(name) == 0 {
+		// Graph as of now does not let us create any attachments
+		// without a name, but we have run into instances where we have
+		// see attachments without a name, possibly from old
+		// data. This is for those cases.
+		name = "Unnamed"
+	}
 
 	contentID, err := attachment.GetBackingStore().Get("contentId")
 	if err != nil {
@@ -201,6 +208,15 @@ func getItemAttachment(ctx context.Context, attachment models.Attachmentable) (*
 			With("attachment_id", ptr.Val(attachment.GetId()))
 	}
 
+	name := ptr.Val(attachment.GetName())
+	if len(name) == 0 {
+		// Graph as of now does not let us create any attachments
+		// without a name, but we have run into instances where we have
+		// see attachments without a name, possibly from old
+		// data. This is for those cases.
+		name = "Unnamed"
+	}
+
 	switch it := it.(type) {
 	case *models.Message:
 		cb, err := FromMessageable(ctx, it)
@@ -210,7 +226,7 @@ func getItemAttachment(ctx context.Context, attachment models.Attachmentable) (*
 		}
 
 		return &mail.File{
-			Name:     ptr.Val(attachment.GetName()),
+			Name:     name,
 			MimeType: "message/rfc822",
 			Data:     []byte(cb),
 		}, nil
@@ -472,6 +488,9 @@ func FromJSONPostToEML(
 			}
 
 			name := ptr.Val(attachment.GetName())
+			if len(name) == 0 {
+				name = "Unnamed"
+			}
 
 			contentID, err := attachment.GetBackingStore().Get("contentId")
 			if err != nil {
