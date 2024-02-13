@@ -59,6 +59,15 @@ const (
 	minEpochDurationUpperBound = 7 * 24 * time.Hour
 )
 
+// allValidCompressors is the set of compression algorithms either currently
+// being used or that were previously used. Use this during the config verify
+// command to avoid spurious errors. We can revisit whether we want to update
+// the config in those old repos at a later time.
+var allValidCompressors = map[compression.Name]struct{}{
+	compression.Name(defaultCompressor): {},
+	compression.Name("s2-default"):      {},
+}
+
 var (
 	ErrSettingDefaultConfig = clues.New("setting default repo config values")
 	ErrorRepoAlreadyExists  = clues.New("repo already exists")
@@ -768,7 +777,7 @@ func (w *conn) verifyDefaultPolicyConfigOptions(
 
 	ctx = clues.Add(ctx, "current_global_policy", globalPol.String())
 
-	if globalPol.CompressionPolicy.CompressorName != defaultCompressor {
+	if _, ok := allValidCompressors[globalPol.CompressionPolicy.CompressorName]; !ok {
 		errs.AddAlert(ctx, fault.NewAlert(
 			"unexpected compressor",
 			corsoWrapperAlertNamespace,

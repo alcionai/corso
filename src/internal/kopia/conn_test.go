@@ -892,6 +892,20 @@ func (suite *ConnRetentionIntegrationSuite) TestVerifyDefaultConfigOptions() {
 			expectAlerts: 1,
 		},
 		{
+			name: "OldValidCompressor",
+			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
+				pol, err := con.getGlobalPolicyOrEmpty(ctx)
+				require.NoError(t, err, clues.ToCore(err))
+
+				_, err = updateCompressionOnPolicy("s2-default", pol)
+				require.NoError(t, err, clues.ToCore(err))
+
+				err = con.writeGlobalPolicy(ctx, "test", pol)
+				require.NoError(t, err, clues.ToCore(err))
+			},
+			expectAlerts: 0,
+		},
+		{
 			name: "NonDefaultCompression",
 			setupRepo: func(ctx context.Context, t *testing.T, con *conn) {
 				pol, err := con.getGlobalPolicyOrEmpty(ctx)
