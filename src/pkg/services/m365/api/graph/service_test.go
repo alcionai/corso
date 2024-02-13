@@ -41,7 +41,47 @@ func TestGraphUnitSuite(t *testing.T) {
 	})
 }
 
-func (suite *GraphUnitSuite) TestRetryNoContent404() {
+func (suite *GraphUnitSuite) TestNoRetryPostNoContent404() {
+	const (
+		host    = "https://graph.microsoft.com"
+		retries = 3
+	)
+
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	t.Cleanup(flush)
+
+	a := tconfig.NewFakeM365Account(t)
+	creds, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	// Run with a single retry since 503 retries are exponential and
+	// the test will take a long time to run.
+	service, err := NewGockService(
+		creds,
+		count.New(),
+		MaxRetries(1),
+		MaxConnectionRetries(retries))
+	require.NoError(t, err, clues.ToCore(err))
+
+	t.Cleanup(gock.Off)
+
+	gock.New(host).
+		Post("/v1.0/users").
+		Reply(http.StatusNotFound).
+		BodyString("").
+		Type("text/plain")
+
+	// Since we're retrying all 404s with no content the endpoint we use doesn't
+	// matter.
+	_, err = service.Client().Users().Post(ctx, models.NewUser(), nil)
+	assert.ErrorIs(t, err, ErrNotFoundEmptyResp)
+
+	assert.False(t, gock.IsPending(), "some requests not seen")
+}
+
+func (suite *GraphUnitSuite) TestRetryGetNoContent404() {
 	const (
 		host    = "https://graph.microsoft.com"
 		retries = 3
@@ -88,6 +128,8 @@ func (suite *GraphUnitSuite) TestRetryNoContent404() {
 	// matter.
 	_, err = service.Client().Users().Get(ctx, nil)
 	assert.NoError(t, err, clues.ToCore(err))
+
+	assert.False(t, gock.IsPending(), "some requests not seen")
 }
 
 // ---------------------------------------------------------------------------
