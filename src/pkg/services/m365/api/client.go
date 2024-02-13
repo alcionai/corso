@@ -68,7 +68,9 @@ func NewClient(
 		return Client{}, clues.Wrap(err, "generating azure authorizer")
 	}
 
-	rqr := graph.NewNoTimeoutHTTPWrapper(counter, graph.AuthorizeRequester(azureAuth))
+	rqr := graph.NewNoTimeoutHTTPWrapper(
+		counter,
+		graph.AuthorizeRequester(azureAuth))
 
 	if co.DeltaPageSize < 1 || co.DeltaPageSize > maxDeltaPageSize {
 		co.DeltaPageSize = maxDeltaPageSize
@@ -137,6 +139,7 @@ type Getter interface {
 		ctx context.Context,
 		url string,
 		headers map[string]string,
+		requireAuth bool,
 	) (*http.Response, error)
 }
 
@@ -145,8 +148,9 @@ func (c Client) Get(
 	ctx context.Context,
 	url string,
 	headers map[string]string,
+	requireAuth bool,
 ) (*http.Response, error) {
-	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers)
+	return c.Requester.Request(ctx, http.MethodGet, url, nil, headers, requireAuth)
 }
 
 // Get performs an ad-hoc get request using its graph.Requester
@@ -155,8 +159,9 @@ func (c Client) Post(
 	url string,
 	headers map[string]string,
 	body io.Reader,
+	requireAuth bool,
 ) (*http.Response, error) {
-	return c.Requester.Request(ctx, http.MethodGet, url, body, headers)
+	return c.Requester.Request(ctx, http.MethodGet, url, body, headers, requireAuth)
 }
 
 // ---------------------------------------------------------------------------

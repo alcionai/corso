@@ -197,7 +197,12 @@ func (h BackupHandler[T]) AugmentItemInfo(
 	return h.ItemInfo
 }
 
-func (h *BackupHandler[T]) Get(context.Context, string, map[string]string) (*http.Response, error) {
+func (h *BackupHandler[T]) Get(
+	context.Context,
+	string,
+	map[string]string,
+	bool,
+) (*http.Response, error) {
 	c := h.getCall
 	h.getCall++
 

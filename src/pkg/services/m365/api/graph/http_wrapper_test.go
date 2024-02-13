@@ -42,7 +42,8 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 		http.MethodGet,
 		"https://www.google.com",
 		nil,
-		nil)
+		nil,
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
@@ -76,7 +77,7 @@ func (mw *mwForceResp) Intercept(
 	return mw.resp, mw.err
 }
 
-func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper_withAuth() {
+func (suite *HTTPWrapperIntgSuite) TestHTTPWrapper_Request_withAuth() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
@@ -97,7 +98,8 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper_withAuth() {
 		http.MethodGet,
 		"https://graph.microsoft.com/v1.0/users",
 		nil,
-		nil)
+		nil,
+		true)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
@@ -111,7 +113,8 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper_withAuth() {
 		http.MethodGet,
 		"https://www.google.com",
 		nil,
-		nil)
+		nil,
+		true)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
@@ -165,7 +168,8 @@ func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_redirect() {
 		http.MethodGet,
 		"https://graph.microsoft.com/fnords/beaux/regard",
 		nil,
-		map[string]string{"X-Test-Val": "should-be-copied-to-redirect"})
+		map[string]string{"X-Test-Val": "should-be-copied-to-redirect"},
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
@@ -239,7 +243,7 @@ func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_http2StreamErrorRetri
 			// the test middleware.
 			hw.retryDelay = 0
 
-			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
+			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil, false)
 			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
 			require.Equal(t, test.expectRetries, tries, "count of retries")
 		})

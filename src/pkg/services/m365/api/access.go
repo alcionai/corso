@@ -47,7 +47,7 @@ func (c Access) GetToken(
 			c.Credentials.AzureClientSecret))
 	)
 
-	resp, err := c.Post(ctx, rawURL, headers, body)
+	resp, err := c.Post(ctx, rawURL, headers, body, false)
 	if err != nil {
 		return clues.Stack(err)
 	}
