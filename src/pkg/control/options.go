@@ -27,6 +27,9 @@ type Options struct {
 	// backup data until the set limits without paying attention to what the other
 	// had already backed up.
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
+
+	// resourceID -> []eventID
+	SkipTheseEventsOnInstance503 map[string][]string
 }
 
 // RateLimiter is the set of options applied to any external service facing rate
