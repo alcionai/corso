@@ -3,11 +3,11 @@ package exchange
 import (
 	"testing"
 
+	"github.com/alcionai/clues"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/alcionai/clues"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
@@ -54,7 +54,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			err:  nil,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
-					"foo": []string{"bar", "baz"},
+					"foo": {"bar", "baz"},
 				},
 			},
 			expect: assert.False,
@@ -64,7 +64,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			err:  clues.New("fix me I'm wrong"),
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
-					"foo": []string{"bar", "baz"},
+					"foo": {"bar", "baz"},
 				},
 			},
 			expect: assert.False,
@@ -74,7 +74,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			err:  clues.New("fix me I'm wrong"),
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: []string{"bar", "baz"},
+					resourceID: {"bar", "baz"},
 				},
 			},
 			expect: assert.False,
@@ -84,7 +84,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			err:  clues.New("fix me I'm wrong"),
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: []string{"bar", itemID},
+					resourceID: {"bar", itemID},
 				},
 			},
 			expect:      assert.True,
