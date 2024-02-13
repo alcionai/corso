@@ -240,6 +240,10 @@ func setReplyTos(msg models.Messageable) {
 		sanitizedReplyTos = make([]models.Recipientable, 0)
 	)
 
+	if len(replyTos) == 0 {
+		return
+	}
+
 	for _, replyTo := range replyTos {
 		emailAddress = replyTo.GetEmailAddress()
 		address = ptr.Val(emailAddress.GetAddress())
