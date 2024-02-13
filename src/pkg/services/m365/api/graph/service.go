@@ -442,7 +442,7 @@ func (aw *adapterWrap) Send(
 			// to limit the scope of this fix.
 			logger.Ctx(ictx).Debug("invalid request")
 			events.Inc(events.APICall, "invalidgetrequest")
-		} else if errors.Is(err, ErrNotFoundEmptyResp) {
+		} else if requestInfo.Method.String() == http.MethodGet && errors.Is(err, ErrNotFoundEmptyResp) {
 			// We've started seeing 404s with no content being returned for messages
 			// message attachments, and events. Attempting to manually fetch the items
 			// succeeds. Therefore we want to retry these to see if we can work around
