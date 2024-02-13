@@ -48,9 +48,10 @@ func downloadItem(
 		// the download could take longer than the lifespan of the download token in the cached
 		// url, which will cause us to timeout on every download request, even if we refresh the
 		// download url right before the query.
-		url    = "https://graph.microsoft.com/v1.0/drives/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
-		reader io.ReadCloser
-		err    error
+		url         = "https://graph.microsoft.com/v1.0/drives/" + driveID + "/items/" + ptr.Val(item.GetId()) + "/content"
+		reader      io.ReadCloser
+		err         error
+		isLargeFile = ptr.Val(item.GetSize()) > largeFileDownloadLimit
 	)
 
 	// if this isn't a file, no content is available for download
@@ -61,11 +62,11 @@ func downloadItem(
 	// smaller files will maintain our current behavior (prefetching the download url with the
 	// url cache).  That pattern works for us in general, and we only need to deviate for very
 	// large file sizes.
-	if ptr.Val(item.GetSize()) < largeFileDownloadLimit {
+	if !isLargeFile {
 		url = str.FirstIn(item.GetAdditionalData(), downloadURLKeys...)
 	}
 
-	reader, err = downloadFile(ctx, getter, url, ptr.Val(item.GetSize()) < largeFileDownloadLimit)
+	reader, err = downloadFile(ctx, getter, url, isLargeFile)
 
 	return reader, clues.StackWC(ctx, err).OrNil()
 }

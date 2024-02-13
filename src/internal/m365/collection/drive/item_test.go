@@ -464,6 +464,71 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 	}
 }
 
+func (suite *ItemUnitTestSuite) TestDownloadItem_urlByFileSize() {
+	var (
+		testRc = io.NopCloser(bytes.NewReader([]byte("test")))
+		url    = "https://example.com"
+		okResp = &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       testRc,
+		}
+	)
+
+	table := []struct {
+		name          string
+		itemFunc      func() models.DriveItemable
+		GetFunc       func(ctx context.Context, url string) (*http.Response, error)
+		errorExpected require.ErrorAssertionFunc
+		rcExpected    require.ValueAssertionFunc
+		label         string
+	}{
+		{
+			name: "big file",
+			itemFunc: func() models.DriveItemable {
+				di := api.NewDriveItem("test", false)
+				di.SetAdditionalData(map[string]any{"@microsoft.graph.downloadUrl": url})
+				di.SetSize(ptr.To[int64](20 * gigabyte))
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				assert.Contains(suite.T(), url, "/content")
+				return okResp, nil
+			},
+		},
+		{
+			name: "small file",
+			itemFunc: func() models.DriveItemable {
+				di := api.NewDriveItem("test", false)
+				di.SetAdditionalData(map[string]any{"@microsoft.graph.downloadUrl": url})
+				di.SetSize(ptr.To[int64](2 * gigabyte))
+
+				return di
+			},
+			GetFunc: func(ctx context.Context, url string) (*http.Response, error) {
+				assert.NotContains(suite.T(), url, "/content")
+				return okResp, nil
+			},
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			_, err := downloadItem(
+				ctx,
+				mockGetter{GetFunc: test.GetFunc},
+				"driveID",
+				custom.ToCustomDriveItem(test.itemFunc()))
+			require.NoError(t, err, clues.ToCore(err))
+		})
+	}
+}
+
 type errReader struct{}
 
 func (r errReader) Read(p []byte) (int, error) {

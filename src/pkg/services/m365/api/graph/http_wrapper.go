@@ -115,7 +115,7 @@ func (hw httpWrapper) Request(
 
 	if requireAuth {
 		if hw.config.requesterAuth == nil {
-			return nil, clues.Wrap(err, "http wrapper misconfigured: missing required authorization middleware")
+			return nil, clues.Wrap(err, "http wrapper misconfigured: missing required authorization")
 		}
 
 		err := hw.config.requesterAuth.addAuthToHeaders(ctx, url, req.Header)
