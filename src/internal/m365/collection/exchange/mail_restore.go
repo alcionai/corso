@@ -3,6 +3,7 @@ package exchange
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/alcionai/clues"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -147,6 +148,8 @@ func restoreMail(
 
 	msg = setMessageSVEPs(toMessage(msg))
 
+	setReplyTos(msg)
+
 	attachments := msg.GetAttachments()
 	// Item.Attachments --> HasAttachments doesn't always have a value populated when deserialized
 	msg.SetAttachments([]models.Attachmentable{})
@@ -229,6 +232,34 @@ func setMessageSVEPs(msg models.Messageable) models.Messageable {
 	return msg
 }
 
+func setReplyTos(msg models.Messageable) {
+	var (
+		replyTos          = msg.GetReplyTo()
+		emailAddress      models.EmailAddressable
+		name, address     string
+		sanitizedReplyTos = make([]models.Recipientable, 0)
+	)
+
+	for _, replyTo := range replyTos {
+		emailAddress = replyTo.GetEmailAddress()
+		address = ptr.Val(emailAddress.GetAddress())
+		name = ptr.Val(emailAddress.GetName())
+
+		if isValidEmail(address) || isValidDN(address) {
+			newEmailAddress := models.NewEmailAddress()
+			newEmailAddress.SetAddress(ptr.To(address))
+			newEmailAddress.SetName(ptr.To(name))
+
+			sanitizedReplyTo := models.NewRecipient()
+			sanitizedReplyTo.SetEmailAddress(newEmailAddress)
+
+			sanitizedReplyTos = append(sanitizedReplyTos, sanitizedReplyTo)
+		}
+	}
+
+	msg.SetReplyTo(sanitizedReplyTos)
+}
+
 func (h mailRestoreHandler) GetItemsInContainerByCollisionKey(
 	ctx context.Context,
 	userID, containerID string,
@@ -239,4 +270,25 @@ func (h mailRestoreHandler) GetItemsInContainerByCollisionKey(
 	}
 
 	return m, nil
+}
+
+// [TODO]relocate to a common place
+func isValidEmail(email string) bool {
+	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	r := regexp.MustCompile(emailRegex)
+
+	return r.MatchString(email)
+}
+
+// isValidDN check if given string's format matches that of a MSFT Distinguished Name
+// This regular expression matches strings that start with /o=,
+// followed by any characters except /,
+// then /ou=, followed by any characters except /,
+// then /cn=, followed by any characters except /,
+// then /cn= followed by a 32-character hexadecimal string followed by - and any additional characters.
+func isValidDN(dn string) bool {
+	dnRegex := `^/o=[^/]+/ou=[^/]+/cn=[^/]+/cn=[a-fA-F0-9]{32}-[a-zA-Z0-9-]+$`
+	r := regexp.MustCompile(dnRegex)
+
+	return r.MatchString(dn)
 }
