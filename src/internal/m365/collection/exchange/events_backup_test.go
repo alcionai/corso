@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/alcionai/clues"
@@ -12,6 +13,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/control"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
+	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
 
 type EventsBackupHandlerUnitSuite struct {
@@ -61,7 +63,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 		},
 		{
 			name: "non-matching resource",
-			err:  clues.New("fix me I'm wrong"),
+			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
 					"foo": {"bar", itemID},
@@ -71,17 +73,31 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 		},
 		{
 			name: "non-matching item",
-			err:  clues.New("fix me I'm wrong"),
+			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
 					resourceID: {"bar", "baz"},
 				},
 			},
 			expect: assert.False,
+			// the item won't match, but we still return this as the cause
+			expectCause: fault.SkipKnownEventInstance503s,
+		},
+		{
+			name: "match on instance 503 empty resp",
+			err:  graph.ErrServiceUnavailableEmptyResp,
+			opts: control.Options{
+				SkipTheseEventsOnInstance503: map[string][]string{
+					resourceID: {"bar", itemID},
+				},
+			},
+			expect:      assert.True,
+			expectCause: fault.SkipKnownEventInstance503s,
 		},
 		{
 			name: "match on instance 503",
-			err:  clues.New("fix me I'm wrong"),
+			err: clues.New("arbitrary error").
+				Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
 					resourceID: {"bar", itemID},

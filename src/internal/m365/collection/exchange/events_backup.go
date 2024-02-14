@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"errors"
+	"net/http"
 	"slices"
 
 	"github.com/alcionai/clues"
@@ -60,13 +61,21 @@ func (h eventBackupHandler) NewContainerCache(
 	}
 }
 
+// todo: this could be further improved buy specifying the call source and matching that
+// with the expected error.  Might be necessary if we use this for more than one error.
+// But since we only call this in a single place at this time, that additional guard isn't
+// built into the func.
 func (h eventBackupHandler) CanSkipItemFailure(
 	err error,
 	resourceID, itemID string,
 	opts control.Options,
 ) (fault.SkipCause, bool) {
-	// yes, this is intentionally a todo.  I'll get back to it.
-	if !errors.Is(err, clues.New("todo fix me")) {
+	if err == nil {
+		return "", false
+	}
+
+	if !errors.Is(err, graph.ErrServiceUnavailableEmptyResp) &&
+		!clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) {
 		return "", false
 	}
 
