@@ -56,9 +56,9 @@ func (h contactBackupHandler) NewContainerCache(
 }
 
 func (h contactBackupHandler) CanSkipItemFailure(
-	error,
-	string, string,
-	control.Options,
+	err error,
+	resourceID, itemID string,
+	opts control.Options,
 ) (fault.SkipCause, bool) {
 	return "", false
 }
