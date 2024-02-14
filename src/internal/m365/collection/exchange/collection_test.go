@@ -665,10 +665,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 
 				_, rok := test.removed[item.ID()]
 				if rok {
-					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 					dimt, ok := item.(data.ItemModTime)
 					require.True(t, ok, "item implements data.ItemModTime")
 					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 				}
 
 				modTime, aok := test.added[item.ID()]
@@ -677,7 +677,6 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					// initializer.
 					assert.Implements(t, (*data.ItemModTime)(nil), item)
 					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
-
 					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
 
 					// Check if the test want's us to read the item's data so the lazy
@@ -818,10 +817,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 
 				_, rok := test.removed[item.ID()]
 				if rok {
-					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 					dimt, ok := item.(data.ItemModTime)
 					require.True(t, ok, "item implements data.ItemModTime")
 					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 				}
 
 				modTime, aok := test.added[item.ID()]
@@ -830,7 +829,6 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 					// initializer.
 					assert.Implements(t, (*data.ItemModTime)(nil), item)
 					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
-
 					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
 
 					// Check if the test want's us to read the item's data so the lazy
@@ -844,6 +842,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 						assert.True(t, clues.HasLabel(err, graph.LabelsSkippable), clues.ToCore(err))
 
 						r.Close()
+					} else {
+						assert.Fail(t, "unexpected read on item %s", item.ID())
 					}
 				}
 

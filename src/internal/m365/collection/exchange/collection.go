@@ -288,7 +288,7 @@ func (col *prefetchCollection) streamItems(
 					err,
 					user,
 					id,
-					col.BaseCollection.Opts())
+					col.Opts())
 
 				// Handle known error cases
 				switch {
@@ -481,13 +481,13 @@ func (col *lazyFetchCollection) streamItems(
 			&lazyItemGetter{
 				userID:       user,
 				itemID:       id,
-				category:     col.FullPath().Category(),
+				category:     col.Category(),
 				getter:       col.getter,
 				modTime:      modTime,
 				immutableIDs: col.Opts().ToggleFeatures.ExchangeImmutableIDs,
 				parentPath:   parentPath,
 				skipChecker:  col.skipChecker,
-				opts:         col.BaseCollection.Opts(),
+				opts:         col.Opts(),
 			},
 			id,
 			modTime,
