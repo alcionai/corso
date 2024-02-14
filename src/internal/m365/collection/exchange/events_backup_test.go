@@ -39,13 +39,13 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 	}{
 		{
 			name:   "no config",
-			err:    nil,
+			err:    graph.ErrServiceUnavailableEmptyResp,
 			opts:   control.Options{},
 			expect: assert.False,
 		},
 		{
 			name: "empty skip on 503",
-			err:  nil,
+			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{},
 			},
