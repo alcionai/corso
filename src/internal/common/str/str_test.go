@@ -118,3 +118,96 @@ func TestGenerateHash(t *testing.T) {
 		}
 	}
 }
+
+func TestFirstIn(t *testing.T) {
+	table := []struct {
+		name   string
+		m      map[string]any
+		keys   []string
+		expect string
+	}{
+		{
+			name:   "nil map",
+			keys:   []string{"foo", "bar"},
+			expect: "",
+		},
+		{
+			name:   "empty map",
+			m:      map[string]any{},
+			keys:   []string{"foo", "bar"},
+			expect: "",
+		},
+		{
+			name: "no match",
+			m: map[string]any{
+				"baz": "baz",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "",
+		},
+		{
+			name: "no keys",
+			m: map[string]any{
+				"baz": "baz",
+			},
+			keys:   []string{},
+			expect: "",
+		},
+		{
+			name: "nil match",
+			m: map[string]any{
+				"foo": nil,
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "",
+		},
+		{
+			name: "empty match",
+			m: map[string]any{
+				"foo": "",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "",
+		},
+		{
+			name: "matches first key",
+			m: map[string]any{
+				"foo": "fnords",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "fnords",
+		},
+		{
+			name: "matches second key",
+			m: map[string]any{
+				"bar": "smarf",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "smarf",
+		},
+		{
+			name: "matches second key with nil first match",
+			m: map[string]any{
+				"foo": nil,
+				"bar": "smarf",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "smarf",
+		},
+		{
+			name: "matches second key with empty first match",
+			m: map[string]any{
+				"foo": "",
+				"bar": "smarf",
+			},
+			keys:   []string{"foo", "bar"},
+			expect: "smarf",
+		},
+	}
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			result := FirstIn(test.m, test.keys...)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}

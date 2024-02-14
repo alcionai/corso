@@ -40,9 +40,10 @@ func (suite *HTTPWrapperIntgSuite) TestNewHTTPWrapper() {
 	resp, err := hw.Request(
 		ctx,
 		http.MethodGet,
-		"https://www.corsobackup.io",
+		"https://www.google.com",
 		nil,
-		nil)
+		nil,
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
@@ -76,6 +77,56 @@ func (mw *mwForceResp) Intercept(
 	return mw.resp, mw.err
 }
 
+func (suite *HTTPWrapperIntgSuite) TestHTTPWrapper_Request_withAuth() {
+	t := suite.T()
+
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	a := tconfig.NewM365Account(t)
+	m365, err := a.M365Config()
+	require.NoError(t, err, clues.ToCore(err))
+
+	azureAuth, err := NewAzureAuth(m365)
+	require.NoError(t, err, clues.ToCore(err))
+
+	hw := NewHTTPWrapper(count.New(), AuthorizeRequester(azureAuth))
+
+	// any request that requires authorization will do
+	resp, err := hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://graph.microsoft.com/v1.0/users",
+		nil,
+		nil,
+		true)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// also validate that non-auth'd endpoints succeed
+	resp, err = hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://www.google.com",
+		nil,
+		nil,
+		true)
+	require.NoError(t, err, clues.ToCore(err))
+
+	defer resp.Body.Close()
+
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+// ---------------------------------------------------------------------------
+// unit
+// ---------------------------------------------------------------------------
+
 type HTTPWrapperUnitSuite struct {
 	tester.Suite
 }
@@ -84,26 +135,25 @@ func TestHTTPWrapperUnitSuite(t *testing.T) {
 	suite.Run(t, &HTTPWrapperUnitSuite{Suite: tester.NewUnitSuite(t)})
 }
 
-func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
+func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_redirect() {
 	t := suite.T()
 
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	url := "https://graph.microsoft.com/fnords/beaux/regard"
-
-	hdr := http.Header{}
-	hdr.Set("Location", "localhost:99999999/smarfs")
+	respHdr := http.Header{}
+	respHdr.Set("Location", "localhost:99999999/smarfs")
 
 	toResp := &http.Response{
 		StatusCode: http.StatusFound,
-		Header:     hdr,
+		Header:     respHdr,
 	}
 
 	mwResp := mwForceResp{
 		resp: toResp,
 		alternate: func(req *http.Request) (bool, *http.Response, error) {
 			if strings.HasSuffix(req.URL.String(), "smarfs") {
+				assert.Equal(t, req.Header.Get("X-Test-Val"), "should-be-copied-to-redirect")
 				return true, &http.Response{StatusCode: http.StatusOK}, nil
 			}
 
@@ -113,17 +163,22 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_redirectMiddleware() {
 
 	hw := NewHTTPWrapper(count.New(), appendMiddleware(&mwResp))
 
-	resp, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
+	resp, err := hw.Request(
+		ctx,
+		http.MethodGet,
+		"https://graph.microsoft.com/fnords/beaux/regard",
+		nil,
+		map[string]string{"X-Test-Val": "should-be-copied-to-redirect"},
+		false)
 	require.NoError(t, err, clues.ToCore(err))
 
 	defer resp.Body.Close()
 
 	require.NotNil(t, resp)
-	// require.Equal(t, 1, calledCorrectly, "test server was called with expected path")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() {
+func (suite *HTTPWrapperUnitSuite) TestHTTPWrapper_Request_http2StreamErrorRetries() {
 	var (
 		url       = "https://graph.microsoft.com/fnords/beaux/regard"
 		streamErr = http2.StreamError{
@@ -188,7 +243,7 @@ func (suite *HTTPWrapperUnitSuite) TestNewHTTPWrapper_http2StreamErrorRetries() 
 			// the test middleware.
 			hw.retryDelay = 0
 
-			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil)
+			_, err := hw.Request(ctx, http.MethodGet, url, nil, nil, false)
 			require.ErrorAs(t, err, &http2.StreamError{}, clues.ToCore(err))
 			require.Equal(t, test.expectRetries, tries, "count of retries")
 		})
