@@ -510,8 +510,8 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			require.NoError(t, err, clues.ToCore(err))
 
 			opts := control.DefaultOptions()
-			opts.SkipTheseEventsOnInstance503 = map[string][]string{}
-			opts.SkipTheseEventsOnInstance503["pr"] = maps.Keys(test.added)
+			opts.SkipEventsOnInstance503ForResources = map[string]struct{}{}
+			opts.SkipEventsOnInstance503ForResources["pr"] = struct{}{}
 
 			col := NewCollection(
 				data.NewBaseCollection(
@@ -1017,7 +1017,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 		suite.Run(test.name, func() {
 			var (
 				t         = suite.T()
-				errs      = fault.New(true)
+				errs      = fault.New(false)
 				itemCount int
 			)
 
@@ -1038,8 +1038,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			defer mlg.check(t, test.expectReads)
 
 			opts := control.DefaultOptions()
-			opts.SkipTheseEventsOnInstance503 = map[string][]string{}
-			opts.SkipTheseEventsOnInstance503["pr"] = test.expectReads
+			opts.SkipEventsOnInstance503ForResources = map[string]struct{}{}
+			opts.SkipEventsOnInstance503ForResources["pr"] = struct{}{}
 
 			col := NewCollection(
 				data.NewBaseCollection(
@@ -1094,7 +1094,12 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
-			test.expectFailure(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			failure := errs.Failure()
+			if failure == nil && len(errs.Recovered()) > 0 {
+				failure = errs.Recovered()[0]
+			}
+
+			test.expectFailure(t, failure, clues.ToCore(failure))
 			assert.Equal(
 				t,
 				test.expectItemCount,

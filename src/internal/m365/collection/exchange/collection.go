@@ -287,7 +287,6 @@ func (col *prefetchCollection) streamItems(
 				cause, canSkip := col.skipChecker.CanSkipItemFailure(
 					err,
 					user,
-					id,
 					col.Opts())
 
 				// Handle known error cases
@@ -428,6 +427,7 @@ func (col *lazyFetchCollection) streamItems(
 		success         int64
 		progressMessage chan<- struct{}
 		user            = col.user
+		el              = errs.Local()
 	)
 
 	defer func() {
@@ -439,7 +439,7 @@ func (col *lazyFetchCollection) streamItems(
 			int(success),
 			0,
 			col.FullPath().Folder(false),
-			errs.Failure())
+			el.Failure())
 	}()
 
 	if len(col.added)+len(col.removed) > 0 {
@@ -465,7 +465,7 @@ func (col *lazyFetchCollection) streamItems(
 
 	// add any new items
 	for id, modTime := range col.added {
-		if errs.Failure() != nil {
+		if el.Failure() != nil {
 			break
 		}
 
@@ -492,7 +492,7 @@ func (col *lazyFetchCollection) streamItems(
 			id,
 			modTime,
 			col.counter,
-			errs)
+			el)
 
 		atomic.AddInt64(&success, 1)
 
@@ -530,7 +530,6 @@ func (lig *lazyItemGetter) GetData(
 			cause, canSkip := lig.skipChecker.CanSkipItemFailure(
 				err,
 				lig.userID,
-				lig.itemID,
 				lig.opts)
 			if canSkip {
 				errs.AddSkip(ctx, fault.FileSkip(
@@ -560,7 +559,7 @@ func (lig *lazyItemGetter) GetData(
 		err = clues.Stack(err)
 		errs.AddRecoverable(ctx, err)
 
-		return nil, nil, false, err
+		return nil, nil, false, clues.Stack(err)
 	}
 
 	// Update the mod time to what we already told kopia about. This is required

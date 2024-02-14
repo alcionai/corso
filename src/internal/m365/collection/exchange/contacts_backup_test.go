@@ -22,10 +22,7 @@ func TestContactsBackupHandlerUnitSuite(t *testing.T) {
 }
 
 func (suite *ContactsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
-	var (
-		resourceID = uuid.NewString()
-		itemID     = uuid.NewString()
-	)
+	resourceID := uuid.NewString()
 
 	table := []struct {
 		name        string
@@ -44,7 +41,7 @@ func (suite *ContactsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			name: "false when map is empty",
 			err:  assert.AnError,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{},
 			},
 			expect: assert.False,
 		},
@@ -52,18 +49,18 @@ func (suite *ContactsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			name: "false on nil error",
 			err:  nil,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					resourceID: {},
 				},
 			},
 			expect: assert.False,
 		},
 		{
-			name: "false even if item matches",
+			name: "false even if resource matches",
 			err:  assert.AnError,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					resourceID: {},
 				},
 			},
 			expect: assert.False,
@@ -77,7 +74,6 @@ func (suite *ContactsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			cause, result := h.CanSkipItemFailure(
 				test.err,
 				resourceID,
-				itemID,
 				test.opts)
 
 			test.expect(t, result)

@@ -62,7 +62,7 @@ func (h mailBackupHandler) NewContainerCache(
 
 func (h mailBackupHandler) CanSkipItemFailure(
 	err error,
-	resourceID, itemID string,
+	resourceID string,
 	opts control.Options,
 ) (fault.SkipCause, bool) {
 	return "", false

@@ -59,10 +59,9 @@ type canSkipFailChecker struct {
 }
 
 func (m canSkipFailChecker) CanSkipItemFailure(
-	error,
-	string,
-	string,
-	control.Options,
+	err error,
+	resourceID string,
+	opts control.Options,
 ) (fault.SkipCause, bool) {
 	return fault.SkipCause("testing"), m.canSkip
 }

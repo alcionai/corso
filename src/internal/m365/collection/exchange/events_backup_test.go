@@ -25,10 +25,7 @@ func TestEventsBackupHandlerUnitSuite(t *testing.T) {
 }
 
 func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
-	var (
-		resourceID = uuid.NewString()
-		itemID     = uuid.NewString()
-	)
+	resourceID := uuid.NewString()
 
 	table := []struct {
 		name        string
@@ -47,7 +44,7 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			name: "empty skip on 503",
 			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{},
 			},
 			expect: assert.False,
 		},
@@ -55,8 +52,8 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			name: "nil error",
 			err:  nil,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					resourceID: {},
 				},
 			},
 			expect: assert.False,
@@ -65,30 +62,18 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			name: "non-matching resource",
 			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					"foo": {"bar", itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					"foo": {},
 				},
 			},
 			expect: assert.False,
-		},
-		{
-			name: "non-matching item",
-			err:  graph.ErrServiceUnavailableEmptyResp,
-			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", "baz"},
-				},
-			},
-			expect: assert.False,
-			// the item won't match, but we still return this as the cause
-			expectCause: fault.SkipKnownEventInstance503s,
 		},
 		{
 			name: "match on instance 503 empty resp",
 			err:  graph.ErrServiceUnavailableEmptyResp,
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					resourceID: {},
 				},
 			},
 			expect:      assert.True,
@@ -99,8 +84,8 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			err: clues.New("arbitrary error").
 				Label(graph.LabelStatus(http.StatusServiceUnavailable)),
 			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", itemID},
+				SkipEventsOnInstance503ForResources: map[string]struct{}{
+					resourceID: {},
 				},
 			},
 			expect:      assert.True,
@@ -115,7 +100,6 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			cause, result := h.CanSkipItemFailure(
 				test.err,
 				resourceID,
-				itemID,
 				test.opts)
 
 			test.expect(t, result)

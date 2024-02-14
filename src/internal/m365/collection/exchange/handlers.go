@@ -62,7 +62,7 @@ func BackupHandlers(ac api.Client) map[path.CategoryType]backupHandler {
 type canSkipItemFailurer interface {
 	CanSkipItemFailure(
 		err error,
-		resourceID, itemID string,
+		resourceID string,
 		opts control.Options,
 	) (fault.SkipCause, bool)
 }

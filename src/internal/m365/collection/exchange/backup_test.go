@@ -89,10 +89,9 @@ func (bh mockBackupHandler) previewIncludeContainers() []string        { return 
 func (bh mockBackupHandler) previewExcludeContainers() []string        { return bh.previewExcludes }
 
 func (bh mockBackupHandler) CanSkipItemFailure(
-	error,
-	string,
-	string,
-	control.Options,
+	err error,
+	resourceID string,
+	opts control.Options,
 ) (fault.SkipCause, bool) {
 	return "", false
 }

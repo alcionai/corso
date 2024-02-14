@@ -3,7 +3,6 @@ package exchange
 import (
 	"errors"
 	"net/http"
-	"slices"
 
 	"github.com/alcionai/clues"
 
@@ -67,7 +66,7 @@ func (h eventBackupHandler) NewContainerCache(
 // built into the func.
 func (h eventBackupHandler) CanSkipItemFailure(
 	err error,
-	resourceID, itemID string,
+	resourceID string,
 	opts control.Options,
 ) (fault.SkipCause, bool) {
 	if err == nil {
@@ -84,11 +83,8 @@ func (h eventBackupHandler) CanSkipItemFailure(
 		return "", false
 	}
 
-	itemIDs, ok := opts.SkipTheseEventsOnInstance503[resourceID]
-	if !ok {
-		return "", false
-	}
+	_, ok := opts.SkipEventsOnInstance503ForResources[resourceID]
 
 	// strict equals required here.  ids are case sensitive.
-	return fault.SkipKnownEventInstance503s, slices.Contains(itemIDs, itemID)
+	return fault.SkipKnownEventInstance503s, ok
 }

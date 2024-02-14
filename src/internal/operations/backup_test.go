@@ -420,8 +420,8 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 			MaxPages:             46,
 			Enabled:              true,
 		},
-		SkipTheseEventsOnInstance503: map[string][]string{
-			"resource": {"item1", "item2"},
+		SkipEventsOnInstance503ForResources: map[string]struct{}{
+			"resource": {},
 		},
 	}
 
