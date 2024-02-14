@@ -28,6 +28,7 @@ import (
 	"github.com/alcionai/corso/src/pkg/errs/core"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/path"
+	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 	graphTD "github.com/alcionai/corso/src/pkg/services/m365/api/graph/testdata"
 )
@@ -153,6 +154,7 @@ func (suite *CollectionUnitSuite) TestNewCollection_state() {
 							count.New()),
 						"u",
 						mock.DefaultItemGetSerialize(),
+						mock.NeverCanSkipFailChecker(),
 						nil,
 						nil,
 						colType.validModTimes,
@@ -298,6 +300,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 					count.New()),
 				"",
 				&mock.ItemGetSerialize{},
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				maps.Keys(test.removed),
 				false,
@@ -329,6 +332,232 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items() {
 				test.expectItemCount,
 				itemCount,
 				"should see all expected items")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
+	var (
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+	)
+
+	table := []struct {
+		name               string
+		category           path.CategoryType
+		handler            backupHandler
+		added              map[string]time.Time
+		removed            map[string]struct{}
+		expectItemCount    int
+		expectSkippedCount int
+		expectErr          assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "no items",
+			category:  path.EventsCategory,
+			handler:   newEventBackupHandler(api.Client{}),
+			expectErr: assert.NoError,
+		},
+		{
+			name:     "events only added items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    {},
+				"flannigan": {},
+				"fitzbog":   {},
+			},
+			expectItemCount:    0,
+			expectSkippedCount: 3,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "events only removed items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "events added and removed items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "contacts only added items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    {},
+				"flannigan": {},
+				"fitzbog":   {},
+			},
+			expectItemCount:    0,
+			expectSkippedCount: 0,
+			expectErr:          assert.Error,
+		},
+		{
+			name:     "contacts only removed items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "contacts added and removed items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "mail only added items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    {},
+				"flannigan": {},
+				"fitzbog":   {},
+			},
+			expectItemCount:    0,
+			expectSkippedCount: 0,
+			expectErr:          assert.Error,
+		},
+		{
+			name:     "mail only removed items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+		{
+			name:     "mail added and removed items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			fullPath, err := path.Build("t", "pr", path.ExchangeService, test.category, false, "fnords", "smarf")
+			require.NoError(t, err, clues.ToCore(err))
+
+			locPath, err := path.Build("t", "pr", path.ExchangeService, test.category, false, "fnords", "smarf")
+			require.NoError(t, err, clues.ToCore(err))
+
+			opts := control.DefaultOptions()
+			opts.SkipTheseEventsOnInstance503 = map[string][]string{}
+			opts.SkipTheseEventsOnInstance503["pr"] = maps.Keys(test.added)
+
+			col := NewCollection(
+				data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					opts,
+					false,
+					count.New()),
+				"pr",
+				&mock.ItemGetSerialize{
+					SerializeErr: graph.ErrServiceUnavailableEmptyResp,
+				},
+				test.handler,
+				test.added,
+				maps.Keys(test.removed),
+				false,
+				statusUpdater,
+				count.New())
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				_, rok := test.removed[item.ID()]
+				if rok {
+					dimt, ok := item.(data.ItemModTime)
+					require.True(t, ok, "item implements data.ItemModTime")
+					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
+				}
+
+				_, aok := test.added[item.ID()]
+				if !rok && aok {
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+				}
+
+				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
+			}
+
+			test.expectErr(t, errs.Failure())
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+			assert.Len(t, errs.Skipped(), test.expectSkippedCount)
 		})
 	}
 }
@@ -398,6 +627,7 @@ func (suite *CollectionUnitSuite) TestCollection_SkippedErrors() {
 					count.New()),
 				"",
 				test.itemGetter,
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				nil,
 				false,
@@ -478,6 +708,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			expectItemCount: 3,
 			expectReads: []string{
 				"fisher",
+				"flannigan",
 				"fitzbog",
 			},
 		},
@@ -530,6 +761,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					count.New()),
 				"",
 				mlg,
+				mock.NeverCanSkipFailChecker(),
 				test.added,
 				maps.Keys(test.removed),
 				true,
@@ -541,10 +773,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 
 				_, rok := test.removed[item.ID()]
 				if rok {
-					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 					dimt, ok := item.(data.ItemModTime)
 					require.True(t, ok, "item implements data.ItemModTime")
 					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
 				}
 
 				modTime, aok := test.added[item.ID()]
@@ -553,7 +785,6 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					// initializer.
 					assert.Implements(t, (*data.ItemModTime)(nil), item)
 					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
-
 					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
 
 					// Check if the test want's us to read the item's data so the lazy
@@ -573,6 +804,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 						// collection initializer.
 						assert.NoError(t, err, clues.ToCore(err))
 						assert.Equal(t, modTime, info.Modified(), "ItemInfo mod time")
+					} else {
+						assert.Fail(t, "unexpected read on item %s", item.ID())
 					}
 				}
 
@@ -585,6 +818,288 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 				test.expectItemCount,
 				itemCount,
 				"should see all expected items")
+		})
+	}
+}
+
+func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
+	var (
+		start         = time.Now().Add(-time.Second)
+		statusUpdater = func(*support.ControllerOperationStatus) {}
+		expectSkip    = func(t *testing.T, err error) {
+			assert.Error(t, err, clues.ToCore(err))
+			assert.ErrorContains(t, err, "skip")
+			assert.True(t, clues.HasLabel(err, graph.LabelsSkippable), clues.ToCore(err))
+		}
+		expectNotSkipped = func(t *testing.T, err error) {
+			assert.Error(t, err, clues.ToCore(err))
+			assert.NotContains(t, err.Error(), "skip")
+		}
+	)
+
+	table := []struct {
+		name               string
+		added              map[string]time.Time
+		removed            map[string]struct{}
+		category           path.CategoryType
+		handler            backupHandler
+		expectItemCount    int
+		expectSkippedCount int
+		expectReads        []string
+		expectErr          func(t *testing.T, err error)
+		expectFailure      assert.ErrorAssertionFunc
+	}{
+		{
+			name:          "no items",
+			category:      path.EventsCategory,
+			handler:       newEventBackupHandler(api.Client{}),
+			expectFailure: assert.NoError,
+		},
+		{
+			name:     "events only added items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    start.Add(time.Minute),
+				"flannigan": start.Add(2 * time.Minute),
+				"fitzbog":   start.Add(3 * time.Minute),
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 3,
+			expectReads: []string{
+				"fisher",
+				"flannigan",
+				"fitzbog",
+			},
+			expectErr:     expectSkip,
+			expectFailure: assert.NoError,
+		},
+		{
+			name:     "events only removed items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          expectSkip,
+			expectFailure:      assert.NoError,
+		},
+		{
+			name:     "events added and removed items",
+			category: path.EventsCategory,
+			handler:  newEventBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          expectSkip,
+			expectFailure:      assert.NoError,
+		},
+		{
+			name:     "contacts only added items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    start.Add(time.Minute),
+				"flannigan": start.Add(2 * time.Minute),
+				"fitzbog":   start.Add(3 * time.Minute),
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectReads: []string{
+				"fisher",
+				"flannigan",
+				"fitzbog",
+			},
+			expectErr:     expectNotSkipped,
+			expectFailure: assert.Error,
+		},
+		{
+			name:     "contacts only removed items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
+		},
+		{
+			name:     "contacts added and removed items",
+			category: path.ContactsCategory,
+			handler:  newContactBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
+		},
+		{
+			name:     "mail only added items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"fisher":    start.Add(time.Minute),
+				"flannigan": start.Add(2 * time.Minute),
+				"fitzbog":   start.Add(3 * time.Minute),
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectReads: []string{
+				"fisher",
+				"flannigan",
+				"fitzbog",
+			},
+			expectErr:     expectNotSkipped,
+			expectFailure: assert.Error,
+		},
+		{
+			name:     "mail only removed items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			removed: map[string]struct{}{
+				"princess": {},
+				"poppy":    {},
+				"petunia":  {},
+			},
+			expectItemCount:    3,
+			expectSkippedCount: 0,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
+		},
+		{
+			name:     "mail added and removed items",
+			category: path.EmailCategory,
+			handler:  newMailBackupHandler(api.Client{}),
+			added: map[string]time.Time{
+				"general": {},
+			},
+			removed: map[string]struct{}{
+				"general":  {},
+				"goose":    {},
+				"grumbles": {},
+			},
+			expectItemCount: 3,
+			// not 1,  because general is removed from the added
+			// map due to being in the removed map
+			expectSkippedCount: 0,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			var (
+				t         = suite.T()
+				errs      = fault.New(true)
+				itemCount int
+			)
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			fullPath, err := path.Build("t", "pr", path.ExchangeService, test.category, false, "fnords", "smarf")
+			require.NoError(t, err, clues.ToCore(err))
+
+			locPath, err := path.Build("t", "pr", path.ExchangeService, test.category, false, "fnords", "smarf")
+			require.NoError(t, err, clues.ToCore(err))
+
+			mlg := &mockLazyItemGetterSerializer{
+				ItemGetSerialize: &mock.ItemGetSerialize{
+					SerializeErr: graph.ErrServiceUnavailableEmptyResp,
+				},
+			}
+			defer mlg.check(t, test.expectReads)
+
+			opts := control.DefaultOptions()
+			opts.SkipTheseEventsOnInstance503 = map[string][]string{}
+			opts.SkipTheseEventsOnInstance503["pr"] = test.expectReads
+
+			col := NewCollection(
+				data.NewBaseCollection(
+					fullPath,
+					nil,
+					locPath.ToBuilder(),
+					opts,
+					false,
+					count.New()),
+				"pr",
+				mlg,
+				test.handler,
+				test.added,
+				maps.Keys(test.removed),
+				true,
+				statusUpdater,
+				count.New())
+
+			for item := range col.Items(ctx, errs) {
+				itemCount++
+
+				_, rok := test.removed[item.ID()]
+				if rok {
+					dimt, ok := item.(data.ItemModTime)
+					require.True(t, ok, "item implements data.ItemModTime")
+					assert.True(t, dimt.ModTime().After(start), "deleted items should set mod time to now()")
+					assert.True(t, item.Deleted(), "removals should be marked as deleted")
+				}
+
+				modTime, aok := test.added[item.ID()]
+				if !rok && aok {
+					// Item's mod time should be what's passed into the collection
+					// initializer.
+					assert.Implements(t, (*data.ItemModTime)(nil), item)
+					assert.Equal(t, modTime, item.(data.ItemModTime).ModTime(), "item mod time")
+					assert.False(t, item.Deleted(), "additions should not be marked as deleted")
+
+					// Check if the test want's us to read the item's data so the lazy
+					// data fetch is executed.
+					if slices.Contains(test.expectReads, item.ID()) {
+						r := item.ToReader()
+						defer r.Close()
+
+						_, err := io.ReadAll(r)
+						test.expectErr(t, err)
+					} else {
+						assert.Fail(t, "unexpected read on item %s", item.ID())
+					}
+				}
+
+				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
+			}
+
+			test.expectFailure(t, errs.Failure(), clues.ToCore(errs.Failure()))
+			assert.Equal(
+				t,
+				test.expectItemCount,
+				itemCount,
+				"should see all expected items")
+			assert.Len(t, errs.Skipped(), test.expectSkippedCount)
 		})
 	}
 }

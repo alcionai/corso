@@ -1,6 +1,14 @@
 package exchange
 
 import (
+	"errors"
+	"net/http"
+	"slices"
+
+	"github.com/alcionai/clues"
+
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -51,4 +59,36 @@ func (h eventBackupHandler) NewContainerCache(
 		enumer: h.ac,
 		getter: h.ac,
 	}
+}
+
+// todo: this could be further improved buy specifying the call source and matching that
+// with the expected error.  Might be necessary if we use this for more than one error.
+// But since we only call this in a single place at this time, that additional guard isn't
+// built into the func.
+func (h eventBackupHandler) CanSkipItemFailure(
+	err error,
+	resourceID, itemID string,
+	opts control.Options,
+) (fault.SkipCause, bool) {
+	if err == nil {
+		return "", false
+	}
+
+	// this is a bit overly cautious.  we do know that we get 503s with empty response bodies
+	// due to fauilures when getting too many instances.  We don't know for sure if we get
+	// generic, well formed 503s.  But since we're working with specific resources and item
+	// IDs in the first place, that extra caution will help make sure an unexpected error dosn't
+	// slip through the cracks on us.
+	if !errors.Is(err, graph.ErrServiceUnavailableEmptyResp) &&
+		!clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) {
+		return "", false
+	}
+
+	itemIDs, ok := opts.SkipTheseEventsOnInstance503[resourceID]
+	if !ok {
+		return "", false
+	}
+
+	// strict equals required here.  ids are case sensitive.
+	return fault.SkipKnownEventInstance503s, slices.Contains(itemIDs, itemID)
 }

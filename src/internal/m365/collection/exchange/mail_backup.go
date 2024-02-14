@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"github.com/alcionai/corso/src/pkg/control"
+	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 	"github.com/alcionai/corso/src/pkg/services/m365/api/graph"
 )
@@ -56,4 +58,12 @@ func (h mailBackupHandler) NewContainerCache(
 		enumer: h.ac,
 		getter: h.ac,
 	}
+}
+
+func (h mailBackupHandler) CanSkipItemFailure(
+	err error,
+	resourceID, itemID string,
+	opts control.Options,
+) (fault.SkipCause, bool) {
+	return "", false
 }
