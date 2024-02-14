@@ -350,11 +350,13 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 		removed            map[string]struct{}
 		expectItemCount    int
 		expectSkippedCount int
+		expectErr          assert.ErrorAssertionFunc
 	}{
 		{
-			name:     "no items",
-			category: path.EventsCategory,
-			handler:  newEventBackupHandler(api.Client{}),
+			name:      "no items",
+			category:  path.EventsCategory,
+			handler:   newEventBackupHandler(api.Client{}),
+			expectErr: assert.NoError,
 		},
 		{
 			name:     "events only added items",
@@ -367,6 +369,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    0,
 			expectSkippedCount: 3,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "events only removed items",
@@ -379,6 +382,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    3,
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "events added and removed items",
@@ -396,6 +400,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			// not 1,  because general is removed from the added
 			// map due to being in the removed map
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "contacts only added items",
@@ -408,6 +413,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    0,
 			expectSkippedCount: 0,
+			expectErr:          assert.Error,
 		},
 		{
 			name:     "contacts only removed items",
@@ -420,6 +426,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    3,
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "contacts added and removed items",
@@ -437,6 +444,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			// not 1,  because general is removed from the added
 			// map due to being in the removed map
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "mail only added items",
@@ -449,6 +457,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    0,
 			expectSkippedCount: 0,
+			expectErr:          assert.Error,
 		},
 		{
 			name:     "mail only removed items",
@@ -461,6 +470,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    3,
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 		{
 			name:     "mail added and removed items",
@@ -478,6 +488,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 			// not 1,  because general is removed from the added
 			// map due to being in the removed map
 			expectSkippedCount: 0,
+			expectErr:          assert.NoError,
 		},
 	}
 
@@ -510,7 +521,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 					opts,
 					false,
 					count.New()),
-				"",
+				"pr",
 				&mock.ItemGetSerialize{
 					SerializeErr: graph.ErrServiceUnavailableEmptyResp,
 				},
@@ -540,7 +551,7 @@ func (suite *CollectionUnitSuite) TestPrefetchCollection_Items_skipFailure() {
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
-			assert.NoError(t, errs.Failure())
+			test.expectErr(t, errs.Failure())
 			assert.Equal(
 				t,
 				test.expectItemCount,
@@ -820,8 +831,9 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			assert.ErrorContains(t, err, "skip")
 			assert.True(t, clues.HasLabel(err, graph.LabelsSkippable), clues.ToCore(err))
 		}
-		expectOK = func(t *testing.T, err error) {
-			assert.NoError(t, err, clues.ToCore(err))
+		expectNotSkipped = func(t *testing.T, err error) {
+			assert.Error(t, err, clues.ToCore(err))
+			assert.NotContains(t, err.Error(), "skip")
 		}
 	)
 
@@ -835,16 +847,18 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 		expectSkippedCount int
 		expectReads        []string
 		expectErr          func(t *testing.T, err error)
+		expectFailure      assert.ErrorAssertionFunc
 	}{
 		{
-			name:     "no items",
-			category: path.EventsCategory,
-			handler:  newEventBackupHandler(api.Client{}),
+			name:          "no items",
+			category:      path.EventsCategory,
+			handler:       newEventBackupHandler(api.Client{}),
+			expectFailure: assert.NoError,
 		},
 		{
 			name:     "events only added items",
 			category: path.EventsCategory,
-			handler:  newMailBackupHandler(api.Client{}),
+			handler:  newEventBackupHandler(api.Client{}),
 			added: map[string]time.Time{
 				"fisher":    start.Add(time.Minute),
 				"flannigan": start.Add(2 * time.Minute),
@@ -857,12 +871,13 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				"flannigan",
 				"fitzbog",
 			},
-			expectErr: expectSkip,
+			expectErr:     expectSkip,
+			expectFailure: assert.NoError,
 		},
 		{
 			name:     "events only removed items",
 			category: path.EventsCategory,
-			handler:  newMailBackupHandler(api.Client{}),
+			handler:  newEventBackupHandler(api.Client{}),
 			removed: map[string]struct{}{
 				"princess": {},
 				"poppy":    {},
@@ -871,11 +886,12 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			expectItemCount:    3,
 			expectSkippedCount: 0,
 			expectErr:          expectSkip,
+			expectFailure:      assert.NoError,
 		},
 		{
 			name:     "events added and removed items",
 			category: path.EventsCategory,
-			handler:  newMailBackupHandler(api.Client{}),
+			handler:  newEventBackupHandler(api.Client{}),
 			added: map[string]time.Time{
 				"general": {},
 			},
@@ -889,6 +905,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			// map due to being in the removed map
 			expectSkippedCount: 0,
 			expectErr:          expectSkip,
+			expectFailure:      assert.NoError,
 		},
 		{
 			name:     "contacts only added items",
@@ -906,7 +923,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				"flannigan",
 				"fitzbog",
 			},
-			expectErr: expectOK,
+			expectErr:     expectNotSkipped,
+			expectFailure: assert.Error,
 		},
 		{
 			name:     "contacts only removed items",
@@ -919,7 +937,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    3,
 			expectSkippedCount: 0,
-			expectErr:          expectOK,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
 		},
 		{
 			name:     "contacts added and removed items",
@@ -937,7 +956,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			// not 1,  because general is removed from the added
 			// map due to being in the removed map
 			expectSkippedCount: 0,
-			expectErr:          expectOK,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
 		},
 		{
 			name:     "mail only added items",
@@ -955,7 +975,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				"flannigan",
 				"fitzbog",
 			},
-			expectErr: expectOK,
+			expectErr:     expectNotSkipped,
+			expectFailure: assert.Error,
 		},
 		{
 			name:     "mail only removed items",
@@ -968,7 +989,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			},
 			expectItemCount:    3,
 			expectSkippedCount: 0,
-			expectErr:          expectOK,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
 		},
 		{
 			name:     "mail added and removed items",
@@ -986,7 +1008,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 			// not 1,  because general is removed from the added
 			// map due to being in the removed map
 			expectSkippedCount: 0,
-			expectErr:          expectOK,
+			expectErr:          expectNotSkipped,
+			expectFailure:      assert.NoError,
 		},
 	}
 
@@ -1026,7 +1049,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 					opts,
 					false,
 					count.New()),
-				"",
+				"pr",
 				mlg,
 				test.handler,
 				test.added,
@@ -1058,11 +1081,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 					// data fetch is executed.
 					if slices.Contains(test.expectReads, item.ID()) {
 						r := item.ToReader()
+						defer r.Close()
 
 						_, err := io.ReadAll(r)
 						test.expectErr(t, err)
-
-						r.Close()
 					} else {
 						assert.Fail(t, "unexpected read on item %s", item.ID())
 					}
@@ -1071,7 +1093,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				assert.True(t, aok || rok, "item must be either added or removed: %q", item.ID())
 			}
 
-			assert.NoError(t, errs.Failure())
+			test.expectFailure(t, errs.Failure(), clues.ToCore(errs.Failure()))
 			assert.Equal(
 				t,
 				test.expectItemCount,
