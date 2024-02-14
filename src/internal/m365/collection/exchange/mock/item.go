@@ -70,7 +70,3 @@ func (m canSkipFailChecker) CanSkipItemFailure(
 func NeverCanSkipFailChecker() *canSkipFailChecker {
 	return &canSkipFailChecker{}
 }
-
-func AlwaysCanSkipFailChecker() *canSkipFailChecker {
-	return &canSkipFailChecker{true}
-}
