@@ -28,7 +28,10 @@ type Options struct {
 	// had already backed up.
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
 
-	// resourceID -> []eventID
+	// resourceID -> []calendarEventID
+	// specifying a resource:event tuple in this map allows that event to produce
+	// a Skip instead of a recoverable error in case of a failure due to 503 when
+	// retrieving the item data.
 	SkipTheseEventsOnInstance503 map[string][]string
 }
 
