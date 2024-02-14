@@ -27,6 +27,11 @@ type Options struct {
 	// backup data until the set limits without paying attention to what the other
 	// had already backed up.
 	PreviewLimits PreviewItemLimits `json:"previewItemLimits"`
+
+	// specifying a resource tuple in this map allows that resource to produce
+	// a Skip instead of a recoverable error in case of a failure due to 503 when
+	// retrieving calendar event item data.
+	SkipEventsOnInstance503ForResources map[string]struct{}
 }
 
 // RateLimiter is the set of options applied to any external service facing rate

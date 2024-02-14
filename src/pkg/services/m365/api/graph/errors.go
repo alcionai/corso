@@ -156,7 +156,8 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		labels = append(labels, core.LabelRootCauseUnknown)
 	}
 
-	stacked := stackWithDepth(ctx, err, 1+traceDepth)
+	stacked := stackWithDepth(ctx, err, 1+traceDepth).
+		Label(LabelStatus(ode.Resp.StatusCode))
 
 	// labeling here because we want the context from stackWithDepth first
 	for _, label := range labels {

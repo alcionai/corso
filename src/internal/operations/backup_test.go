@@ -420,6 +420,9 @@ func (suite *BackupOpUnitSuite) TestNewBackupOperation_configuredOptionsMatchInp
 			MaxPages:             46,
 			Enabled:              true,
 		},
+		SkipEventsOnInstance503ForResources: map[string]struct{}{
+			"resource": {},
+		},
 	}
 
 	t := suite.T()

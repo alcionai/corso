@@ -88,6 +88,14 @@ func (bh mockBackupHandler) folderGetter() containerGetter             { return 
 func (bh mockBackupHandler) previewIncludeContainers() []string        { return bh.previewIncludes }
 func (bh mockBackupHandler) previewExcludeContainers() []string        { return bh.previewExcludes }
 
+func (bh mockBackupHandler) CanSkipItemFailure(
+	err error,
+	resourceID string,
+	opts control.Options,
+) (fault.SkipCause, bool) {
+	return "", false
+}
+
 func (bh mockBackupHandler) NewContainerCache(
 	userID string,
 ) (string, graph.ContainerResolver) {

@@ -12,34 +12,39 @@ type AddSkipper interface {
 	AddSkip(ctx context.Context, s *Skipped)
 }
 
-// skipCause identifies the well-known conditions to Skip an item.  It is
+// SkipCause identifies the well-known conditions to Skip an item.  It is
 // important that skip cause enumerations do not overlap with general error
 // handling.  Skips must be well known, well documented, and consistent.
 // Transient failures, undocumented or unknown conditions, and arbitrary
 // handling should never produce a skipped item. Those cases should get
 // handled as normal errors.
-type skipCause string
+type SkipCause string
 
 const (
 	// SkipMalware identifies a malware detection case.  Files that graph
 	// api identifies as malware cannot be downloaded or uploaded, and will
 	// permanently fail any attempts to backup or restore.
-	SkipMalware skipCause = "malware_detected"
+	SkipMalware SkipCause = "malware_detected"
 
 	// SkipOneNote identifies that a file was skipped because it
 	// was a OneNote file that remains inaccessible (503 server response)
 	// regardless of the number of retries.
 	//nolint:lll
 	// https://support.microsoft.com/en-us/office/restrictions-and-limitations-in-onedrive-and-sharepoint-64883a5d-228e-48f5-b3d2-eb39e07630fa#onenotenotebooks
-	SkipOneNote skipCause = "inaccessible_one_note_file"
+	SkipOneNote SkipCause = "inaccessible_one_note_file"
 
 	// SkipInvalidRecipients identifies that an email was skipped because Exchange
 	// believes it is not valid and fails any attempt to read it.
-	SkipInvalidRecipients skipCause = "invalid_recipients_email"
+	SkipInvalidRecipients SkipCause = "invalid_recipients_email"
 
 	// SkipCorruptData identifies that an email was skipped because graph reported
 	// that the email data was corrupt and failed all attempts to read it.
-	SkipCorruptData skipCause = "corrupt_data"
+	SkipCorruptData SkipCause = "corrupt_data"
+
+	// SkipKnownEventInstance503s identifies cases where we have a pre-configured list
+	// of event IDs where the events are known to fail with a 503 due to there being
+	// too many instances to retrieve from graph api.
+	SkipKnownEventInstance503s SkipCause = "known_event_instance_503"
 )
 
 var _ print.Printable = &Skipped{}
@@ -70,7 +75,7 @@ func (s *Skipped) String() string {
 }
 
 // HasCause compares the underlying cause against the parameter.
-func (s *Skipped) HasCause(c skipCause) bool {
+func (s *Skipped) HasCause(c SkipCause) bool {
 	if s == nil {
 		return false
 	}
@@ -105,27 +110,27 @@ func (s Skipped) Values(bool) []string {
 }
 
 // ContainerSkip produces a Container-kind Item for tracking skipped items.
-func ContainerSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+func ContainerSkip(cause SkipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return itemSkip(ContainerType, cause, namespace, id, name, addtl)
 }
 
 // EmailSkip produces a Email-kind Item for tracking skipped items.
-func EmailSkip(cause skipCause, user, id string, addtl map[string]any) *Skipped {
+func EmailSkip(cause SkipCause, user, id string, addtl map[string]any) *Skipped {
 	return itemSkip(EmailType, cause, user, id, "", addtl)
 }
 
 // FileSkip produces a File-kind Item for tracking skipped items.
-func FileSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+func FileSkip(cause SkipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return itemSkip(FileType, cause, namespace, id, name, addtl)
 }
 
 // OnwerSkip produces a ResourceOwner-kind Item for tracking skipped items.
-func OwnerSkip(cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+func OwnerSkip(cause SkipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return itemSkip(ResourceOwnerType, cause, namespace, id, name, addtl)
 }
 
 // itemSkip produces a Item of the provided type for tracking skipped items.
-func itemSkip(t ItemType, cause skipCause, namespace, id, name string, addtl map[string]any) *Skipped {
+func itemSkip(t ItemType, cause SkipCause, namespace, id, name string, addtl map[string]any) *Skipped {
 	return &Skipped{
 		Item: Item{
 			Namespace:  namespace,
