@@ -526,22 +526,24 @@ func (lig *lazyItemGetter) GetData(
 		lig.immutableIDs,
 		lig.parentPath)
 	if err != nil {
-		cause, canSkip := lig.skipChecker.CanSkipItemFailure(
-			err,
-			lig.userID,
-			lig.itemID,
-			lig.opts)
-		if canSkip {
-			errs.AddSkip(ctx, fault.FileSkip(
-				cause,
-				lig.category.String(),
+		if lig.skipChecker != nil {
+			cause, canSkip := lig.skipChecker.CanSkipItemFailure(
+				err,
+				lig.userID,
 				lig.itemID,
-				lig.itemID,
-				nil))
+				lig.opts)
+			if canSkip {
+				errs.AddSkip(ctx, fault.FileSkip(
+					cause,
+					lig.category.String(),
+					lig.itemID,
+					lig.itemID,
+					nil))
 
-			return nil, nil, false, clues.
-				NewWC(ctx, "error marked as skippable by handler").
-				Label(graph.LabelsSkippable)
+				return nil, nil, false, clues.
+					NewWC(ctx, "error marked as skippable by handler").
+					Label(graph.LabelsSkippable)
+			}
 		}
 
 		// If an item was deleted then return an empty file so we don't fail
