@@ -3,6 +3,7 @@ package exchange
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -21,11 +22,76 @@ func TestMailBackupHandlerUnitSuite(t *testing.T) {
 }
 
 func (suite *MailBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
-	t := suite.T()
+	var (
+		resourceID = uuid.NewString()
+		itemID     = uuid.NewString()
+	)
 
-	h := newMailBackupHandler(api.Client{})
-	cause, result := h.CanSkipItemFailure(nil, "", "", control.Options{})
+	table := []struct {
+		name        string
+		err         error
+		opts        control.Options
+		expect      assert.BoolAssertionFunc
+		expectCause fault.SkipCause
+	}{
+		{
+			name:   "no config",
+			err:    assert.AnError,
+			opts:   control.Options{},
+			expect: assert.False,
+		},
+		{
+			name: "empty skip on 503",
+			err:  nil,
+			opts: control.Options{
+				SkipTheseEventsOnInstance503: map[string][]string{},
+			},
+			expect: assert.False,
+		},
+		{
+			name: "nil error",
+			err:  nil,
+			opts: control.Options{
+				SkipTheseEventsOnInstance503: map[string][]string{
+					resourceID: {"bar", itemID},
+				},
+			},
+			expect: assert.False,
+		},
+		{
+			name: "non-matching resource",
+			err:  assert.AnError,
+			opts: control.Options{
+				SkipTheseEventsOnInstance503: map[string][]string{
+					"foo": {"bar", itemID},
+				},
+			},
+			expect: assert.False,
+		},
+		{
+			name: "non-matching item",
+			err:  assert.AnError,
+			opts: control.Options{
+				SkipTheseEventsOnInstance503: map[string][]string{
+					resourceID: {"bar", "baz"},
+				},
+			},
+			expect: assert.False,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
 
-	assert.False(t, result)
-	assert.Equal(t, fault.SkipCause(""), cause)
+			h := newMailBackupHandler(api.Client{})
+			cause, result := h.CanSkipItemFailure(
+				test.err,
+				resourceID,
+				itemID,
+				test.opts)
+
+			test.expect(t, result)
+			assert.Equal(t, test.expectCause, cause)
+		})
+	}
 }
