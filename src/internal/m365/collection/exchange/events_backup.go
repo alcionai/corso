@@ -74,6 +74,11 @@ func (h eventBackupHandler) CanSkipItemFailure(
 		return "", false
 	}
 
+	// this is a bit overly cautious.  we do know that we get 503s with empty response bodies
+	// due to fauilures when getting too many instances.  We don't know for sure if we get
+	// generic, well formed 503s.  But since we're working with specific resources and item
+	// IDs in the first place, that extra caution will help make sure an unexpected error dosn't
+	// slip through the cracks on us.
 	if !errors.Is(err, graph.ErrServiceUnavailableEmptyResp) &&
 		!clues.HasLabel(err, graph.LabelStatus(http.StatusServiceUnavailable)) {
 		return "", false
