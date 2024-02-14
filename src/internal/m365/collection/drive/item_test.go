@@ -384,7 +384,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 				return nil, clues.New("test error")
 			},
 			errorExpected: require.Error,
-			rcExpected:    require.Nil,
+			rcExpected:    require.NotNil,
 		},
 		{
 			name: "download url is empty",
@@ -421,7 +421,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 				}, nil
 			},
 			errorExpected: require.Error,
-			rcExpected:    require.Nil,
+			rcExpected:    require.NotNil,
 		},
 		{
 			name: "non-2xx http response",
@@ -440,7 +440,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 				}, nil
 			},
 			errorExpected: require.Error,
-			rcExpected:    require.Nil,
+			rcExpected:    require.NotNil,
 		},
 	}
 
@@ -459,7 +459,7 @@ func (suite *ItemUnitTestSuite) TestDownloadItem() {
 				"driveID",
 				custom.ToCustomDriveItem(test.itemFunc()))
 			test.errorExpected(t, err, clues.ToCore(err))
-			test.rcExpected(t, rc)
+			test.rcExpected(t, rc, "reader should only be nil if item is nil")
 		})
 	}
 }

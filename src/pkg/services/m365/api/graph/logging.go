@@ -8,6 +8,7 @@ import (
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
 
@@ -77,9 +78,16 @@ func getReqCtx(req *http.Request) context.Context {
 		return context.Background()
 	}
 
-	return clues.Add(
+	var logURL pii.SafeURL
+
+	if req.URL != nil {
+		logURL = LoggableURL(req.URL.String())
+	}
+
+	return clues.AddTraceName(
 		req.Context(),
+		"graph-http-middleware",
 		"method", req.Method,
-		"url", LoggableURL(req.URL.String()),
+		"url", logURL,
 		"request_content_len", req.ContentLength)
 }
