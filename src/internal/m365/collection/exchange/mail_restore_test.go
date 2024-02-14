@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/alcionai/corso/src/internal/common/ptr"
 	"github.com/alcionai/corso/src/internal/m365/service/exchange/mock"
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/internal/tester/its"
@@ -23,6 +24,127 @@ import (
 	"github.com/alcionai/corso/src/pkg/path"
 	"github.com/alcionai/corso/src/pkg/services/m365/api"
 )
+
+//nolint:lll
+const TestDN = "/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=4eca0d46a2324036b0b326dc58cfc802-user"
+
+type RestoreMailUnitSuite struct {
+	tester.Suite
+}
+
+func TestRestoreMailUnitSuite(t *testing.T) {
+	suite.Run(t, &RestoreMailUnitSuite{Suite: tester.NewUnitSuite(t)})
+}
+
+func (suite *RestoreMailUnitSuite) TestIsValidEmail() {
+	table := []struct {
+		name  string
+		email string
+		check assert.BoolAssertionFunc
+	}{
+		{
+			name:  "valid email",
+			email: "foo@bar.com",
+			check: assert.True,
+		},
+		{
+			name:  "invalid email, missing domain",
+			email: "foo.com",
+			check: assert.False,
+		},
+		{
+			name:  "invalid email, random uuid",
+			email: "12345678-abcd-90ef-88f8-2d95ef12fb66",
+			check: assert.False,
+		},
+		{
+			name:  "empty email",
+			email: "",
+			check: assert.False,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := isValidEmail(test.email)
+			test.check(t, result)
+		})
+	}
+}
+
+func (suite *RestoreMailUnitSuite) TestIsValidDN() {
+	table := []struct {
+		name  string
+		dn    string
+		check assert.BoolAssertionFunc
+	}{
+		{
+			name:  "valid DN",
+			dn:    TestDN,
+			check: assert.True,
+		},
+		{
+			name:  "invalid DN",
+			dn:    "random string",
+			check: assert.False,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			result := isValidDN(test.dn)
+			test.check(t, result)
+		})
+	}
+}
+
+func (suite *RestoreMailUnitSuite) TestSetReplyTos() {
+	t := suite.T()
+
+	replyTos := make([]models.Recipientable, 0)
+
+	emailAddresses := map[string]string{
+		"foo.bar": "foo@bar.com",
+		"foo.com": "foo.com",
+		"empty":   "",
+		"dn":      TestDN,
+	}
+
+	validEmailAddresses := map[string]string{
+		"foo.bar": "foo@bar.com",
+		"dn":      TestDN,
+	}
+
+	for k, v := range emailAddresses {
+		emailAddress := models.NewEmailAddress()
+		emailAddress.SetAddress(ptr.To(v))
+		emailAddress.SetName(ptr.To(k))
+
+		replyTo := models.NewRecipient()
+		replyTo.SetEmailAddress(emailAddress)
+
+		replyTos = append(replyTos, replyTo)
+	}
+
+	mailMessage := models.NewMessage()
+	mailMessage.SetReplyTo(replyTos)
+
+	setReplyTos(mailMessage)
+
+	sanitizedReplyTos := mailMessage.GetReplyTo()
+	require.Len(t, sanitizedReplyTos, len(validEmailAddresses))
+
+	for _, sanitizedReplyTo := range sanitizedReplyTos {
+		emailAddress := sanitizedReplyTo.GetEmailAddress()
+
+		assert.Contains(t, validEmailAddresses, ptr.Val(emailAddress.GetName()))
+		assert.Equal(t, validEmailAddresses[ptr.Val(emailAddress.GetName())], ptr.Val(emailAddress.GetAddress()))
+	}
+}
 
 var _ mailRestorer = &mailRestoreMock{}
 
