@@ -601,6 +601,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 			expectItemCount: 3,
 			expectReads: []string{
 				"fisher",
+				"flannigan",
 				"fitzbog",
 			},
 		},
@@ -696,6 +697,8 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 						// collection initializer.
 						assert.NoError(t, err, clues.ToCore(err))
 						assert.Equal(t, modTime, info.Modified(), "ItemInfo mod time")
+					} else {
+						assert.Fail(t, "unexpected read on item %s", item.ID())
 					}
 				}
 
@@ -744,9 +747,10 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 				"fitzbog":   start.Add(3 * time.Minute),
 			},
 			expectItemCount:    3,
-			expectSkippedCount: 2,
+			expectSkippedCount: 3,
 			expectReads: []string{
 				"fisher",
+				"flannigan",
 				"fitzbog",
 			},
 		},
