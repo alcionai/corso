@@ -1081,10 +1081,11 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_skipFailure() {
 					// data fetch is executed.
 					if slices.Contains(test.expectReads, item.ID()) {
 						r := item.ToReader()
-						defer r.Close()
 
 						_, err := io.ReadAll(r)
 						test.expectErr(t, err)
+
+						r.Close()
 					} else {
 						assert.Fail(t, "unexpected read on item %s", item.ID())
 					}
