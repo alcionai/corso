@@ -41,15 +41,15 @@ func (suite *MailBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			expect: assert.False,
 		},
 		{
-			name: "empty skip on 503",
-			err:  nil,
+			name: "false when map is empty",
+			err:  assert.AnError,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{},
 			},
 			expect: assert.False,
 		},
 		{
-			name: "nil error",
+			name: "false on nil error",
 			err:  nil,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
@@ -59,21 +59,11 @@ func (suite *MailBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			expect: assert.False,
 		},
 		{
-			name: "non-matching resource",
+			name: "false even if item matches",
 			err:  assert.AnError,
 			opts: control.Options{
 				SkipTheseEventsOnInstance503: map[string][]string{
-					"foo": {"bar", itemID},
-				},
-			},
-			expect: assert.False,
-		},
-		{
-			name: "non-matching item",
-			err:  assert.AnError,
-			opts: control.Options{
-				SkipTheseEventsOnInstance503: map[string][]string{
-					resourceID: {"bar", "baz"},
+					resourceID: {itemID},
 				},
 			},
 			expect: assert.False,
