@@ -35,10 +35,11 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 		expectCause fault.SkipCause
 	}{
 		{
-			name:   "no config",
-			err:    graph.ErrServiceUnavailableEmptyResp,
-			opts:   control.Options{},
-			expect: assert.False,
+			name:        "no config",
+			err:         graph.ErrServiceUnavailableEmptyResp,
+			opts:        control.Options{},
+			expect:      assert.False,
+			expectCause: fault.SkipKnownEventInstance503s,
 		},
 		{
 			name: "empty skip on 503",
@@ -46,7 +47,8 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 			opts: control.Options{
 				SkipEventsOnInstance503ForResources: map[string]struct{}{},
 			},
-			expect: assert.False,
+			expect:      assert.False,
+			expectCause: fault.SkipKnownEventInstance503s,
 		},
 		{
 			name: "nil error",
@@ -66,7 +68,8 @@ func (suite *EventsBackupHandlerUnitSuite) TestHandler_CanSkipItemFailure() {
 					"foo": {},
 				},
 			},
-			expect: assert.False,
+			expect:      assert.False,
+			expectCause: fault.SkipKnownEventInstance503s,
 		},
 		{
 			name: "match on instance 503 empty resp",
