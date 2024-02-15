@@ -38,7 +38,7 @@ func ConsumeExportCollections(
 
 			// Log every 1000 items that are processed
 			if counted%1000 == 0 {
-				log.Infow("writing export items", "count_items", counted)
+				log.Infow("progress writing export items", "count_items", counted)
 			}
 
 			if item.Error != nil {
@@ -54,7 +54,7 @@ func ConsumeExportCollections(
 		}
 	}
 
-	log.Infow("wrote export items", "count_items", counted)
+	log.Infow("completed writing export items", "count_items", counted)
 
 	return el.Failure()
 }

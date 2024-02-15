@@ -70,7 +70,7 @@ func ZipExportCollection(
 
 				// Log every 1000 items that are processed
 				if counted%1000 == 0 {
-					log.Infow("zipping export items", "count_items", counted)
+					log.Infow("progress zipping export items", "count_items", counted)
 				}
 
 				err := item.Error
@@ -102,7 +102,7 @@ func ZipExportCollection(
 			}
 		}
 
-		log.Infow("zipped export items", "count_items", counted)
+		log.Infow("completed zipping export items", "count_items", counted)
 	}()
 
 	return zipCollection{reader}, nil
