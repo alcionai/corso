@@ -232,7 +232,11 @@ func (mw RetryMiddleware) retryRequest(
 	case <-ctx.Done():
 		// Don't retry if the context is marked as done, it will just error out
 		// when we attempt to send the retry anyway.
-		return resp, clues.StackWC(ctx, ctx.Err())
+		err := clues.StackWC(ctx, ctx.Err())
+
+		logger.CtxErr(ctx, err).Info("request context marked done")
+
+		return resp, err
 
 	case <-timer.C:
 	}
