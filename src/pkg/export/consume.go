@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/observe"
 	"github.com/alcionai/corso/src/pkg/fault"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 func ConsumeExportCollections(
@@ -19,6 +20,10 @@ func ConsumeExportCollections(
 	errs *fault.Bus,
 ) error {
 	el := errs.Local()
+	counted := 0
+	log := logger.Ctx(ctx).
+		With("export_location", exportLocation,
+			"collection_count", len(expColl))
 
 	for _, col := range expColl {
 		if el.Failure() != nil {
@@ -29,6 +34,13 @@ func ConsumeExportCollections(
 		ictx := clues.Add(ctx, "dir_name", folder)
 
 		for item := range col.Items(ictx) {
+			counted++
+
+			// Log every 1000 items that are processed
+			if counted%1000 == 0 {
+				log.Infow("progress writing export items", "count_items", counted)
+			}
+
 			if item.Error != nil {
 				el.AddRecoverable(ictx, clues.Wrap(item.Error, "getting item"))
 				continue
@@ -41,6 +53,8 @@ func ConsumeExportCollections(
 			}
 		}
 	}
+
+	log.Infow("completed writing export items", "count_items", counted)
 
 	return el.Failure()
 }

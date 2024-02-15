@@ -10,6 +10,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/export"
+	"github.com/alcionai/corso/src/pkg/logger"
 )
 
 const (
@@ -56,12 +57,22 @@ func ZipExportCollection(
 		defer wr.Close()
 
 		buf := make([]byte, ZipCopyBufferSize)
+		counted := 0
+		log := logger.Ctx(ctx).
+			With("collection_count", len(expCollections))
 
 		for _, ec := range expCollections {
 			folder := ec.BasePath()
 			items := ec.Items(ctx)
 
 			for item := range items {
+				counted++
+
+				// Log every 1000 items that are processed
+				if counted%1000 == 0 {
+					log.Infow("progress zipping export items", "count_items", counted)
+				}
+
 				err := item.Error
 				if err != nil {
 					writer.CloseWithError(clues.Wrap(err, "getting export item").With("id", item.ID))
@@ -90,6 +101,8 @@ func ZipExportCollection(
 				}
 			}
 		}
+
+		log.Infow("completed zipping export items", "count_items", counted)
 	}()
 
 	return zipCollection{reader}, nil
