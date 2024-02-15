@@ -9,6 +9,7 @@ import (
 
 	"github.com/alcionai/corso/src/pkg/backup/details"
 	"github.com/alcionai/corso/src/pkg/backup/identity"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -254,18 +255,78 @@ func (sr *TeamsChatsRestore) ChatMember(memberID string) []TeamsChatsScope {
 	}
 }
 
-// ChatName produces one or more teamsChats chat name info scopes.
+// ChatTopic produces one or more teamsChats chat name info scopes.
 // Matches any chat whose name contains the provided string.
 // If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
 // If any slice contains selectors.None, that slice is reduced to [selectors.None]
 // If any slice is empty, it defaults to [selectors.None]
-func (sr *TeamsChatsRestore) ChatName(memberID string) []TeamsChatsScope {
+func (sr *TeamsChatsRestore) ChatTopic(topic string) []TeamsChatsScope {
 	return []TeamsChatsScope{
 		makeInfoScope[TeamsChatsScope](
 			TeamsChatsChat,
-			TeamsChatsInfoChatName,
-			[]string{memberID},
+			TeamsChatsInfoChatTopic,
+			[]string{topic},
 			filters.In),
+	}
+}
+
+// ChatCreatedBefore produces one or more teamsChats chat name info scopes.
+// Matches any chat whose creation datetime is before the given datetime.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *TeamsChatsRestore) ChatCreatedBefore(datetime string) []TeamsChatsScope {
+	return []TeamsChatsScope{
+		makeInfoScope[TeamsChatsScope](
+			TeamsChatsChat,
+			TeamsChatsInfoChatCreatedBefore,
+			[]string{datetime},
+			filters.Greater),
+	}
+}
+
+// ChatCreatedBefore produces one or more teamsChats chat name info scopes.
+// Matches any chat whose creation datetime is after the given datetime.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *TeamsChatsRestore) ChatCreatedAfter(datetime string) []TeamsChatsScope {
+	return []TeamsChatsScope{
+		makeInfoScope[TeamsChatsScope](
+			TeamsChatsChat,
+			TeamsChatsInfoChatCreatedAfter,
+			[]string{datetime},
+			filters.Less),
+	}
+}
+
+// ChatLastMessageBefore produces one or more teamsChats chat name info scopes.
+// Matches any chat whose most recent message (if it has messages) is before the given datetime.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *TeamsChatsRestore) ChatLastMessageBefore(datetime string) []TeamsChatsScope {
+	return []TeamsChatsScope{
+		makeInfoScope[TeamsChatsScope](
+			TeamsChatsChat,
+			TeamsChatsInfoChatLastMessageBefore,
+			[]string{datetime},
+			filters.Greater),
+	}
+}
+
+// ChatCreatedBefore produces one or more teamsChats chat name info scopes.
+// Matches any chat whose most recent message (if it has messages) is after the given datetime.
+// If any slice contains selectors.Any, that slice is reduced to [selectors.Any]
+// If any slice contains selectors.None, that slice is reduced to [selectors.None]
+// If any slice is empty, it defaults to [selectors.None]
+func (sr *TeamsChatsRestore) ChatLastMessageAfter(datetime string) []TeamsChatsScope {
+	return []TeamsChatsScope{
+		makeInfoScope[TeamsChatsScope](
+			TeamsChatsChat,
+			TeamsChatsInfoChatLastMesasgeAfter,
+			[]string{datetime},
+			filters.Less),
 	}
 }
 
@@ -288,8 +349,12 @@ const (
 	TeamsChatsChat teamsChatsCategory = "TeamsChatsChat"
 
 	// data contained within details.ItemInfo
-	TeamsChatsInfoChatMember teamsChatsCategory = "TeamsChatsInfoChatMember"
-	TeamsChatsInfoChatName   teamsChatsCategory = "TeamsChatsInfoChatName"
+	TeamsChatsInfoChatCreatedBefore     teamsChatsCategory = "TeamsChatsInfoChatCreatedBefore"
+	TeamsChatsInfoChatCreatedAfter      teamsChatsCategory = "TeamsChatsInfoChatCreatedAfter"
+	TeamsChatsInfoChatLastMessageBefore teamsChatsCategory = "TeamsChatsInfoChatLastMessageBefore"
+	TeamsChatsInfoChatLastMesasgeAfter  teamsChatsCategory = "TeamsChatsInfoChatLastMesasgeAfter"
+	TeamsChatsInfoChatMember            teamsChatsCategory = "TeamsChatsInfoChatMember"
+	TeamsChatsInfoChatTopic             teamsChatsCategory = "TeamsChatsInfoChatName"
 )
 
 // teamsChatsLeafProperties describes common metadata of the leaf categories
@@ -317,7 +382,9 @@ func (ec teamsChatsCategory) String() string {
 // Ex: TeamsChatsUser.leafCat() => TeamsChatsUser
 func (ec teamsChatsCategory) leafCat() categorizer {
 	switch ec {
-	case TeamsChatsChat, TeamsChatsInfoChatMember, TeamsChatsInfoChatName:
+	case TeamsChatsChat, TeamsChatsInfoChatMember, TeamsChatsInfoChatTopic,
+		TeamsChatsInfoChatCreatedBefore, TeamsChatsInfoChatCreatedAfter,
+		TeamsChatsInfoChatLastMessageBefore, TeamsChatsInfoChatLastMesasgeAfter:
 		return TeamsChatsChat
 	}
 
@@ -505,8 +572,16 @@ func (s TeamsChatsScope) matchesInfo(dii details.ItemInfo) bool {
 	switch infoCat {
 	case TeamsChatsInfoChatMember:
 		i = strings.Join(info.Chat.Members, ",")
-	case TeamsChatsInfoChatName:
+	case TeamsChatsInfoChatTopic:
 		i = info.Chat.Topic
+	case TeamsChatsInfoChatCreatedBefore, TeamsChatsInfoChatCreatedAfter:
+		i = dttm.Format(info.Chat.CreatedAt)
+	case TeamsChatsInfoChatLastMessageBefore, TeamsChatsInfoChatLastMesasgeAfter:
+		if info.Chat.MessageCount < 1 {
+			return false
+		}
+
+		i = dttm.Format(info.Chat.LastMessageAt)
 	}
 
 	return s.Matches(infoCat, i)

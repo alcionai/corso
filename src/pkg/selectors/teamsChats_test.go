@@ -12,6 +12,7 @@ import (
 
 	"github.com/alcionai/corso/src/internal/tester"
 	"github.com/alcionai/corso/src/pkg/backup/details"
+	"github.com/alcionai/corso/src/pkg/dttm"
 	"github.com/alcionai/corso/src/pkg/fault"
 	"github.com/alcionai/corso/src/pkg/filters"
 	"github.com/alcionai/corso/src/pkg/path"
@@ -252,14 +253,16 @@ func (suite *TeamsChatsSelectorSuite) TestTeamsChatsScope_MatchesInfo() {
 	cs := NewTeamsChatsRestore(Any())
 
 	const (
-		name    = "smarf mcfnords"
+		topic   = "smarf mcfnords"
 		member  = "cooks@2many.smarf"
 		subject = "I have seen the fnords!"
+		dtype   = details.TeamsChat
 	)
 
 	var (
 		now    = time.Now()
-		future = now.Add(1 * time.Minute)
+		past   = dttm.Format(now.Add(-1 * time.Minute))
+		future = dttm.Format(now.Add(1 * time.Minute))
 	)
 
 	infoWith := func(itype details.ItemType) details.ItemInfo {
@@ -269,11 +272,11 @@ func (suite *TeamsChatsSelectorSuite) TestTeamsChatsScope_MatchesInfo() {
 				Chat: details.ChatInfo{
 					CreatedAt:          now,
 					HasExternalMembers: false,
-					LastMessageAt:      future,
+					LastMessageAt:      now,
 					LastMessagePreview: "preview",
 					Members:            []string{member},
 					MessageCount:       1,
-					Topic:              name,
+					Topic:              topic,
 				},
 			},
 		}
@@ -285,12 +288,20 @@ func (suite *TeamsChatsSelectorSuite) TestTeamsChatsScope_MatchesInfo() {
 		scope  []TeamsChatsScope
 		expect assert.BoolAssertionFunc
 	}{
-		{"chat with a different member", details.TeamsChat, cs.ChatMember("blarps"), assert.False},
-		{"chat with the same member", details.TeamsChat, cs.ChatMember(member), assert.True},
-		{"chat with a member submatch search", details.TeamsChat, cs.ChatMember(member[2:5]), assert.True},
-		{"chat with a different name", details.TeamsChat, cs.ChatName("blarps"), assert.False},
-		{"chat with the same name", details.TeamsChat, cs.ChatName(name), assert.True},
-		{"chat with a subname search", details.TeamsChat, cs.ChatName(name[2:5]), assert.True},
+		{"chat with a different member", dtype, cs.ChatMember("blarps"), assert.False},
+		{"chat with the same member", dtype, cs.ChatMember(member), assert.True},
+		{"chat with a member submatch search", dtype, cs.ChatMember(member[2:5]), assert.True},
+		{"chat with a different topic", dtype, cs.ChatTopic("blarps"), assert.False},
+		{"chat with the same topic", dtype, cs.ChatTopic(topic), assert.True},
+		{"chat with a subtopic search", dtype, cs.ChatTopic(topic[2:5]), assert.True},
+		{"chat created after", dtype, cs.ChatCreatedAfter(past), assert.True},
+		{"chat not created after", dtype, cs.ChatCreatedAfter(future), assert.False},
+		{"chat created before", dtype, cs.ChatCreatedBefore(future), assert.True},
+		{"chat not created before", dtype, cs.ChatCreatedBefore(past), assert.False},
+		{"chat last message after", dtype, cs.ChatLastMessageAfter(past), assert.True},
+		{"chat last message not after", dtype, cs.ChatLastMessageAfter(future), assert.False},
+		{"chat last message before", dtype, cs.ChatLastMessageBefore(future), assert.True},
+		{"chat last message not before", dtype, cs.ChatLastMessageBefore(past), assert.False},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
