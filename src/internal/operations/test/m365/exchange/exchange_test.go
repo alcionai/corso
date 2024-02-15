@@ -70,7 +70,7 @@ func MetadataFileNames(cat path.CategoryType) [][]string {
 
 // TestBackup_Run ensures that Integration Testing works
 // for the following scopes: Contacts, Events, and Mail
-func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
+func (suite *ExchangeBackupIntgSuite) TestBackup_Run_basicBackup() {
 	tests := []struct {
 		name          string
 		selector      func() *selectors.ExchangeBackup
@@ -112,124 +112,7 @@ func (suite *ExchangeBackupIntgSuite) TestBackup_Run_exchange() {
 	}
 	for _, test := range tests {
 		suite.Run(test.name, func() {
-			t := suite.T()
-
-			ctx, flush := tester.NewContext(t)
-			defer flush()
-
-			var (
-				mb      = evmock.NewBus()
-				counter = count.New()
-				sel     = test.selector().Selector
-				opts    = control.DefaultOptions()
-				whatSet = deeTD.CategoryFromRepoRef
-			)
-
-			bo, bod := PrepNewTestBackupOp(t, ctx, mb, sel, opts, version.Backup, counter)
-			defer bod.Close(t, ctx)
-
-			sel = bod.Sel
-
-			userID := sel.ID()
-
-			m365, err := bod.Acct.M365Config()
-			require.NoError(t, err, clues.ToCore(err))
-
-			// run the tests
-			RunAndCheckBackup(t, ctx, &bo, mb, false)
-			CheckBackupIsInManifests(
-				t,
-				ctx,
-				bod.KW,
-				bod.SW,
-				&bo,
-				sel,
-				userID,
-				test.category)
-			CheckMetadataFilesExist(
-				t,
-				ctx,
-				bo.Results.BackupID,
-				bod.KW,
-				bod.KMS,
-				m365.AzureTenantID,
-				userID,
-				path.ExchangeService,
-				map[path.CategoryType][][]string{test.category: test.metadataFiles})
-
-			_, expectDeets := deeTD.GetDeetsInBackup(
-				t,
-				ctx,
-				bo.Results.BackupID,
-				bod.Acct.ID(),
-				userID,
-				path.ExchangeService,
-				whatSet,
-				bod.KMS,
-				bod.SSS)
-			deeTD.CheckBackupDetails(
-				t,
-				ctx,
-				bo.Results.BackupID,
-				whatSet,
-				bod.KMS,
-				bod.SSS,
-				expectDeets,
-				false)
-
-			// Basic, happy path incremental test.  No changes are dictated or expected.
-			// This only tests that an incremental backup is runnable at all, and that it
-			// produces fewer results than the last backup.
-			var (
-				incMB = evmock.NewBus()
-				incBO = NewTestBackupOp(
-					t,
-					ctx,
-					bod,
-					incMB,
-					opts,
-					counter)
-			)
-
-			RunAndCheckBackup(t, ctx, &incBO, incMB, true)
-			CheckBackupIsInManifests(
-				t,
-				ctx,
-				bod.KW,
-				bod.SW,
-				&incBO,
-				sel,
-				userID,
-				test.category)
-			CheckMetadataFilesExist(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				bod.KW,
-				bod.KMS,
-				m365.AzureTenantID,
-				userID,
-				path.ExchangeService,
-				map[path.CategoryType][][]string{test.category: test.metadataFiles})
-			deeTD.CheckBackupDetails(
-				t,
-				ctx,
-				incBO.Results.BackupID,
-				whatSet,
-				bod.KMS,
-				bod.SSS,
-				expectDeets,
-				false)
-
-			// do some additional checks to ensure the incremental dealt with fewer items.
-			assert.Greater(t, bo.Results.ItemsWritten, incBO.Results.ItemsWritten, "incremental items written")
-			assert.Greater(t, bo.Results.ItemsRead, incBO.Results.ItemsRead, "incremental items read")
-			assert.Greater(t, bo.Results.BytesRead, incBO.Results.BytesRead, "incremental bytes read")
-			assert.Greater(t, bo.Results.BytesUploaded, incBO.Results.BytesUploaded, "incremental bytes uploaded")
-			assert.Equal(t, bo.Results.ResourceOwners, incBO.Results.ResourceOwners, "incremental backup resource owner")
-			assert.NoError(t, incBO.Errors.Failure(), "incremental non-recoverable error", clues.ToCore(bo.Errors.Failure()))
-			assert.Empty(t, incBO.Errors.Recovered(), "count incremental recoverable/iteration errors")
-			assert.Equal(t, 1, incMB.TimesCalled[events.BackupEnd], "incremental backup-end events")
+			RunBasicBackupTest(suite, test.selector().Selector)
 		})
 	}
 }
