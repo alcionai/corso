@@ -10,6 +10,7 @@
 *.test
 test_results/
 testlog/
+sanity.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

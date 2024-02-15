@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,7 +22,7 @@ func BuildFilepathSanitree(
 		err error,
 	) error {
 		if err != nil {
-			Fatal(ctx, "error passed to filepath walker", err)
+			Fatal(ctx, fmt.Sprintf("error passed to filepath walker for dir %q", p), err)
 		}
 
 		relPath, err := filepath.Rel(rootDir, p)
