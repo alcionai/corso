@@ -55,7 +55,8 @@ func makeAC(
 	cli, err := api.NewClient(
 		creds,
 		control.DefaultOptions(),
-		count.New())
+		count.New(),
+		opts...)
 	if err != nil {
 		return api.Client{}, clues.WrapWC(ctx, err, "constructing api client")
 	}
