@@ -99,6 +99,13 @@ func (bh usersChatsBackupHandler) getItem(
 
 	chat.SetMessages(msgs)
 
+	members, err := bh.ac.GetChatMembers(ctx, chatID, api.CallConfig{})
+	if err != nil {
+		return nil, nil, clues.Stack(err)
+	}
+
+	chat.SetMembers(members)
+
 	return chat, api.TeamsChatInfo(chat), nil
 }
 

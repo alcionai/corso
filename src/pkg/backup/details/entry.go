@@ -103,6 +103,12 @@ func (de Entry) ToLocationIDer(backupVersion int) (LocationIDer, error) {
 		}
 
 		baseLoc = path.Builder{}.Append(p.Root).Append(p.Folders...)
+
+	case TeamsChat:
+		baseLoc = &path.Builder{}
+
+	default:
+		return nil, clues.New("undentified item type").With("item_type", de.ItemInfo.infoType())
 	}
 
 	if baseLoc == nil {
