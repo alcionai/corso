@@ -115,11 +115,8 @@ func populateCollection[I chatsItemer](
 	)
 
 	ctx = clues.AddLabelCounter(ctx, cl.PlainAdder())
-	cc := api.CallConfig{
-		CanMakeDeltaQueries: false,
-	}
 
-	items, err := bh.getItemIDs(ctx, cc)
+	items, err := bh.getItemIDs(ctx)
 	if err != nil {
 		errs.AddRecoverable(ctx, clues.Stack(err))
 		return collection, clues.Stack(errs.Failure()).OrNil()

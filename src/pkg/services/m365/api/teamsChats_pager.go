@@ -13,6 +13,79 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// chat members pager
+// ---------------------------------------------------------------------------
+
+// delta queries are not supported
+var _ pagers.NonDeltaHandler[models.ConversationMemberable] = &chatMembersPageCtrl{}
+
+type chatMembersPageCtrl struct {
+	chatID  string
+	gs      graph.Servicer
+	builder *chats.ItemMembersRequestBuilder
+	options *chats.ItemMembersRequestBuilderGetRequestConfiguration
+}
+
+func (p *chatMembersPageCtrl) SetNextLink(nextLink string) {
+	p.builder = chats.NewItemMembersRequestBuilder(nextLink, p.gs.Adapter())
+}
+
+func (p *chatMembersPageCtrl) GetPage(
+	ctx context.Context,
+) (pagers.NextLinkValuer[models.ConversationMemberable], error) {
+	resp, err := p.builder.Get(ctx, p.options)
+	return resp, graph.Stack(ctx, err).OrNil()
+}
+
+func (p *chatMembersPageCtrl) ValidModTimes() bool {
+	return true
+}
+
+func (c Chats) NewChatMembersPager(
+	chatID string,
+	cc CallConfig,
+) *chatMembersPageCtrl {
+	builder := c.Stable.
+		Client().
+		Chats().
+		ByChatId(chatID).
+		Members()
+
+	options := &chats.ItemMembersRequestBuilderGetRequestConfiguration{
+		QueryParameters: &chats.ItemMembersRequestBuilderGetQueryParameters{},
+		Headers:         newPreferHeaders(preferPageSize(maxNonDeltaPageSize)),
+	}
+
+	if len(cc.Select) > 0 {
+		options.QueryParameters.Select = cc.Select
+	}
+
+	if len(cc.Expand) > 0 {
+		options.QueryParameters.Expand = cc.Expand
+	}
+
+	return &chatMembersPageCtrl{
+		chatID:  chatID,
+		builder: builder,
+		gs:      c.Stable,
+		options: options,
+	}
+}
+
+// GetChatMembers fetches a delta of all members in the chat.
+func (c Chats) GetChatMembers(
+	ctx context.Context,
+	chatID string,
+	cc CallConfig,
+) ([]models.ConversationMemberable, error) {
+	ctx = clues.Add(ctx, "chat_id", chatID)
+	pager := c.NewChatMembersPager(chatID, cc)
+	items, err := pagers.BatchEnumerateItems[models.ConversationMemberable](ctx, pager)
+
+	return items, graph.Stack(ctx, err).OrNil()
+}
+
+// ---------------------------------------------------------------------------
 // chat message pager
 // ---------------------------------------------------------------------------
 

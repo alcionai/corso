@@ -42,7 +42,7 @@ func (suite *ChatsUnitSuite) TestChatsPrintable() {
 					LastMessagePreview: "last message preview",
 					Members:            []string{"foo@bar.baz", "fnords@smarf.zoomba"},
 					MessageCount:       42,
-					Name:               "chat name",
+					Topic:              "chat name",
 				},
 			},
 			expectHs: []string{"Name", "Last message", "Last message at", "Message count", "Created", "Members"},

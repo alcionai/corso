@@ -64,7 +64,7 @@ func (suite *ChatsAPIUnitSuite) TestChatsInfo() {
 					ItemType: details.TeamsChat,
 					Modified: then,
 					Chat: details.ChatInfo{
-						Name:               "Hello world",
+						Topic:              "Hello world",
 						LastMessageAt:      then,
 						LastMessagePreview: id,
 						Members:            []string{},
@@ -92,7 +92,7 @@ func (suite *ChatsAPIUnitSuite) TestChatsInfo() {
 					ItemType: details.TeamsChat,
 					Modified: then,
 					Chat: details.ChatInfo{
-						Name:               "Hello world",
+						Topic:              "Hello world",
 						LastMessageAt:      then,
 						LastMessagePreview: id,
 						Members:            []string{},
@@ -120,7 +120,7 @@ func (suite *ChatsAPIUnitSuite) TestChatsInfo() {
 					ItemType: details.TeamsChat,
 					Modified: then,
 					Chat: details.ChatInfo{
-						Name:               "Hello world",
+						Topic:              "Hello world",
 						LastMessageAt:      time.Time{},
 						LastMessagePreview: "",
 						Members:            []string{},
@@ -138,7 +138,7 @@ func (suite *ChatsAPIUnitSuite) TestChatsInfo() {
 			chat, expected := test.expected()
 			result := TeamsChatInfo(chat)
 
-			assert.Equal(t, expected.Chat.Name, result.Chat.Name)
+			assert.Equal(t, expected.Chat.Topic, result.Chat.Topic)
 
 			expectCreated := chat.GetCreatedDateTime()
 			if expectCreated != nil {

@@ -22,7 +22,7 @@ type chatsItemer interface {
 
 type backupHandler[I chatsItemer] interface {
 	getContainerer[I]
-	getItemAndAugmentInfoer[I]
+	getItemer[I]
 	getItemer[I]
 	getItemIDser[I]
 	includeItemer[I]
@@ -39,22 +39,10 @@ type getContainerer[I chatsItemer] interface {
 	) (container[I], error)
 }
 
-type getItemAndAugmentInfoer[I chatsItemer] interface {
-	getItemer[I]
-	augmentItemInfoer[I]
-}
-
-type augmentItemInfoer[I chatsItemer] interface {
-	// augmentItemInfo completes the teamChatsInfo population with any data
-	// owned by the container and not accessible to the item.
-	augmentItemInfo(*details.TeamsChatsInfo, I)
-}
-
 // gets all item IDs in the container
 type getItemIDser[I chatsItemer] interface {
 	getItemIDs(
 		ctx context.Context,
-		cc api.CallConfig,
 	) ([]I, error)
 }
 

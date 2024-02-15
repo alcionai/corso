@@ -61,6 +61,11 @@ func (suite *ChatsPagerIntgSuite) TestEnumerateChats() {
 				ac,
 				chatID,
 				chat.GetLastMessagePreview())
+
+			testEnumerateChatMembers(
+				suite.T(),
+				ac,
+				chatID)
 		})
 	}
 }
@@ -122,4 +127,23 @@ func testEnumerateChatMessages(
 				msgContent)
 		}
 	}
+}
+
+func testEnumerateChatMembers(
+	t *testing.T,
+	ac Chats,
+	chatID string,
+) {
+	ctx, flush := tester.NewContext(t)
+	defer flush()
+
+	cc := CallConfig{}
+
+	members, err := ac.GetChatMembers(ctx, chatID, cc)
+	require.NoError(t, err, clues.ToCore(err))
+
+	// no good way to test members right now.  Even though
+	// the graph api response contains the `userID` and `email`
+	// properties, we can't access them in the sdk model
+	assert.NotEmpty(t, members)
 }

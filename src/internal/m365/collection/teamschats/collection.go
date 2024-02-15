@@ -66,7 +66,7 @@ func updateStatus(
 // or notMoved (if they match).
 func NewCollection[I chatsItemer](
 	baseCol data.BaseCollection,
-	getAndAugment getItemAndAugmentInfoer[I],
+	getter getItemer[I],
 	protectedResource string,
 	items []I,
 	contains container[I],
@@ -76,7 +76,7 @@ func NewCollection[I chatsItemer](
 		BaseCollection:    baseCol,
 		items:             items,
 		contains:          contains,
-		getAndAugment:     getAndAugment,
+		getter:            getter,
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
@@ -96,7 +96,7 @@ type lazyFetchCollection[I chatsItemer] struct {
 
 	items []I
 
-	getAndAugment getItemAndAugmentInfoer[I]
+	getter getItemer[I]
 
 	statusUpdater support.StatusUpdater
 }
@@ -167,13 +167,13 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
 				&lazyItemGetter[I]{
-					modTime:       modTime,
-					getAndAugment: col.getAndAugment,
-					resourceID:    col.protectedResource,
-					item:          item,
-					containerIDs:  col.FullPath().Folders(),
-					contains:      col.contains,
-					parentPath:    col.LocationPath().String(),
+					modTime:      modTime,
+					getter:       col.getter,
+					resourceID:   col.protectedResource,
+					item:         item,
+					containerIDs: col.FullPath().Folders(),
+					contains:     col.contains,
+					parentPath:   col.LocationPath().String(),
 				},
 				itemID,
 				modTime,
@@ -192,13 +192,13 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 }
 
 type lazyItemGetter[I chatsItemer] struct {
-	getAndAugment getItemAndAugmentInfoer[I]
-	resourceID    string
-	item          I
-	parentPath    string
-	containerIDs  path.Elements
-	modTime       time.Time
-	contains      container[I]
+	getter       getItemer[I]
+	resourceID   string
+	item         I
+	parentPath   string
+	containerIDs path.Elements
+	modTime      time.Time
+	contains     container[I]
 }
 
 func (lig *lazyItemGetter[I]) GetData(
@@ -208,7 +208,7 @@ func (lig *lazyItemGetter[I]) GetData(
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	item, info, err := lig.getAndAugment.getItem(
+	item, info, err := lig.getter.getItem(
 		ctx,
 		lig.resourceID,
 		lig.item)
@@ -228,8 +228,6 @@ func (lig *lazyItemGetter[I]) GetData(
 
 		return nil, nil, false, err
 	}
-
-	lig.getAndAugment.augmentItemInfo(info, lig.contains.container)
 
 	if err := writer.WriteObjectValue("", item); err != nil {
 		err = clues.WrapWC(ctx, err, "writing item to serializer").Label(fault.LabelForceNoBackupCreation)

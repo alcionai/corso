@@ -89,7 +89,10 @@ func IncludeTeamsChatsRestoreDataSelectors(ctx context.Context, opts TeamsChatsO
 		users = selectors.Any()
 	}
 
-	return selectors.NewTeamsChatsRestore(users)
+	sel := selectors.NewTeamsChatsRestore(users)
+	sel.Include(sel.Chats(selectors.Any()))
+
+	return sel
 }
 
 // FilterTeamsChatsRestoreInfoSelectors builds the common info-selector filters.

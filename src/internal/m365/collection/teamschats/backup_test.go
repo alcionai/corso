@@ -49,14 +49,6 @@ type mockBackupHandler struct {
 	doNotInclude    bool
 }
 
-//lint:ignore U1000 false linter issue due to generics
-func (bh mockBackupHandler) augmentItemInfo(
-	*details.TeamsChatsInfo,
-	models.Chatable,
-) {
-	// no-op
-}
-
 func (bh mockBackupHandler) container() container[models.Chatable] {
 	return chatContainer()
 }
@@ -71,7 +63,6 @@ func (bh mockBackupHandler) getContainer(
 
 func (bh mockBackupHandler) getItemIDs(
 	_ context.Context,
-	_ api.CallConfig,
 ) ([]models.Chatable, error) {
 	return bh.chats, bh.chatsErr
 }

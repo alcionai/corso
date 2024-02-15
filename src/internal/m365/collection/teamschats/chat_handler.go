@@ -46,8 +46,11 @@ func (bh usersChatsBackupHandler) getContainer(
 //lint:ignore U1000 required for interface compliance
 func (bh usersChatsBackupHandler) getItemIDs(
 	ctx context.Context,
-	cc api.CallConfig,
 ) ([]models.Chatable, error) {
+	cc := api.CallConfig{
+		Expand: []string{"lastMessagePreview"},
+	}
+
 	return bh.ac.GetChats(
 		ctx,
 		bh.protectedResourceID,
@@ -89,26 +92,21 @@ func (bh usersChatsBackupHandler) getItem(
 
 	chatID := ptr.Val(chat.GetId())
 
-	cc := api.CallConfig{
-		Expand: []string{"lastMessagePreview"},
-	}
-
-	msgs, err := bh.ac.GetChatMessages(ctx, chatID, cc)
+	msgs, err := bh.ac.GetChatMessages(ctx, chatID, api.CallConfig{})
 	if err != nil {
 		return nil, nil, clues.Stack(err)
 	}
 
 	chat.SetMessages(msgs)
 
-	return chat, api.TeamsChatInfo(chat), nil
-}
+	members, err := bh.ac.GetChatMembers(ctx, chatID, api.CallConfig{})
+	if err != nil {
+		return nil, nil, clues.Stack(err)
+	}
 
-//lint:ignore U1000 false linter issue due to generics
-func (bh usersChatsBackupHandler) augmentItemInfo(
-	dgi *details.TeamsChatsInfo,
-	c models.Chatable,
-) {
-	// no-op
+	chat.SetMembers(members)
+
+	return chat, api.TeamsChatInfo(chat), nil
 }
 
 func chatContainer() container[models.Chatable] {

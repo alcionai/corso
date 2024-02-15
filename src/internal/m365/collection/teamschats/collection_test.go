@@ -163,11 +163,6 @@ func (m getAndAugmentChat) getItem(
 	return chat, &details.TeamsChatsInfo{}, m.err
 }
 
-//lint:ignore U1000 false linter issue due to generics
-func (getAndAugmentChat) augmentItemInfo(*details.TeamsChatsInfo, models.Chatable) {
-	// no-op
-}
-
 func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 	var (
 		t             = suite.T()
@@ -225,7 +220,7 @@ func (suite *CollectionUnitSuite) TestLazyFetchCollection_Items_LazyFetch() {
 					count.New()),
 				items:         test.items,
 				contains:      container[models.Chatable]{},
-				getAndAugment: getterAugmenter,
+				getter:        getterAugmenter,
 				stream:        make(chan data.Item),
 				statusUpdater: statusUpdater,
 			}
@@ -285,11 +280,11 @@ func (suite *CollectionUnitSuite) TestLazyItem_GetDataErrors() {
 			li := data.NewLazyItemWithInfo(
 				ctx,
 				&lazyItemGetter[models.Chatable]{
-					resourceID:    "resourceID",
-					item:          chat,
-					getAndAugment: &m,
-					modTime:       now,
-					parentPath:    parentPath,
+					resourceID: "resourceID",
+					item:       chat,
+					getter:     &m,
+					modTime:    now,
+					parentPath: parentPath,
 				},
 				ptr.Val(chat.GetId()),
 				now,
@@ -329,11 +324,11 @@ func (suite *CollectionUnitSuite) TestLazyItem_ReturnsEmptyReaderOnDeletedInFlig
 	li := data.NewLazyItemWithInfo(
 		ctx,
 		&lazyItemGetter[models.Chatable]{
-			resourceID:    "resourceID",
-			item:          chat,
-			getAndAugment: &m,
-			modTime:       now,
-			parentPath:    parentPath,
+			resourceID: "resourceID",
+			item:       chat,
+			getter:     &m,
+			modTime:    now,
+			parentPath: parentPath,
 		},
 		ptr.Val(chat.GetId()),
 		now,
@@ -368,11 +363,11 @@ func (suite *CollectionUnitSuite) TestLazyItem() {
 	li := data.NewLazyItemWithInfo(
 		ctx,
 		&lazyItemGetter[models.Chatable]{
-			resourceID:    "resourceID",
-			item:          chat,
-			getAndAugment: &m,
-			modTime:       now,
-			parentPath:    parentPath,
+			resourceID: "resourceID",
+			item:       chat,
+			getter:     &m,
+			modTime:    now,
+			parentPath: parentPath,
 		},
 		ptr.Val(chat.GetId()),
 		now,
