@@ -142,6 +142,7 @@ func makeRestorePathsForEntry(
 	//   * OneDrive/SharePoint (needs drive information)
 	switch true {
 	case ent.Exchange != nil ||
+		ent.TeamsChats != nil ||
 		(ent.Groups != nil && ent.Groups.ItemType == details.GroupsChannelMessage) ||
 		(ent.SharePoint != nil && ent.SharePoint.ItemType == details.SharePointList):
 		// TODO(ashmrtn): Eventually make Events have it's own function to handle

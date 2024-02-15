@@ -102,7 +102,7 @@ func teamschatsCreateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     teamschatsServiceCommand,
 		Aliases: []string{teamsServiceCommand},
-		Short:   "Backup M365 Chats service data",
+		Short:   "Backup M365 Chats data",
 		RunE:    createTeamsChatsCmd,
 		Args:    cobra.NoArgs,
 	}
@@ -170,7 +170,7 @@ func createTeamsChatsCmd(cmd *cobra.Command, args []string) error {
 func teamschatsListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamschatsServiceCommand,
-		Short: "List the history of M365 TeamsChats service backups",
+		Short: "List the history of M365 Chats backups",
 		RunE:  listTeamsChatsCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -189,7 +189,7 @@ func listTeamsChatsCmd(cmd *cobra.Command, args []string) error {
 func teamschatsDetailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamschatsServiceCommand,
-		Short: "Shows the details of a M365 TeamsChats service backup",
+		Short: "Shows the details of a M365 Chats backup",
 		RunE:  detailsTeamsChatsCmd,
 		Args:  cobra.NoArgs,
 	}
@@ -237,7 +237,7 @@ func runDetailsTeamsChatsCmd(cmd *cobra.Command) error {
 func teamschatsDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   teamschatsServiceCommand,
-		Short: "Delete backed-up M365 TeamsChats service data",
+		Short: "Delete backed-up M365 Chats data",
 		RunE:  deleteTeamsChatsCmd,
 		Args:  cobra.NoArgs,
 	}

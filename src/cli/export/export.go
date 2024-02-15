@@ -25,6 +25,7 @@ var exportCommands = []func(cmd *cobra.Command) *cobra.Command{
 	addSharePointCommands,
 	addGroupsCommands,
 	addExchangeCommands,
+	addTeamsChatsCommands,
 }
 
 var defaultAcceptedFormatTypes = []string{string(control.DefaultFormat)}

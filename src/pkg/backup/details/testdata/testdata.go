@@ -16,11 +16,13 @@ import (
 // mustParsePath takes a string representing a resource path and returns a path
 // instance. Panics if the path cannot be parsed. Useful for simple variable
 // assignments.
-func mustParsePath(ref string, isItem, isSharepointList bool) path.Path {
-	var p path.Path
-	var err error
+func mustParsePath(ref string, isItem, allowPrefix bool) path.Path {
+	var (
+		p   path.Path
+		err error
+	)
 
-	if isSharepointList {
+	if allowPrefix {
 		p, err = path.PrefixOrPathFromDataLayerPath(ref, isItem)
 	} else {
 		p, err = path.FromDataLayerPath(ref, isItem)
@@ -126,9 +128,9 @@ func (p repoRefAndLocRef) locationAsRepoRef() path.Path {
 	return res
 }
 
-func mustPathRep(ref string, isItem, isSharepointList bool) repoRefAndLocRef {
+func mustPathRep(ref string, isItem, allowPrefix bool) repoRefAndLocRef {
 	res := repoRefAndLocRef{}
-	tmp := mustParsePath(ref, isItem, isSharepointList)
+	tmp := mustParsePath(ref, isItem, allowPrefix)
 
 	// Now append stuff to the RepoRef elements so we have distinct LocationRef
 	// and RepoRef elements to simulate using IDs in the path instead of display
@@ -969,6 +971,68 @@ var (
 			},
 		},
 	}
+
+	TeamsChatsRootPath = mustPathRep("tenant-id/"+path.TeamsChatsService.String()+"/user-id/chats", false, true)
+
+	TeamsChatsChatItemPath1 = TeamsChatsRootPath.MustAppend(ItemName1, true)
+	TeamsChatsChatItemPath2 = TeamsChatsRootPath.MustAppend(ItemName2, true)
+	TeamsChatsChatItemPath3 = TeamsChatsRootPath.MustAppend(ItemName3, true)
+
+	teamsChatsChatItemsByVersion = map[int][]details.Entry{
+		version.Groups9Update: {
+			{
+				RepoRef:     TeamsChatsChatItemPath1.locationAsRepoRef().String(),
+				ShortRef:    TeamsChatsChatItemPath1.locationAsRepoRef().ShortRef(),
+				ParentRef:   TeamsChatsChatItemPath1.locationAsRepoRef().ToBuilder().Dir().ShortRef(),
+				ItemRef:     TeamsChatsChatItemPath1.ItemLocation(),
+				LocationRef: "",
+				ItemInfo: details.ItemInfo{
+					TeamsChats: &details.TeamsChatsInfo{
+						ItemType:   details.TeamsChat,
+						Modified:   Time4,
+						ParentPath: "",
+						Chat: details.ChatInfo{
+							Topic: "item 1",
+						},
+					},
+				},
+			},
+			{
+				RepoRef:     TeamsChatsChatItemPath2.locationAsRepoRef().String(),
+				ShortRef:    TeamsChatsChatItemPath2.locationAsRepoRef().ShortRef(),
+				ParentRef:   TeamsChatsChatItemPath2.locationAsRepoRef().ToBuilder().Dir().ShortRef(),
+				ItemRef:     TeamsChatsChatItemPath2.ItemLocation(),
+				LocationRef: "",
+				ItemInfo: details.ItemInfo{
+					TeamsChats: &details.TeamsChatsInfo{
+						ItemType:   details.TeamsChat,
+						Modified:   Time3,
+						ParentPath: "",
+						Chat: details.ChatInfo{
+							Topic: "item 2",
+						},
+					},
+				},
+			},
+			{
+				RepoRef:     TeamsChatsChatItemPath3.locationAsRepoRef().String(),
+				ShortRef:    TeamsChatsChatItemPath3.locationAsRepoRef().ShortRef(),
+				ParentRef:   TeamsChatsChatItemPath3.locationAsRepoRef().ToBuilder().Dir().ShortRef(),
+				ItemRef:     TeamsChatsChatItemPath3.ItemLocation(),
+				LocationRef: "",
+				ItemInfo: details.ItemInfo{
+					TeamsChats: &details.TeamsChatsInfo{
+						ItemType:   details.TeamsChat,
+						ParentPath: "",
+						Modified:   Time4,
+						Chat: details.ChatInfo{
+							Topic: "item 3",
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func GetDetailsSetForVersion(t *testing.T, wantedVersion int) *details.Details {
@@ -986,6 +1050,9 @@ func GetDetailsSetForVersion(t *testing.T, wantedVersion int) *details.Details {
 		},
 		path.SharePointService: {
 			path.LibrariesCategory,
+		},
+		path.TeamsChatsService: {
+			path.ChatsCategory,
 		},
 	}
 
@@ -1059,6 +1126,11 @@ func GetDeetsForVersion(
 	case path.SharePointService:
 		if cat == path.LibrariesCategory {
 			input = sharePointLibraryItemsByVersion
+		}
+
+	case path.TeamsChatsService:
+		if cat == path.ChatsCategory {
+			input = teamsChatsChatItemsByVersion
 		}
 	}
 
