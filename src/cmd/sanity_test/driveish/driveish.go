@@ -99,7 +99,7 @@ func recursivelyBuildTree(
 			// currently we don't restore blank folders.
 			// skip permission check for empty folders
 			if ptr.Val(driveItem.GetFolder().GetChildCount()) == 0 {
-				common.Infof(ctx, "skipped empty folder: %s/%s", location, itemName)
+				common.Infof(ctx, "skipped empty folder: %s%s", location, itemName)
 				continue
 			}
 
