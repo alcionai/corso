@@ -58,16 +58,22 @@ func (op *MaintenanceOperation) Run(ctx context.Context) (err error) {
 	op.Results.StartedAt = time.Now()
 
 	defer func() {
+		data := map[string]any{
+			events.StartTime: op.Results.StartedAt,
+			events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:   dttm.Format(op.Results.CompletedAt),
+			events.Status:    op.Status.String(),
+			events.Resources: op.mOpts.Type.String(),
+		}
+
+		if op.Errors.Failure() != nil {
+			data[events.ErrorMessage] = op.Errors.Errors()
+		}
+
 		op.bus.Event(
 			ctx,
 			events.MaintenanceEnd,
-			map[string]any{
-				events.StartTime: op.Results.StartedAt,
-				events.Duration:  op.Results.CompletedAt.Sub(op.Results.StartedAt),
-				events.EndTime:   dttm.Format(op.Results.CompletedAt),
-				events.Status:    op.Status.String(),
-				events.Resources: op.mOpts.Type.String(),
-			})
+			data)
 	}()
 
 	return op.do(ctx)
