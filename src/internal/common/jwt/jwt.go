@@ -43,10 +43,10 @@ func IsJWTExpired(
 
 // GetJWTLifetime returns the issued at(iat) and expiration time(exp) claims
 // present in the JWT token. These are optional claims and may not be present
-// in the token.
+// in the token. Absence is not reported as an error.
 //
-// An error is returned if the supplied token is malformed or if the claims are
-// missing. Times are returned in UTC to have parity with graph responses.
+// An error is returned if the supplied token is malformed. Times are returned
+// in UTC to have parity with graph responses.
 func GetJWTLifetime(
 	ctx context.Context,
 	rawToken string,
