@@ -99,6 +99,8 @@ func ZipExportCollection(
 					writer.CloseWithError(clues.Wrap(err, "writing zip entry").With("name", name).With("id", item.ID))
 					return
 				}
+
+				item.Body.Close()
 			}
 		}
 
