@@ -41,7 +41,7 @@ export default function Hero() {
             </a>
 
             <a
-              href="../docs/quickstart/"
+              href="https://www.alcion.ai/"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-200 hover:bg-indigo-400 border-indigo-600 hover:border-indigo-800 text-blue rounded-md"
             >
               Try Alcion (Corso SaaS)
