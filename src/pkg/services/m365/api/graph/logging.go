@@ -10,8 +10,6 @@ import (
 
 	"github.com/alcionai/clues"
 
-	"github.com/alcionai/clues"
-
 	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/pkg/logger"
