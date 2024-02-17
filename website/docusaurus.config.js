@@ -81,9 +81,20 @@ const config = {
         items: [
           {
             type: 'doc',
+            docId: 'quickstart',
+            position: 'left',
+            label: 'Quick Start',
+          },
+          {
+            type: 'doc',
             docId: 'intro',
             position: 'left',
             label: 'Docs',
+          },
+          {
+            href: 'https://discord.gg/63DTTSnuhT',
+            label: 'Community',
+            position: 'left',
           },
           {
             to: '/blog',
@@ -106,30 +117,12 @@ const config = {
         },
         links: [
           {
-            title: 'Resources',
+            title: 'Open Source',
             items: [
               {
                 label: 'Docs',
                 to: '/docs/intro',
               },
-            ],
-          },
-          {
-            title: 'Community',
-            items: [
-              {
-                label: 'Discord',
-                href: 'https://discord.gg/63DTTSnuhT',
-              },
-              {
-                label: 'Twitter',
-                href: 'https://twitter.com/CorsoBackup',
-              },
-            ],
-          },
-          {
-            title: 'More',
-            items: [
               {
                 label: 'Blog',
                 to: '/blog',
@@ -137,6 +130,26 @@ const config = {
               {
                 label: 'GitHub',
                 href: 'https://github.com/alcionai/corso',
+              },
+              {
+                label: 'Corso Discord',
+                href: 'https://discord.gg/63DTTSnuhT',
+              },
+            ],
+          },
+          {
+            title: ' ',
+          },
+          {
+            title: 'Alcion, Powered by Corso',
+            items: [
+              {
+                label: 'Backup as a Service',
+                href: 'https://www.alcion.ai',
+              },
+              {
+                label: 'Alcion Discord',
+                href: 'https://www.alcion.ai/discord',
               },
             ],
           },
