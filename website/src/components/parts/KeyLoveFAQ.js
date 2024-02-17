@@ -213,9 +213,9 @@ export default function KeyLoveFAQ() {
               Community
             </h3>
             <p className="text-slate-400">
-              The Corso community provides a venue for M365 admins to share and
+              The Corso community provides a venue for Microsoft 365 admins to share and
               learn about the importance of data protection as well as best
-              practices around M365 secure configuration and compliance
+              practices around Microsoft 365 secure configuration and compliance
               management.
             </p>
             <ul className="list-none text-slate-400 mt-4">
@@ -341,7 +341,7 @@ export default function KeyLoveFAQ() {
                   className="text-indigo-600 text-xl mr-2"
                   icon="material-symbols:check-circle-outline"
                 />{" "}
-                Constantly updated M365 Graph Data engine
+                Constantly updated Microsoft 365 Graph Data engine
               </li>
               <li className="mb-1 flex">
                 <Icon
