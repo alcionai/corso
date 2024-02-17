@@ -505,3 +505,93 @@ func (suite *MiddlewareUnitSuite) TestLimiterConsumption() {
 		})
 	}
 }
+
+const (
+	// Raw test token valid for 100 years.
+	rawToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9." +
+		"eyJuYmYiOiIxNjkxODE5NTc5IiwiZXhwIjoiMzk0NTUyOTE3OSIsImVuZHBvaW50dXJsTGVuZ3RoIjoiMTYw" +
+		"IiwiaXNsb29wYmFjayI6IlRydWUiLCJ2ZXIiOiJoYXNoZWRwcm9vZnRva2VuIiwicm9sZXMiOiJhbGxmaWxl" +
+		"cy53cml0ZSBhbGxzaXRlcy5mdWxsY29udHJvbCBhbGxwcm9maWxlcy5yZWFkIiwidHQiOiIxIiwiYWxnIjoi" +
+		"SFMyNTYifQ" +
+		".signature"
+)
+
+// Tests getTokenLifetime
+func (suite *MiddlewareUnitSuite) TestGetTokenLifetime() {
+	table := []struct {
+		name      string
+		request   *http.Request
+		expectErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:      "nil request",
+			request:   nil,
+			expectErr: assert.Error,
+		},
+		{
+			name: "no authorization header",
+			request: &http.Request{
+				Header: http.Header{},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "well formed auth header with token",
+			request: &http.Request{
+				Header: http.Header{
+					"Authorization": []string{"Bearer " + rawToken},
+				},
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "Missing Bearer prefix but valid token",
+			request: &http.Request{
+				Header: http.Header{
+					"Authorization": []string{rawToken},
+				},
+			},
+			expectErr: assert.NoError,
+		},
+		{
+			name: "invalid token",
+			request: &http.Request{
+				Header: http.Header{
+					"Authorization": []string{"Bearer " + "invalid"},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "valid prefix but empty token",
+			request: &http.Request{
+				Header: http.Header{
+					"Authorization": []string{"Bearer "},
+				},
+			},
+			expectErr: assert.Error,
+		},
+		{
+			name: "Invalid prefix but valid token",
+			request: &http.Request{
+				Header: http.Header{
+					"Authorization": []string{"Bearer" + rawToken},
+				},
+			},
+			expectErr: assert.Error,
+		},
+	}
+
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			// iat, exp specific tests are in jwt package.
+			_, _, err := getTokenLifetime(ctx, test.request)
+			test.expectErr(t, err, clues.ToCore(err))
+		})
+	}
+}
