@@ -126,7 +126,13 @@ func getTokenLifetime(
 		return time.Time{}, time.Time{}, clues.New("nil request")
 	}
 
+	// Don't throw an error if auth header is absent. This is to prevent
+	// unnecessary noise in the logs for requests served by the http requestor
+	// client. These requests may be preauthenticated and may not carry auth headers.
 	rawToken := req.Header.Get("Authorization")
+	if len(rawToken) == 0 {
+		return time.Time{}, time.Time{}, nil
+	}
 
 	// Strip the "Bearer " prefix from the token. This prefix is guaranteed to be
 	// present as per msft docs. But even if it's not, the jwt lib will handle

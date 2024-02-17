@@ -528,12 +528,14 @@ func (suite *MiddlewareUnitSuite) TestGetTokenLifetime() {
 			request:   nil,
 			expectErr: assert.Error,
 		},
+		// Test that we don't throw an error if auth header is absent.
+		// This is to prevent unnecessary noise in logs for requestor http client.
 		{
 			name: "no authorization header",
 			request: &http.Request{
 				Header: http.Header{},
 			},
-			expectErr: assert.Error,
+			expectErr: assert.NoError,
 		},
 		{
 			name: "well formed auth header with token",
