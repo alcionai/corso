@@ -33,7 +33,7 @@ export default function CTA() {
                           <br /> Microsoft 365 Data!
                         </h3>
                         <h6 className="text-white/50 text-lg font-semibold">
-                          Corso is Free and Open Source
+                          Corso (Free and Open Source) or <br/> Alcion (Managed Backup as a Service)
                         </h6>
                       </div>
                     </div>
@@ -41,15 +41,24 @@ export default function CTA() {
                     <div className="mt-8">
                       <div className="section-title text-md-start">
                         <p className="text-white/50 max-w-xl mx-auto mb-2">
-                          Follow our quick-start guide to start protecting your
-                          business-critical Microsoft 365 data in just a few
-                          minutes.
+                          Whether you want to self-host or use a managed service, we have you covered!
                         </p>
+                        <a
+                          href="https://www.alcion.ai/"
+                          className="!text-white !no-underline flex flex-row items-center !hover:text-white"
+                        >
+                          Try Alcion{" "}
+                          <Icon
+                            icon="uim:angle-right-b"
+                            className="align-middle"
+                          />
+                        </a>
+                        <p></p>
                         <a
                           href="docs/quickstart/"
                           className="!text-white !no-underline flex flex-row items-center !hover:text-white"
                         >
-                          Get Started{" "}
+                          Corso Quickstart{" "}
                           <Icon
                             icon="uim:angle-right-b"
                             className="align-middle"
