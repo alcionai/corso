@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/alcionai/clues"
 
+	"github.com/alcionai/corso/src/internal/common/jwt"
 	"github.com/alcionai/corso/src/internal/common/pii"
 	"github.com/alcionai/corso/src/pkg/logger"
 )
@@ -28,7 +31,7 @@ func shouldLogRespBody(resp *http.Response) bool {
 		resp.StatusCode > 399
 }
 
-func logResp(ctx context.Context, resp *http.Response) {
+func logResp(ctx context.Context, resp *http.Response, req *http.Request) {
 	var (
 		log       = logger.Ctx(ctx)
 		respClass = resp.StatusCode / 100
@@ -42,6 +45,25 @@ func logResp(ctx context.Context, resp *http.Response) {
 	if resp.StatusCode == http.StatusTooManyRequests {
 		log.With("response", getRespDump(ctx, resp, logBody)).
 			Info("graph api throttling")
+		return
+	}
+
+	// Log bearer token iat and exp claims if we hit 401s. This is purely for
+	// debugging purposes and will be removed in the future.
+	if resp.StatusCode == http.StatusUnauthorized {
+		errs := []any{"graph api error: " + resp.Status}
+
+		// As per MSFT docs, the token may have a special format and may not always
+		// validate as a JWT. Hence log token lifetime in a best effort manner only.
+		iat, exp, err := getTokenLifetime(ctx, req)
+		if err != nil {
+			errs = append(errs, " getting token lifetime: ", err)
+		}
+
+		log.With("response", getRespDump(ctx, resp, logBody)).
+			With("token issued at", iat, "token expires at", exp).
+			Error(errs...)
+
 		return
 	}
 
@@ -90,4 +112,33 @@ func getReqCtx(req *http.Request) context.Context {
 		"method", req.Method,
 		"url", logURL,
 		"request_content_len", req.ContentLength)
+}
+
+// GetTokenLifetime extracts the JWT token embedded in the request and returns
+// the token's issue and expiration times. The token is expected to be in the
+// "Authorization" header, with a "Bearer " prefix.  If the token is not present
+// or is malformed, an error is returned.
+func getTokenLifetime(
+	ctx context.Context,
+	req *http.Request,
+) (time.Time, time.Time, error) {
+	if req == nil {
+		return time.Time{}, time.Time{}, clues.New("nil request")
+	}
+
+	// Don't throw an error if auth header is absent. This is to prevent
+	// unnecessary noise in the logs for requests served by the http requestor
+	// client. These requests may be preauthenticated and may not carry auth headers.
+	rawToken := req.Header.Get("Authorization")
+	if len(rawToken) == 0 {
+		return time.Time{}, time.Time{}, nil
+	}
+
+	// Strip the "Bearer " prefix from the token. This prefix is guaranteed to be
+	// present as per msft docs. But even if it's not, the jwt lib will handle
+	// malformed tokens gracefully and return an error.
+	rawToken = strings.TrimPrefix(rawToken, "Bearer ")
+	iat, exp, err := jwt.GetJWTLifetime(ctx, rawToken)
+
+	return iat, exp, clues.Stack(err).OrNil()
 }
