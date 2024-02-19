@@ -485,7 +485,7 @@ export default function KeyLoveFAQ() {
                 >
                   <div className="accordion-body p-5">
                     <p className="text-slate-400 !visible dark:text-gray-400">
-                      Corso is a better fit for basic backup while Alcion is a better fit if you need increased reliability, security, and support.
+                      Corso is a good fit for basic backup while Alcion is a better fit if you need increased reliability, security, and support.
                     </p>
                   </div>
                 </div>
