@@ -130,7 +130,7 @@ func (mw *LoggingMiddleware) Intercept(
 		"resp_status_code", resp.StatusCode,
 		"resp_content_len", resp.ContentLength)
 
-	logResp(ctx, resp)
+	logResp(ctx, resp, req)
 
 	return resp, err
 }

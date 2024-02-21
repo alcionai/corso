@@ -146,7 +146,7 @@ func (hw httpWrapper) Request(
 
 		resp, err := hw.client.Do(req)
 		if err == nil {
-			logResp(ictx, resp)
+			logResp(ictx, resp, req)
 			return resp, nil
 		}
 

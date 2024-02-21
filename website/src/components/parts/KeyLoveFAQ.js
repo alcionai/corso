@@ -213,9 +213,9 @@ export default function KeyLoveFAQ() {
               Community
             </h3>
             <p className="text-slate-400">
-              The Corso community provides a venue for M365 admins to share and
+              The Corso community provides a venue for Microsoft 365 admins to share and
               learn about the importance of data protection as well as best
-              practices around M365 secure configuration and compliance
+              practices around Microsoft 365 secure configuration and compliance
               management.
             </p>
             <ul className="list-none text-slate-400 mt-4">
@@ -279,8 +279,7 @@ export default function KeyLoveFAQ() {
             </h3>
             <p className="text-slate-400">
               Corso provides secure data backup that protects customers against
-              accidental data loss, service provider downtime, and malicious
-              threats including ransomware attacks.
+              accidental data loss and service provider downtime.
             </p>
             <ul className="list-none text-slate-400 mt-4">
               <li className="mb-1 flex">
@@ -331,7 +330,7 @@ export default function KeyLoveFAQ() {
               Robust Backups
             </h3>
             <p className="text-slate-400">
-              Corso, purpose-built for M365 protection, provides easy-to-use
+              Corso, purpose-built for Microsoft 365 protection, provides easy-to-use
               comprehensive backup and restore workflows that reduces backup
               time, improve time-to-recovery, reduce admin overhead, and replace
               unreliable scripts or workarounds.
@@ -342,7 +341,7 @@ export default function KeyLoveFAQ() {
                   className="text-indigo-600 text-xl mr-2"
                   icon="material-symbols:check-circle-outline"
                 />{" "}
-                Constantly updated M365 Graph Data engine
+                Constantly updated Microsoft 365 Graph Data engine
               </li>
               <li className="mb-1 flex">
                 <Icon
@@ -462,7 +461,7 @@ export default function KeyLoveFAQ() {
 
           <div className="md:col-span-6">
             <div className="accordion space-y-3" id="accordionExample">
-              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+            <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
                   className="accordion-header mb-0 !cursor-pointer font-semibold"
                   id="headingOne"
@@ -475,7 +474,7 @@ export default function KeyLoveFAQ() {
                     aria-expanded="false"
                     aria-controls="collapseOne"
                   >
-                    <span>What platforms does Corso run on?</span>
+                    <span>How do I choose between Corso and Alcion, powered by Corso?</span>
                   </button>
                 </h2>
                 <div
@@ -486,8 +485,7 @@ export default function KeyLoveFAQ() {
                 >
                   <div className="accordion-body p-5">
                     <p className="text-slate-400 !visible dark:text-gray-400">
-                      Corso has both native binaries and container images for
-                      Windows, Linux, and macOS.
+                      Corso is a good fit for basic backup while Alcion is a better fit if you need increased reliability, security, and support.
                     </p>
                   </div>
                 </div>
@@ -505,9 +503,7 @@ export default function KeyLoveFAQ() {
                     aria-expanded="false"
                     aria-controls="collapse2"
                   >
-                    <span>
-                      What Microsoft 365 services can I backup using Corso?
-                    </span>
+                    <span>What platforms does Corso run on?</span>
                   </button>
                 </h2>
                 <div
@@ -518,8 +514,8 @@ export default function KeyLoveFAQ() {
                 >
                   <div className="accordion-body p-5">
                     <p className="text-slate-400 !visible dark:text-gray-400">
-                      Corso currently supports OneDrive, Exchange, SharePoint,
-                      and Teams. 
+                      Corso has both native binaries and container images for
+                      Windows, Linux, and macOS.
                     </p>
                   </div>
                 </div>
@@ -537,13 +533,45 @@ export default function KeyLoveFAQ() {
                     aria-expanded="false"
                     aria-controls="collapse3"
                   >
-                    <span>What object storage does Corso support?</span>
+                    <span>
+                      What Microsoft 365 services can I backup using Corso?
+                    </span>
                   </button>
                 </h2>
                 <div
                   id="collapse3"
                   className="accordion-collapse collapse"
                   aria-labelledby="heading3"
+                  data-bs-parent="#accordionExample"
+                >
+                  <div className="accordion-body p-5">
+                    <p className="text-slate-400 !visible dark:text-gray-400">
+                      Corso currently supports OneDrive, Exchange, SharePoint,
+                      and Teams.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
+                <h2
+                  className="accordion-header mb-0 !cursor-pointer font-semibold"
+                  id="heading4"
+                >
+                  <button
+                    className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapse4"
+                    aria-expanded="false"
+                    aria-controls="collapse4"
+                  >
+                    <span>What object storage does Corso support?</span>
+                  </button>
+                </h2>
+                <div
+                  id="collapse4"
+                  className="accordion-collapse collapse"
+                  aria-labelledby="heading4"
                   data-bs-parent="#accordionExample"
                 >
                   <div className="accordion-body p-5">
@@ -559,23 +587,23 @@ export default function KeyLoveFAQ() {
               <div className="accordion-item !text-white relative shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
                   className="accordion-header mb-0 font-semibold"
-                  id="heading4"
+                  id="heading5"
                 >
                   <button
                     className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#collapse4"
+                    data-bs-target="#collapse5"
                     aria-expanded="false"
-                    aria-controls="collapse4"
+                    aria-controls="collapse5"
                   >
                     <span>How can I get help for Corso?</span>
                   </button>
                 </h2>
                 <div
-                  id="collapse4"
+                  id="collapse5"
                   className="accordion-collapse collapse"
-                  aria-labelledby="heading4"
+                  aria-labelledby="heading5"
                   data-bs-parent="#accordionExample"
                 >
                   <div className="accordion-body p-5">
@@ -605,23 +633,23 @@ export default function KeyLoveFAQ() {
               <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
                   className="accordion-header mb-0 !cursor-pointer font-semibold"
-                  id="heading5"
+                  id="heading6"
                 >
                   <button
                     className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#collapse5"
+                    data-bs-target="#collapse6"
                     aria-expanded="false"
-                    aria-controls="collapse5"
+                    aria-controls="collapse6"
                   >
                     <span>What is Corso's open-source license?</span>
                   </button>
                 </h2>
                 <div
-                  id="collapse5"
+                  id="collapse6"
                   className="accordion-collapse collapse"
-                  aria-labelledby="heading5"
+                  aria-labelledby="heading6"
                   data-bs-parent="#accordionExample"
                 >
                   <div className="accordion-body p-5">
@@ -635,23 +663,23 @@ export default function KeyLoveFAQ() {
               <div className="accordion-item !text-white relative  shadow dark:shadow-gray-800 rounded-md overflow-hidden">
                 <h2
                   className="accordion-header mb-0 !cursor-pointer font-semibold"
-                  id="heading6"
+                  id="heading7"
                 >
                   <button
                     className="transition accordion-button-custom text-white !text-base !cursor-pointer border-none outline-none collapsed focus:outline-none !bg-transparent flex justify-between items-center p-5 w-full font-bold text-left"
                     type="button"
                     data-bs-toggle="collapse"
-                    data-bs-target="#collapse6"
+                    data-bs-target="#collapse7"
                     aria-expanded="false"
-                    aria-controls="collapse6"
+                    aria-controls="collapse7"
                   >
                     <span>How do I request a new feature?</span>
                   </button>
                 </h2>
                 <div
-                  id="collapse6"
+                  id="collapse7"
                   className="accordion-collapse collapse"
-                  aria-labelledby="heading6"
+                  aria-labelledby="heading7"
                   data-bs-parent="#accordionExample"
                 >
                   <div className="accordion-body p-5">

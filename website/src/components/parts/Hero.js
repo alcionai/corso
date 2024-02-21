@@ -34,10 +34,17 @@ export default function Hero() {
 
           <div className="mt-12 !z-10 mb-6 flex flex-col 2xs:flex-row items-center justify-center 2xs:space-y-0 space-y-4 2xs:space-x-4">
             <a
-              href="../docs/quickstart/"
+              href="https://github.com/alcionai/corso/releases" target="_blank"
               className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-800 hover:bg-indigo-900 border-indigo-800 hover:border-indigo-900 text-white rounded-md"
             >
-              Quick Start
+              Download
+            </a>
+
+            <a
+              href="https://www.alcion.ai/"
+              className="text-2xl !z-10 !no-underline hover:text-white py-2 px-6 font-bold btn bg-indigo-200 hover:bg-indigo-400 border-indigo-600 hover:border-indigo-800 text-blue rounded-md"
+            >
+              Try Alcion (Corso SaaS)
             </a>
           </div>
 
