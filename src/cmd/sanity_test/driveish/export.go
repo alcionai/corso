@@ -32,7 +32,7 @@ func CheckExport(
 		ctx,
 		ac,
 		driveID,
-		envs.RestoreContainer)
+		[]string{envs.SourceContainer})
 
 	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(

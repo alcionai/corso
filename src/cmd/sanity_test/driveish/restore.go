@@ -45,7 +45,14 @@ func CheckRestoration(
 		"drive_id", driveID,
 		"drive_name", driveName)
 
-	root := populateSanitree(ctx, ac, driveID, envs.RestoreContainer)
+	root := populateSanitree(
+		ctx,
+		ac,
+		driveID,
+		[]string{
+			envs.SourceContainer,
+			envs.RestoreContainer,
+		})
 
 	sourceTree, ok := root.Children[envs.SourceContainer]
 	common.Assert(
