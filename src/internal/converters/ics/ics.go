@@ -484,7 +484,14 @@ func updateEventProperties(ctx context.Context, event models.Eventable, iCalEven
 					desc := replacer.Replace(description)
 					iCalEvent.AddProperty("X-ALT-DESC", desc, ics.WithFmtType("text/html"))
 				} else {
-					stripped, err := html2text.FromString(description, html2text.Options{PrettyTables: true})
+					// Disable auto wrap, causes huge memory spikes
+					// https://github.com/jaytaylor/html2text/issues/48
+					prettyTablesOptions := html2text.NewPrettyTablesOptions()
+					prettyTablesOptions.AutoWrapText = false
+
+					stripped, err := html2text.FromString(
+						description,
+						html2text.Options{PrettyTables: true, PrettyTablesOptions: prettyTablesOptions})
 					if err != nil {
 						return clues.Wrap(err, "converting html to text").
 							With("description_length", len(description))

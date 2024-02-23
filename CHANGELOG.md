@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Emails attached within other emails are now correctly exported
 - Gracefully handle email and post attachments without name when exporting to eml
 - Use correct timezone for event start and end times in Exchange exports (helps fix issues in relative recurrence patterns)
+- Fixed an issue causing exports dealing with calendar data to have high memory usage
 
 ## [v0.19.0] (beta) - 2024-02-06
 
