@@ -91,18 +91,17 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 	origBody := orig.GetBody()
 	newContent := insertStringToBody(origBody, attendees)
 	newBody := models.NewItemBody()
-	newBody.SetContentType(origBody.GetContentType())
-	newBody.SetOdataType(origBody.GetOdataType())
+
+	if origBody.GetContentType() != nil {
+		newBody.SetContentType(origBody.GetContentType())
+	}
+
+	if origBody.GetOdataType() != nil {
+		newBody.SetOdataType(origBody.GetOdataType())
+	}
+
 	newBody.SetContent(&newContent)
 	orig.SetBody(newBody)
-	// Sanitation steps for Events
-	// See: https://github.com/alcionai/corso/issues/2490
-	orig.SetTransactionId(nil)
-	orig.SetWebLink(nil)
-	orig.SetICalUId(nil)
-	orig.SetId(nil)
-	orig.SetOdataType(nil)
-	orig.SetChangeKey(nil)
 
 	// Additional fields that don't have API support but are ignored by the
 	// server.
@@ -112,7 +111,9 @@ func toEventSimplified(orig models.Eventable) models.Eventable {
 		delete(additionalData, key)
 	}
 
-	orig.SetAdditionalData(additionalData)
+	if additionalData != nil {
+		orig.SetAdditionalData(additionalData)
+	}
 
 	// Sanitize recurrence timezone.
 	if orig.GetRecurrence() != nil {
