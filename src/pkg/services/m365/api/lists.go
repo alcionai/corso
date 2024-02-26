@@ -345,25 +345,85 @@ func cloneColumnDefinitionable(
 	newColumn := models.NewColumnDefinition()
 
 	// column attributes
-	newColumn.SetName(orig.GetName())
-	newColumn.SetOdataType(orig.GetOdataType())
-	newColumn.SetPropagateChanges(orig.GetPropagateChanges())
-	newColumn.SetReadOnly(orig.GetReadOnly())
-	newColumn.SetRequired(orig.GetRequired())
-	newColumn.SetAdditionalData(orig.GetAdditionalData())
-	newColumn.SetDescription(orig.GetDescription())
-	newColumn.SetDisplayName(orig.GetDisplayName())
-	newColumn.SetSourceColumn(orig.GetSourceColumn())
-	newColumn.SetSourceContentType(orig.GetSourceContentType())
-	newColumn.SetHidden(orig.GetHidden())
-	newColumn.SetIndexed(orig.GetIndexed())
-	newColumn.SetIsDeletable(orig.GetIsDeletable())
-	newColumn.SetIsReorderable(orig.GetIsReorderable())
-	newColumn.SetIsSealed(orig.GetIsSealed())
-	newColumn.SetTypeEscaped(orig.GetTypeEscaped())
-	newColumn.SetColumnGroup(orig.GetColumnGroup())
-	newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+	if orig.GetName() != nil {
+		newColumn.SetName(orig.GetName())
+	}
 
+	if orig.GetOdataType() != nil {
+		newColumn.SetOdataType(orig.GetOdataType())
+	}
+
+	if orig.GetPropagateChanges() != nil {
+		newColumn.SetPropagateChanges(orig.GetPropagateChanges())
+	}
+
+	if orig.GetReadOnly() != nil {
+		newColumn.SetReadOnly(orig.GetReadOnly())
+	}
+
+	if orig.GetRequired() != nil {
+		newColumn.SetRequired(orig.GetRequired())
+	}
+
+	if orig.GetRequired() != nil {
+		newColumn.SetRequired(orig.GetRequired())
+	}
+
+	if orig.GetRequired() != nil {
+		newColumn.SetRequired(orig.GetRequired())
+	}
+
+	if orig.GetAdditionalData() != nil {
+		newColumn.SetAdditionalData(orig.GetAdditionalData())
+	}
+
+	if orig.GetDescription() != nil {
+		newColumn.SetDescription(orig.GetDescription())
+	}
+
+	if orig.GetDisplayName() != nil {
+		newColumn.SetDisplayName(orig.GetDisplayName())
+	}
+
+	if orig.GetSourceColumn() != nil {
+		newColumn.SetSourceColumn(orig.GetSourceColumn())
+	}
+
+	if orig.GetSourceContentType() != nil {
+		newColumn.SetSourceContentType(orig.GetSourceContentType())
+	}
+
+	if orig.GetHidden() != nil {
+		newColumn.SetHidden(orig.GetHidden())
+	}
+
+	if orig.GetIndexed() != nil {
+		newColumn.SetIndexed(orig.GetIndexed())
+	}
+
+	if orig.GetIsDeletable() != nil {
+		newColumn.SetIsDeletable(orig.GetIsDeletable())
+	}
+
+	if orig.GetIsReorderable() != nil {
+		newColumn.SetIsReorderable(orig.GetIsReorderable())
+	}
+
+	if orig.GetIsSealed() != nil {
+		newColumn.SetIsSealed(orig.GetIsSealed())
+	}
+
+	if orig.GetTypeEscaped() != nil {
+		newColumn.SetTypeEscaped(orig.GetTypeEscaped())
+	}
+
+	if orig.GetColumnGroup() != nil {
+		newColumn.SetColumnGroup(orig.GetColumnGroup())
+	}
+
+	if orig.GetEnforceUniqueValues() != nil {
+		newColumn.SetEnforceUniqueValues(orig.GetEnforceUniqueValues())
+	}
 	// column types
 	setColumnType(newColumn, orig, columnNames)
 
