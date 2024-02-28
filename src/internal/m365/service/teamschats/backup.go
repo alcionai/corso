@@ -145,9 +145,13 @@ func backupChats(
 		scope.Category().PathType().HumanString())
 	defer close(progressMessage)
 
+	qp := graph.QueryParams{
+		ProtectedResource: bc.producerConfig.ProtectedResource,
+		TenantID:          bc.creds.AzureTenantID,
+	}
+
 	bh := teamschats.NewUsersChatsBackupHandler(
-		bc.creds.AzureTenantID,
-		bc.producerConfig.ProtectedResource.ID(),
+		qp,
 		bc.apiCli.Chats())
 
 	// Always disable lazy reader for channels until #4321 support is added

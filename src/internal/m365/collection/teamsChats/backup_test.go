@@ -51,15 +51,12 @@ type mockBackupHandler struct {
 }
 
 func (bh mockBackupHandler) container() container[models.Chatable] {
-	return chatContainer()
+	return container[models.Chatable]{}
 }
 
 //lint:ignore U1000 required for interface compliance
-func (bh mockBackupHandler) getContainer(
-	context.Context,
-	api.CallConfig,
-) (container[models.Chatable], error) {
-	return chatContainer(), nil
+func (bh mockBackupHandler) getContainer() container[models.Chatable] {
+	return container[models.Chatable]{}
 }
 
 func (bh mockBackupHandler) getItemIDs(
@@ -85,7 +82,7 @@ func (bh mockBackupHandler) CanonicalPath() (path.Path, error) {
 }
 
 //lint:ignore U1000 false linter issue due to generics
-func (bh mockBackupHandler) getItem(
+func (bh mockBackupHandler) fillItem(
 	_ context.Context,
 	chat models.Chatable,
 ) (models.Chatable, *details.TeamsChatsInfo, error) {

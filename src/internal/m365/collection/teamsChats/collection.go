@@ -66,7 +66,7 @@ func updateStatus(
 // or notMoved (if they match).
 func NewCollection[I chatsItemer](
 	baseCol data.BaseCollection,
-	getter getItemer[I],
+	filler fillItemer[I],
 	protectedResource string,
 	items []I,
 	contains container[I],
@@ -76,7 +76,7 @@ func NewCollection[I chatsItemer](
 		BaseCollection:    baseCol,
 		items:             items,
 		contains:          contains,
-		getter:            getter,
+		filler:            filler,
 		statusUpdater:     statusUpdater,
 		stream:            make(chan data.Item, collectionChannelBufferSize),
 		protectedResource: protectedResource,
@@ -96,7 +96,7 @@ type lazyFetchCollection[I chatsItemer] struct {
 
 	items []I
 
-	getter getItemer[I]
+	filler fillItemer[I]
 
 	statusUpdater support.StatusUpdater
 }
@@ -166,9 +166,9 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 
 			col.stream <- data.NewLazyItemWithInfo(
 				ictx,
-				&lazyItemGetter[I]{
+				&lazyItemFiller[I]{
 					modTime:      modTime,
-					getter:       col.getter,
+					filler:       col.filler,
 					resourceID:   col.protectedResource,
 					item:         item,
 					containerIDs: col.FullPath().Folders(),
@@ -191,8 +191,8 @@ func (col *lazyFetchCollection[I]) streamItems(ctx context.Context, errs *fault.
 	wg.Wait()
 }
 
-type lazyItemGetter[I chatsItemer] struct {
-	getter       getItemer[I]
+type lazyItemFiller[I chatsItemer] struct {
+	filler       fillItemer[I]
 	resourceID   string
 	item         I
 	parentPath   string
@@ -201,14 +201,14 @@ type lazyItemGetter[I chatsItemer] struct {
 	contains     container[I]
 }
 
-func (lig *lazyItemGetter[I]) GetData(
+func (lig *lazyItemFiller[I]) GetData(
 	ctx context.Context,
 	errs *fault.Bus,
 ) (io.ReadCloser, *details.ItemInfo, bool, error) {
 	writer := kjson.NewJsonSerializationWriter()
 	defer writer.Close()
 
-	item, info, err := lig.getter.getItem(ctx, lig.item)
+	item, info, err := lig.filler.fillItem(ctx, lig.item)
 	if err != nil {
 		// For items that were deleted in flight, add the skip label so that
 		// they don't lead to recoverable failures during backup.
