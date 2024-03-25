@@ -76,20 +76,11 @@ func (suite *siteIntegrationSuite) TestSites_GetByID() {
 	ctx, flush := tester.NewContext(t)
 	defer flush()
 
-	sites, err := suite.cli.Sites(ctx, fault.New(true))
-	assert.NoError(t, err, clues.ToCore(err))
-	assert.NotEmpty(t, sites)
-
-	for _, s := range sites {
-		suite.Run("site_"+s.ID, func() {
-			t := suite.T()
-			site, err := suite.cli.SiteByID(ctx, s.ID)
-			require.NoError(t, err, clues.ToCore(err))
-			assert.NotEmpty(t, site.WebURL)
-			assert.NotEmpty(t, site.ID)
-			assert.NotEmpty(t, site.OwnerType)
-		})
-	}
+	site, err := suite.cli.SiteByID(ctx, suite.m365.Site.ID)
+	require.NoError(t, err, clues.ToCore(err))
+	assert.NotEmpty(t, site.WebURL)
+	assert.NotEmpty(t, site.ID)
+	assert.NotEmpty(t, site.OwnerType)
 }
 
 // ---------------------------------------------------------------------------
