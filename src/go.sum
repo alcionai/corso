@@ -23,8 +23,8 @@ github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c h1:QtARFaqYKtGjmEej
 github.com/alcionai/clues v0.0.0-20240125221452-9fc7746dd20c/go.mod h1:1YJwJy3W6GGsC2UiDAEWABUjgvT8OZHjKs8OoaXeKbw=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a h1:4nhM0NM1qtUT1s55rQ+D0Xw1Re5mIU9/crjEl6KdE+k=
 github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a/go.mod h1:b7P5ygho6SYE+VIqpxA6QkYfv4teeyG4MKqB3utRu98=
-github.com/alcionai/kopia v0.12.2-0.20240116215733-ec3d100029fe h1:nLS5pxhm04Jz4+qeipNlxdyPGxqNWpBu8UGkRYpWoIw=
-github.com/alcionai/kopia v0.12.2-0.20240116215733-ec3d100029fe/go.mod h1:QFRSOUQzZfKE3hKVBHP7hxOn5WyrEmdBtfN5wkib/eA=
+github.com/alcionai/kopia v0.12.2-0.20240322180947-41471159a0a4 h1:3YZ70H3mkUgwiHLiNvukrqh2awRgfl1RAkbV0IoUqqk=
+github.com/alcionai/kopia v0.12.2-0.20240322180947-41471159a0a4/go.mod h1:QFRSOUQzZfKE3hKVBHP7hxOn5WyrEmdBtfN5wkib/eA=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
