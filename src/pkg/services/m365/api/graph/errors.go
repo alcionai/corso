@@ -127,6 +127,12 @@ var (
 // error categorization
 // ---------------------------------------------------------------------------
 
+// ErrResourceNotFound is a special case handler to differentiate from the
+// more generic core.ErrNotFound.  Two rules for usage, to preserve sanity:
+// 1. it should get stacked on top of a clues.NotFound error.
+// 2. it should not be investigated above the api layer.
+var ErrResourceNotFound = clues.New("resource not found")
+
 func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 	if err == nil {
 		return nil
@@ -140,8 +146,11 @@ func stackWithCoreErr(ctx context.Context, err error, traceDepth int) error {
 		err = clues.Stack(core.ErrAuthTokenExpired)
 	case isErrApplicationThrottled(ode, err):
 		err = clues.Stack(core.ErrApplicationThrottled, err)
-	case isErrUserNotFound(ode, err):
-		err = clues.Stack(core.ErrNotFound, err)
+	case isErrResourceNotFound(ode, err):
+		// stack both resourceNotFound and notFound to ensure some graph api
+		// internals can distinguish between the two cases (where possible).
+		// layers above the api should still handle only the core notFound.
+		err = clues.Stack(ErrResourceNotFound, core.ErrNotFound, err)
 	case isErrResourceLocked(ode, err):
 		err = clues.Stack(core.ErrResourceNotAccessible, err)
 	case isErrInsufficientAuthorization(ode, err):
@@ -204,7 +213,7 @@ func isErrNotFound(ode oDataErr, err error) bool {
 			notFound)
 }
 
-func isErrUserNotFound(ode oDataErr, err error) bool {
+func isErrResourceNotFound(ode oDataErr, err error) bool {
 	if ode.hasErrorCode(err, RequestResourceNotFound, invalidUser) {
 		return true
 	}

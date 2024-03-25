@@ -185,26 +185,19 @@ func appendIfErr(errs []error, err error) []error {
 	return append(errs, err)
 }
 
-// EvaluateMailboxError checks whether the provided error can be interpreted
-// as "user does not have a mailbox", or whether it is some other error.  If
-// the former (no mailbox), returns nil, otherwise returns an error.
-func EvaluateMailboxError(err error) error {
-	if err == nil {
-		return nil
-	}
-
+// IsMailboxErrorIgnorable checks whether the provided error (which is assumed to
+// have originated from a call to retrieve a user's mailbox) can be safely ignored
+// or not.  In particular, the igorable cases are when the mail folder is not found
+// and when an authentication issue occurs.
+func IsMailboxErrorIgnorable(err error) bool {
 	// must occur before MailFolderNotFound, due to overlapping cases.
-	if errors.Is(err, core.ErrResourceNotAccessible) {
-		return err
+	if errors.Is(err, core.ErrResourceNotAccessible) || errors.Is(err, graph.ErrResourceNotFound) {
+		return false
 	}
 
-	if errors.Is(err, core.ErrNotFound) ||
+	return err != nil && (errors.Is(err, core.ErrNotFound) ||
 		graph.IsErrExchangeMailFolderNotFound(err) ||
-		graph.IsErrAuthenticationError(err) {
-		return nil
-	}
-
-	return err
+		graph.IsErrAuthenticationError(err))
 }
 
 // IsAnyErrMailboxNotFound inspects the secondary errors inside MailboxInfo and
