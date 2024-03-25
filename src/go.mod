@@ -3,7 +3,7 @@ module github.com/alcionai/corso/src
 go 1.21
 
 replace (
-	github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20240116215733-ec3d100029fe
+	github.com/kopia/kopia => github.com/alcionai/kopia v0.12.2-0.20240322180947-41471159a0a4
 
 	// Alcion fork removes the validation of email addresses as we might get incomplete email addresses
 	github.com/xhit/go-simple-mail/v2 v2.16.0 => github.com/alcionai/go-simple-mail/v2 v2.0.0-20231220071811-c70ebcd9a41a
