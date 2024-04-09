@@ -53,7 +53,13 @@ runs:
         AZURE_CLIENT_ID: ${{ inputs.azure-client-id }}
         AZURE_CLIENT_SECRET: ${{ inputs.azure-client-secret }}
         AZURE_TENANT_ID: ${{ inputs.azure-tenant-id }}
-      run: ./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
+      run: |
+        for ($ATTEMPT_NUM = 1; $ATTEMPT_NUM -le 3; $ATTEMPT_NUM++)
+        {
+          if (./exchangePurge.ps1 -User ${{ inputs.user }} -FolderNamePurgeList PersonMetadata -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}) {
+            break
+          }
+        }
 
     # TODO(ashmrtn): Re-enable when we figure out errors we're seeing with Get-Mailbox call.
     #- name: Reset retention for all mailboxes to 0
@@ -77,7 +83,12 @@ runs:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
       run: |
-        ./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}
+        for ($ATTEMPT_NUM = 1; $ATTEMPT_NUM -le 3; $ATTEMPT_NUM++)
+        {
+          if (./onedrivePurge.ps1 -User ${{ inputs.user }} -FolderPrefixPurgeList "${{ inputs.folder-prefix }}".Split(",") -PurgeBeforeTimestamp ${{ inputs.older-than }}) {
+            break
+          }
+        }
 
     ################################################################################################################
     # Sharepoint
@@ -90,4 +101,11 @@ runs:
       env:
         M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
         M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
-      run: ./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -LibraryPrefixDeleteList ${{ inputs.library-prefix && inputs.library-prefix || '[]' }} -PurgeBeforeTimestamp ${{ inputs.older-than }}
+      run: |
+        for ($ATTEMPT_NUM = 1; $ATTEMPT_NUM -le 3; $ATTEMPT_NUM++)
+        {
+          if (./onedrivePurge.ps1 -Site ${{ inputs.site }} -LibraryNameList "${{ inputs.libraries }}".split(",") -FolderPrefixPurgeList ${{ inputs.folder-prefix }} -LibraryPrefixDeleteList ${{ inputs.library-prefix && inputs.library-prefix || '[]' }} -PurgeBeforeTimestamp ${{ inputs.older-than }}) {
+            break
+          }
+        }
+
