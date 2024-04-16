@@ -32,6 +32,9 @@ func (suite *ConversationsPagerIntgSuite) SetupSuite() {
 }
 
 func (suite *ConversationsPagerIntgSuite) TestEnumerateConversations_withThreadsAndPosts() {
+	// Skip
+	suite.T().Skip("CorsoCITeam group mailbox backup is broken")
+
 	var (
 		t  = suite.T()
 		ac = suite.its.ac.Conversations()

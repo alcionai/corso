@@ -300,7 +300,7 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 		ins    = idname.NewCache(map[string]string{suite.m365.Group.ID: suite.m365.Group.ID})
 		cats   = []path.CategoryType{
 			path.ChannelMessagesCategory,
-			// TODO(pandeyabs): CorsoCIGroup group mailbox backup is currently broken because of invalid
+			// TODO(pandeyabs): CorsoCITeam group mailbox backup is currently broken because of invalid
 			// odata.NextLink which causes an infinite loop during paging. Disabling conversations tests while
 			// we go fix the group mailbox.
 			// path.ConversationPostsCategory,
