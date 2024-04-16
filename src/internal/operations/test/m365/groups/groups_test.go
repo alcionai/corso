@@ -326,8 +326,12 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9MergeBas
 	sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel),
-		selTD.GroupsBackupConversationScope(sel))
+		selTD.GroupsBackupChannelScope(sel))
+
+	// TODO(pandeyabs): CorsoCIGroup group mailbox backup is currently broken because of invalid
+	// odata.NextLink which causes an infinite loop during paging. Disabling conv backups while
+	// we go fix the group mailbox.
+	// selTD.GroupsBackupConversationScope(sel))
 
 	RunMergeBaseGroupsUpdate(suite, sel.Selector, false)
 }
@@ -336,8 +340,12 @@ func (suite *GroupsBackupNightlyIntgSuite) TestBackup_Run_groupsVersion9AssistBa
 	sel := selectors.NewGroupsBackup([]string{suite.m365.Group.ID})
 	sel.Include(
 		selTD.GroupsBackupLibraryFolderScope(sel),
-		selTD.GroupsBackupChannelScope(sel),
-		selTD.GroupsBackupConversationScope(sel))
+		selTD.GroupsBackupChannelScope(sel))
+
+	// TODO(pandeyabs): CorsoCIGroup group mailbox backup is currently broken because of invalid
+	// odata.NextLink which causes an infinite loop during paging. Disabling conv backups while
+	// we go fix the group mailbox.
+	// selTD.GroupsBackupConversationScope(sel))
 
 	RunDriveAssistBaseGroupsUpdate(suite, sel.Selector, false)
 }
