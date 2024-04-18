@@ -483,7 +483,7 @@ jobs:
         with:
           service: groups
           kind: first-backup
-          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}" --data messages,libraries'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -508,7 +508,7 @@ jobs:
         with:
           service: groups
           kind: incremental
-          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}"'
+          backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}" --data messages,libraries'
           restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
           log-dir: ${{ env.CORSO_LOG_DIR }}

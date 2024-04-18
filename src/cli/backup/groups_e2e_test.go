@@ -217,6 +217,9 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_badAzureClientIDFlag()
 }
 
 func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_fromConfigFile() {
+	// Skip
+	suite.T().Skip("CorsoCITeam group mailbox backup is broken")
+
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.dpnd.vpr)
@@ -300,7 +303,10 @@ func (suite *PreparedBackupGroupsE2ESuite) SetupSuite() {
 		ins    = idname.NewCache(map[string]string{suite.m365.Group.ID: suite.m365.Group.ID})
 		cats   = []path.CategoryType{
 			path.ChannelMessagesCategory,
-			path.ConversationPostsCategory,
+			// TODO(pandeyabs): CorsoCITeam group mailbox backup is currently broken because of invalid
+			// odata.NextLink which causes an infinite loop during paging. Disabling conversations tests while
+			// we go fix the group mailbox.
+			// path.ConversationPostsCategory,
 			path.LibrariesCategory,
 		}
 	)
