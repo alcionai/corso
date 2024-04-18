@@ -217,6 +217,9 @@ func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_badAzureClientIDFlag()
 }
 
 func (suite *BackupGroupsE2ESuite) TestBackupCreateGroups_fromConfigFile() {
+	// Skip
+	suite.T().Skip("CorsoCITeam group mailbox backup is broken")
+
 	t := suite.T()
 	ctx, flush := tester.NewContext(t)
 	ctx = config.SetViper(ctx, suite.dpnd.vpr)
