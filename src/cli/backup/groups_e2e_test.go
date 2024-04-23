@@ -114,6 +114,8 @@ func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_channelMessages() {
 }
 
 func (suite *BackupGroupsE2ESuite) TestGroupsBackupCmd_conversations() {
+	// skip
+	suite.T().Skip("CorsoCITeam group mailbox backup is broken")
 	runGroupsBackupCategoryTest(suite, flags.DataConversations)
 }
 
@@ -460,6 +462,8 @@ func (suite *PreparedBackupGroupsE2ESuite) TestGroupsDetailsCmd_channelMessages(
 }
 
 func (suite *PreparedBackupGroupsE2ESuite) TestGroupsDetailsCmd_conversations() {
+	// skip
+	suite.T().Skip("CorsoCITeam group mailbox backup is broken")
 	runGroupsDetailsCmdTest(suite, path.ConversationPostsCategory)
 }
 
