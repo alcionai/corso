@@ -463,7 +463,7 @@ jobs:
           go-version-file: src/go.mod
 
       - name: Go Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           # Keep pinned to a verson as sometimes updates will add new lint
           # failures in unchanged code.
