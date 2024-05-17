@@ -58,6 +58,7 @@ then click **Add permissions**.
 | Contacts.ReadWrite | Application | Read and write contacts in all mailboxes |
 | Directory.Read.All | Application | Read all organization directory data |
 | Files.ReadWrite.All | Application | Read and write files in all site collections |
+| Group.ReadWrite.All | Application | Read and write all groups |
 | MailboxSettings.Read | Application | Read all user mailbox settings |
 | Mail.ReadWrite | Application | Read and write mail in all mailboxes |
 | Member.Read.Hidden | Application | Read hidden group memberships |
