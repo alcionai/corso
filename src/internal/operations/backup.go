@@ -269,19 +269,25 @@ func (op *BackupOperation) Run(ctx context.Context) (err error) {
 		"disable_assist_backup", op.disableAssistBackup)
 
 	defer func() {
+		data := map[string]any{
+			events.BackupID:   op.Results.BackupID,
+			events.DataStored: op.Results.BytesUploaded,
+			events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
+			events.EndTime:    dttm.Format(op.Results.CompletedAt),
+			events.Resources:  op.Results.ResourceOwners,
+			events.Service:    op.Selectors.PathService().String(),
+			events.StartTime:  dttm.Format(op.Results.StartedAt),
+			events.Status:     op.Status.String(),
+		}
+
+		if op.Errors.Failure() != nil {
+			data[events.ErrorMessage] = op.Errors.Errors().Failure.Msg
+		}
+
 		op.bus.Event(
 			ctx,
 			events.BackupEnd,
-			map[string]any{
-				events.BackupID:   op.Results.BackupID,
-				events.DataStored: op.Results.BytesUploaded,
-				events.Duration:   op.Results.CompletedAt.Sub(op.Results.StartedAt),
-				events.EndTime:    dttm.Format(op.Results.CompletedAt),
-				events.Resources:  op.Results.ResourceOwners,
-				events.Service:    op.Selectors.PathService().String(),
-				events.StartTime:  dttm.Format(op.Results.StartedAt),
-				events.Status:     op.Status.String(),
-			})
+			data)
 	}()
 
 	// -----
