@@ -492,7 +492,7 @@ jobs:
 
       # I could not find a way to install tree-grepper without nix
       # https://github.com/BrianHicks/tree-grepper/issues/293
-      - uses: cachix/install-nix-action@v25
+      - uses: cachix/install-nix-action@V28
       - uses: cachix/cachix-action@v14
         with:
             name: tree-grepper
