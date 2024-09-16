@@ -1,5 +1,4 @@
 name: Publish binary
-description: Create corso binary GitHub artifacts.
 on:
   workflow_dispatch:
 

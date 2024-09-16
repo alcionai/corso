@@ -1,5 +1,5 @@
 name: Publish Binary
-description: Publish website content.
+description: Publish binary artifacts.
 
 inputs:
   version:

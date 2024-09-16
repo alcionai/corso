@@ -1,4 +1,5 @@
 name: Publish Website
+description: Publish website artifacts.
 
 inputs:
   aws-iam-role:
