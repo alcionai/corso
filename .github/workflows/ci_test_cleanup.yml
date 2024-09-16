@@ -33,6 +33,9 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
       - name: Notify failure in teams
         if: failure()
@@ -70,6 +73,9 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
       - name: Notify failure in teams
         if: failure()

@@ -6,12 +6,6 @@ Param (
     [Parameter(Mandatory = $False, HelpMessage = "Site for which to delete folders in SharePoint")]
     [String]$Site,
 
-    [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin email")]
-    [String]$AdminUser = $ENV:M365_TENANT_ADMIN_USER,
-
-    [Parameter(Mandatory = $False, HelpMessage = "Exchange Admin password")]
-    [String]$AdminPwd = $ENV:M365_TENANT_ADMIN_PASSWORD,
-
     [Parameter(Mandatory = $False, HelpMessage = "Document library root. Can add multiple comma-separated values")]
     [String[]]$LibraryNameList = @(),
 
@@ -22,7 +16,16 @@ Param (
     [String[]]$FolderPrefixPurgeList,
 
     [Parameter(Mandatory = $False, HelpMessage = "Delete document libraries with this prefix")]
-    [String[]]$LibraryPrefixDeleteList = @()
+    [String[]]$LibraryPrefixDeleteList = @(),
+
+    [Parameter(Mandatory = $False, HelpMessage = "Tenant domain")]
+    [String]$TenantDomain = $ENV:TENANT_DOMAIN,
+
+    [Parameter(Mandatory = $False, HelpMessage = "Azure ClientId")]
+    [String]$ClientId = $ENV:AZURE_CLIENT_ID,
+
+    [Parameter(Mandatory = $False, HelpMessage = "Azure AppCert")]
+    [String]$AppCert = $ENV:AZURE_APP_CERT
 )
 
 Set-StrictMode -Version 2.0
@@ -37,7 +40,7 @@ function Get-TimestampFromFolderName {
 
     $name = $folder.Name
 
-    #fallback on folder create time 
+    #fallback on folder create time
     [datetime]$timestamp = $folder.TimeCreated
 
     try {
@@ -66,7 +69,7 @@ function Get-TimestampFromListName {
 
     $name = $list.Title
 
-    #fallback on list create time 
+    #fallback on list create time
     [datetime]$timestamp = $list.LastItemUserModifiedDate
 
     try {
@@ -106,8 +109,9 @@ function Purge-Library {
     Write-Host "`nPurging library: $LibraryName"
 
     $foldersToPurge = @()
-    $folders = Get-PnPFolderItem -FolderSiteRelativeUrl $LibraryName -ItemType Folder 
+    $folders = Get-PnPFolderItem -FolderSiteRelativeUrl $LibraryName -ItemType Folder
 
+    Write-Host "`nFolders: $folders"
     foreach ($f in $folders) {
         $folderName = $f.Name
         $createTime = Get-TimestampFromFolderName -Folder $f
@@ -159,7 +163,7 @@ function Delete-LibraryByPrefix {
     Write-Host "`nDeleting library: $LibraryNamePrefix"
 
     $listsToDelete = @()
-    $lists = Get-PnPList 
+    $lists = Get-PnPList
 
     foreach ($l in $lists) {
         $listName = $l.Title
@@ -183,7 +187,7 @@ function Delete-LibraryByPrefix {
             Write-Host "Deleting list: "$l.Title
             try {
                 $listInfo = Get-PnPList -Identity $l.Id | Select-Object -Property Hidden
-                
+
                 # Check if the 'hidden' property is true
                 if ($listInfo.Hidden) {
                     Write-Host "List: $($l.Title) is hidden. Skipping..."
@@ -209,8 +213,8 @@ if (-not (Get-Module -ListAvailable -Name PnP.PowerShell)) {
 }
 
 
-if ([string]::IsNullOrEmpty($AdminUser) -or [string]::IsNullOrEmpty($AdminPwd)) {
-    Write-Host "Admin user name and password required as arguments or environment variables."
+if ([string]::IsNullOrEmpty($ClientId) -or [string]::IsNullOrEmpty($AppCert)) {
+    Write-Host "ClientId and AppCert required as arguments or environment variables."
     Exit
 }
 
@@ -251,12 +255,8 @@ else {
     Exit
 }
 
-
-$password = convertto-securestring -String $AdminPwd -AsPlainText -Force
-$cred = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $AdminUser, $password
-
 Write-Host "`nAuthenticating and connecting to $SiteUrl"
-Connect-PnPOnline -Url $siteUrl -Credential $cred
+Connect-PnPOnline -Url $siteUrl -ClientId $ClientId -CertificateBase64Encoded $AppCert -Tenant $TenantDomain
 Write-Host "Connected to $siteUrl`n"
 
 # ensure that there are no unexpanded entries in the list of parameters
