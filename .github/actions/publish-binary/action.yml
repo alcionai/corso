@@ -1,4 +1,5 @@
 name: Publish Binary
+description: Publish website content.
 
 inputs:
   version:

@@ -1,4 +1,5 @@
 name: Purge M365 User Data
+description: Deletes M365 data generated during CI tests.
 
 # Hard deletion of an m365 user's data.  Our CI processes create a lot
 # of data churn (creation and immediate deletion) of files, the likes

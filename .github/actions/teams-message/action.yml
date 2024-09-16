@@ -1,4 +1,5 @@
 name: Send a message to Teams
+description: Send messages to communication apps.
 
 inputs:
   msg:
