@@ -48,7 +48,7 @@ jobs:
   # ----------------------------------------------------------------------------------------------------
 
   Test-Suite-Trusted:
-    needs: [ Checkout, SetM365App] 
+    needs: [Checkout, SetM365App]
     environment: Testing
     runs-on: ubuntu-latest
     defaults:
@@ -100,9 +100,9 @@ jobs:
           -timeout 2h  \
           ./... 2>&1 | tee ./testlog/gotest-nightly.log | gotestfmt -hide successful-tests
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Logging & Notifications
+      # Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -118,5 +118,5 @@ jobs:
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] Nightly Checks"
+          msg: "[COROS FAILED] Nightly Checks"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

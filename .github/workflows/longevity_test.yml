@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       user:
-        description: 'User to run longevity test on'
+        description: "User to run longevity test on"
 
 permissions:
   # required to retrieve AWS credentials
@@ -23,7 +23,7 @@ jobs:
     uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
   Longevity-Tests:
-    needs: [ SetM365App ]
+    needs: [SetM365App]
     environment: Testing
     runs-on: ubuntu-latest
     env:
@@ -37,7 +37,7 @@ jobs:
       CORSO_LOG_FILE: ${{ github.workspace }}/src/testlog/run-longevity.log
       RESTORE_DEST_PFX: Corso_Test_Longevity_
       TEST_USER: ${{ github.event.inputs.user != '' && github.event.inputs.user || vars.CORSO_M365_TEST_USER_ID }}
-      PREFIX: 'longevity'
+      PREFIX: "longevity"
 
       # Options for retention.
       RETENTION_MODE: GOVERNANCE
@@ -46,7 +46,7 @@ jobs:
     defaults:
       run:
         working-directory: src
-        
+
     ############################################################################
     # setup
     steps:
@@ -78,7 +78,7 @@ jobs:
 
       - run: go build -o corso
         timeout-minutes: 10
-      
+
       - run: mkdir ${CORSO_LOG_DIR}
 
         # Use shorter-lived credentials obtained from assume-role since these
@@ -163,7 +163,7 @@ jobs:
 
           data=$( echo $resultjson | jq -r '.[0] | .id' )
           echo result=$data >> $GITHUB_OUTPUT
- 
+
       ##########################################################################
       # Onedrive
 
@@ -328,7 +328,7 @@ jobs:
           --hide-progress \
           --force \
           --json \
-          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt 
+          2>&1 | tee ${{ env.CORSO_LOG_DIR }}/maintenance_metadata.txt
 
       - name: Maintenance test Weekly
         id: maintenance-test-weekly
@@ -392,5 +392,5 @@ jobs:
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] Longevity Test"
+          msg: "[CORSO FAILED] Longevity Test"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

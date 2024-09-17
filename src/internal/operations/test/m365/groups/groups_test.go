@@ -175,7 +175,7 @@ func runGroupsIncrementalBackupTests(
 		suite,
 		opts,
 		m365.Group.ID,
-		m365.User.ID,
+		m365.SecondaryGroup.ID, // more reliable than user
 		path.GroupsService,
 		path.LibrariesCategory,
 		ic,
