@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       user:
-        description: 'User to run sanity test on'
+        description: "User to run sanity test on"
 
 permissions:
   # required to retrieve AWS credentials
@@ -23,7 +23,7 @@ jobs:
     uses: alcionai/corso/.github/workflows/accSelector.yaml@main
 
   Sanity-Tests:
-    needs: [ SetM365App ]
+    needs: [SetM365App]
     environment: Testing
     runs-on: ubuntu-latest
     env:
@@ -43,12 +43,11 @@ jobs:
     defaults:
       run:
         working-directory: src
-        
-##########################################################################################################################################
 
-# setup
+    ##########################################################################################################################################
+
+    # setup
     steps:
-
       - uses: actions/checkout@v4
 
       - name: Setup Golang with cache
@@ -64,9 +63,9 @@ jobs:
 
       - run: mkdir ${CORSO_LOG_DIR}
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Pre-Run cleanup
+      # Pre-Run cleanup
 
       # unlike CI tests, sanity tests are not expected to run concurrently.
       # however, the sanity yaml concurrency is set to a maximum of 1 run, preferring
@@ -91,6 +90,9 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
       - name: Purge CI-Produced Folders for Sites
         timeout-minutes: 30
@@ -99,17 +101,20 @@ jobs:
         with:
           site: ${{ vars.CORSO_M365_TEST_SITE_URL }}
           folder-prefix: ${{ env.RESTORE_DEST_PFX }}
-          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }} 
+          libraries: ${{ vars.CORSO_M365_TEST_SITE_LIBRARIES }}
           older-than: ${{ env.NOW }}
           azure-client-id: ${{ secrets[needs.SetM365App.outputs.client_id_env] }}
           azure-client-secret: ${{ secrets[needs.SetM365App.outputs.client_secret_env] }}
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Repository commands
+      # Repository commands
 
       - name: Version Test
         timeout-minutes: 10
@@ -169,9 +174,9 @@ jobs:
             --mode complete \
             2>&1 | tee ${{ env.CORSO_LOG_DIR }}/gotest-repo-maintenance.log
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Exchange
+      # Exchange
 
       # generate new entries to roll into the next load test
       # only runs if the test was successful
@@ -193,8 +198,8 @@ jobs:
           service: exchange
           kind: first-backup
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-args: "--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
@@ -206,8 +211,8 @@ jobs:
           service: exchange
           kind: incremental
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-args: "--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -220,8 +225,8 @@ jobs:
           service: exchange
           kind: non-delta
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email" --disable-delta'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-args: "--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
@@ -234,16 +239,15 @@ jobs:
           service: exchange
           kind: non-delta-incremental
           backup-args: '--mailbox "${{ env.TEST_USER }}" --data "email"'
-          restore-args: '--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}'
+          restore-args: "--email-folder ${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.repo-init.outputs.result }}"
           backup-id: ${{ steps.exchange-backup.outputs.backup-id }}
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
+      ##########################################################################################################################################
 
-##########################################################################################################################################
-
-# Onedrive
+      # Onedrive
 
       # generate new entries for test
       - name: OneDrive - Create new data
@@ -270,8 +274,8 @@ jobs:
           service: onedrive
           kind: first-backup
           backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-args: "--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
@@ -295,14 +299,14 @@ jobs:
           service: onedrive
           kind: incremental
           backup-args: '--user "${{ env.TEST_USER }}"'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}'
+          restore-args: "--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-onedrive.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Sharepoint Library
+      # Sharepoint Library
 
       # generate new entries for test
       - name: SharePoint - Create new data
@@ -330,8 +334,8 @@ jobs:
           service: sharepoint
           kind: first-backup
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          restore-args: "--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: libraries
@@ -357,15 +361,15 @@ jobs:
           service: sharepoint
           kind: incremental
           backup-args: '--site "${{ vars.CORSO_M365_TEST_SITE_URL }}" --data libraries'
-          restore-args: '--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}'
+          restore-args: "--folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}"
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-sharepoint.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
           category: libraries
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Sharepoint Lists
+      # Sharepoint Lists
 
       # generate new entries for test
       # The `awk | tr | sed` command chain is used to get a comma separated list of SharePoint list names.
@@ -418,7 +422,7 @@ jobs:
         working-directory: ./src/cmd/factory
         run: |
           suffix=$(date +"%Y-%m-%d_%H-%M-%S")
-          
+
           go run . sharepoint lists  \
             --site ${{ vars.CORSO_M365_TEST_SITE_URL }} \
             --user ${{ env.TEST_USER }} \
@@ -454,9 +458,9 @@ jobs:
           category: lists
           on-collision: copy
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Groups and Teams
+      # Groups and Teams
 
       # generate new entries for test
       - name: Groups - Create new data
@@ -484,7 +488,7 @@ jobs:
           service: groups
           kind: first-backup
           backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}" --data messages,libraries'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
@@ -510,13 +514,13 @@ jobs:
           kind: incremental
           backup-args: '--group "${{ vars.CORSO_M365_TEST_TEAM_ID }}" --data messages,libraries'
           restore-args: '--site "${{ vars.CORSO_M365_TEST_GROUPS_SITE_URL }}" --folder ${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
-          restore-container: '${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}'
+          restore-container: "${{ env.RESTORE_DEST_PFX }}${{ steps.new-data-creation-groups.outputs.result }}"
           log-dir: ${{ env.CORSO_LOG_DIR }}
           with-export: true
 
-##########################################################################################################################################
+      ##########################################################################################################################################
 
-# Logging & Notifications
+      # Logging & Notifications
 
       # Upload the original go test output as an artifact for later review.
       - name: Upload test log
@@ -532,5 +536,5 @@ jobs:
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] Sanity Tests"
+          msg: "[CORSO FAILED] Sanity Tests"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

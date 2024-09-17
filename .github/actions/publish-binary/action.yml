@@ -1,4 +1,5 @@
 name: Publish Binary
+description: Publish binary artifacts.
 
 inputs:
   version:

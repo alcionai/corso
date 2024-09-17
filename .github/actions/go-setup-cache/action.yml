@@ -1,4 +1,5 @@
 name: Setup and Cache Golang
+description: Build golang binaries for later use in CI.
 
 # clone of: https://github.com/magnetikonline/action-golang-cache/blob/main/action.yaml
 #

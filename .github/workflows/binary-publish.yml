@@ -40,5 +40,5 @@ jobs:
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] Publishing Binary"
+          msg: "[CORSO FAILED] Publishing Binary"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

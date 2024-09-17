@@ -12,7 +12,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        user: [ CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, '' ]
+        user: [CORSO_M365_TEST_USER_ID, CORSO_SECONDARY_M365_TEST_USER_ID, ""]
 
     steps:
       - uses: actions/checkout@v4
@@ -33,12 +33,15 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
       - name: Notify failure in teams
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] ${{ vars[matrix.user] }} CI Cleanup"
+          msg: "[CORSO FAILED] ${{ vars[matrix.user] }} CI Cleanup"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}
 
   Test-Site-Data-Cleanup:
@@ -47,7 +50,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        site: [ CORSO_M365_TEST_SITE_URL, CORSO_M365_TEST_GROUPS_SITE_URL ] 
+        site: [CORSO_M365_TEST_SITE_URL, CORSO_M365_TEST_GROUPS_SITE_URL]
 
     steps:
       - uses: actions/checkout@v4
@@ -70,10 +73,13 @@ jobs:
           azure-tenant-id: ${{ secrets.TENANT_ID }}
           m365-admin-user: ${{ secrets.M365_TENANT_ADMIN_USER }}
           m365-admin-password: ${{ secrets.M365_TENANT_ADMIN_PASSWORD }}
+          azure-pnp-client-id: ${{ secrets.AZURE_PNP_CLIENT_ID }}
+          azure-pnp-client-cert: ${{ secrets.AZURE_PNP_CLIENT_CERT }}
+          tenant-domain: ${{ vars.TENANT_DOMAIN }}
 
       - name: Notify failure in teams
         if: failure()
         uses: ./.github/actions/teams-message
         with:
-          msg: "[FAILED] ${{ vars[matrix.site] }} CI Cleanup"
+          msg: "[CORSO FAILED] ${{ vars[matrix.site] }} CI Cleanup"
           teams_url: ${{ secrets.TEAMS_CORSO_CI_WEBHOOK_URL }}

@@ -701,10 +701,48 @@ func (ode oDataErr) errMessageMatchesAllFilters(err error, fs ...filters.Filter)
 // ---------------------------------------------------------------------------
 // other helpers
 // ---------------------------------------------------------------------------
+const (
+	// JWTQueryParam is a query param embed in graph download URLs which holds
+	// JWT token.
+	JWTQueryParam = "tempauth"
+	// base64 encoded json header. Contains {"alg":"HS256","typ":"JWT"}
+	//
+	// Hardcoding this instead of generating it every time on the fly.
+	// The algorithm doesn't matter as we are not verifying the token.
+	jwtHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+)
 
-// JWTQueryParam is a query param embed in graph download URLs which holds
-// JWT token.
-const JWTQueryParam = "tempauth"
+func sanitizeToken(rawToken string) string {
+	segments := strings.Split(rawToken, ".")
+
+	// Check if the token has the old format, in which it has 3 segments and
+	// conforms to jwt spec. Format is seg1.seg2.seg3.
+	if len(segments) == 3 {
+		return rawToken
+	}
+
+	// Check if it is a msft proprietary token in which it has 4 segments and
+	// doesn't meet jwt spec. Format is v1.seg1.seg2.seg3. Return a token which
+	// meets jwt spec.
+	//
+	// In this proprietary token, there is no jwt header segment. Also, the claims
+	// section is split into first and segments. The first segment contains the
+	// `exp` claim that we are interested in.
+	//
+	// The second segment contains the rest of the claims, but likely encrypted.
+	// We don't need it so discard it. The last segment contains the signature which
+	// we don't care about either, as we are not verifying the token. So append it as is.
+	//
+	// It's okay if the sanitized token still doesn't meet jwt spec. It'll fail decoding
+	// later and we have fallbacks for that.
+	if len(segments) == 4 && segments[0] == "v1" {
+		return jwtHeader + "." + segments[1] + "." + segments[3]
+	}
+
+	// If MSFT change the token format again on us, just return empty string and let caller
+	// handle it as an error.
+	return ""
+}
 
 // IsURLExpired inspects the jwt token embed in the item download url
 // and returns true if it is expired.
@@ -715,10 +753,18 @@ func IsURLExpired(
 	expiredErr error,
 	err error,
 ) {
+	ctx = clues.Add(ctx, "checked_url", urlStr)
+
 	// Extract the raw JWT string from the download url.
 	rawJWT, err := common.GetQueryParamFromURL(urlStr, JWTQueryParam)
 	if err != nil {
 		return nil, clues.WrapWC(ctx, err, "jwt query param not found")
+	}
+
+	// Token may have a proprietary format. Try to sanitize it to jwt format.
+	rawJWT = sanitizeToken(rawJWT)
+	if len(rawJWT) == 0 {
+		return nil, clues.WrapWC(ctx, err, "sanitizing jwt")
 	}
 
 	expired, err := jwt.IsJWTExpired(rawJWT)

@@ -1,4 +1,5 @@
 name: Backup Restore Test
+description: Run various backup/restore/export tests for a service.
 
 inputs:
   service:

@@ -1,4 +1,5 @@
 name: Lint Website
+description: Lint website content.
 
 inputs:
   version:

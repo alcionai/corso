@@ -1,4 +1,5 @@
 name: Purge M365 User Data
+description: Deletes M365 data generated during CI tests.
 
 # Hard deletion of an m365 user's data.  Our CI processes create a lot
 # of data churn (creation and immediate deletion) of files, the likes
@@ -30,12 +31,19 @@ inputs:
     description: Secret value of for AZURE_CLIENT_ID
   azure-client-secret:
     description: Secret value of for AZURE_CLIENT_SECRET
+  azure-pnp-client-id:
+    description: Secret value of AZURE_PNP_CLIENT_ID
+  azure-pnp-client-cert:
+    description: Base64 encoded private certificate for the azure-pnp-client-id (Secret value of AZURE_PNP_CLIENT_CERT)
   azure-tenant-id:
-    description: Secret value of for AZURE_TENANT_ID
+    description: Secret value of AZURE_TENANT_ID
   m365-admin-user:
     description: Secret value of for M365_TENANT_ADMIN_USER
   m365-admin-password:
     description: Secret value of for M365_TENANT_ADMIN_PASSWORD
+  tenant-domain:
+    description: The domain of the tenant (ex. 10rqc2.onmicrosft.com)
+    required: true
 
 runs:
   using: composite
@@ -80,8 +88,9 @@ runs:
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
-        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+        AZURE_CLIENT_ID: ${{ inputs.azure-pnp-client-id }}
+        AZURE_APP_CERT: ${{ inputs.azure-pnp-client-cert }}
+        TENANT_DOMAIN:  ${{ inputs.tenant-domain }}
       run: |
         for ($ATTEMPT_NUM = 1; $ATTEMPT_NUM -le 3; $ATTEMPT_NUM++)
         {
@@ -99,8 +108,9 @@ runs:
       shell: pwsh
       working-directory: ./src/cmd/purge/scripts
       env:
-        M365_TENANT_ADMIN_USER: ${{ inputs.m365-admin-user }}
-        M365_TENANT_ADMIN_PASSWORD: ${{ inputs.m365-admin-password }}
+        AZURE_CLIENT_ID: ${{ inputs.azure-pnp-client-id }}
+        AZURE_APP_CERT: ${{ inputs.azure-pnp-client-cert }}
+        TENANT_DOMAIN:  ${{ inputs.tenant-domain }}
       run: |
         for ($ATTEMPT_NUM = 1; $ATTEMPT_NUM -le 3; $ATTEMPT_NUM++)
         {
