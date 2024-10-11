@@ -8,6 +8,9 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
+> [!NOTE] 
+> **The Corso project is no longer actively maintained and has be been archived**.
+
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
 Microsoft 365 data. It provides a reliable, secure, and efficient data protection engine. Admins decide where to store
 the backup data and have the flexibility to perform backups of their desired service through an intuitive interface.
