@@ -1,3 +1,6 @@
+> [!NOTE] 
+> **The Corso project is no longer actively maintained and has been archived**.
+
 <p align="center">
     <img src="https://github.com/alcionai/corso/blob/main/website/static/img/corso_logo.svg?raw=true" alt="Corso Logo" width="100" />
 </p>
@@ -7,9 +10,6 @@
 [![Discord](https://img.shields.io/badge/discuss-discord-blue)](https://discord.gg/63DTTSnuhT)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-
-> [!NOTE] 
-> **The Corso project is no longer actively maintained and has been archived**.
 
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
 Microsoft 365 data. It provides a reliable, secure, and efficient data protection engine. Admins decide where to store
