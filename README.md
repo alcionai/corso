@@ -9,7 +9,7 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 > [!NOTE] 
-> **The Corso project is no longer actively maintained and has be been archived**.
+> **The Corso project is no longer actively maintained and has been archived**.
 
 Corso is the first open-source tool that aims to assist IT admins with the critical task of protecting their
 Microsoft 365 data. It provides a reliable, secure, and efficient data protection engine. Admins decide where to store
