@@ -45,11 +45,14 @@ const (
 	ItemsRead        = "items_read"
 	ItemsWritten     = "items_written"
 	Resources        = "resources"
+	ResourcesName    = "resources_name"
 	RestoreID        = "restore_id"
 	ExportID         = "export_id"
 	Service          = "service"
 	StartTime        = "start_time"
 	Status           = "status"
+	Command          = "command"
+	ErrorMessage     = "error"
 
 	// default values for keys
 	RepoIDNotFound = "not_found"
