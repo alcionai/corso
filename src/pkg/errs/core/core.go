@@ -16,8 +16,8 @@ import "errors"
 //
 // 2. Maintain coarseness.
 //		We won't need a core.Err version of every lower-level error.  Try, where possible,
-//		to group concepts into broad categories.  Ex: prefer "resource not found" over
-//		"user not found" or "site not found".
+//		to group concepts into broad categories.  Ex: prefer "not found" over "resource not
+//		found", and "resource not found" over "user not found".
 //
 // 3. Always Stack/Wrap core.Errs.  Only once.
 //		`return core.ErrFoo` should be avoided.  Also, if you're handling a error returned

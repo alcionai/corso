@@ -549,7 +549,7 @@ func (suite *GraphErrorsUnitSuite) TestIsErrUserNotFound() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			ode := parseODataErr(test.err)
-			test.expect(suite.T(), isErrUserNotFound(ode, test.err))
+			test.expect(suite.T(), isErrResourceNotFound(ode, test.err))
 		})
 	}
 }
@@ -1111,13 +1111,105 @@ func (suite *GraphErrorsUnitSuite) TestToErrByRespCode() {
 	for _, test := range table {
 		suite.Run(test.name, func() {
 			t := suite.T()
-
 			err := toErrByRespCode(parseODataErr(test.err), test.err)
 
 			if test.expectNoStack {
 				assert.Equal(t, test.err, err)
 			} else {
 				assert.ErrorIs(t, err, test.expectIs)
+			}
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestIsErrItemAlreadyExists() {
+	table := []struct {
+		name   string
+		err    error
+		expect assert.BoolAssertionFunc
+	}{
+		{
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching",
+			err:    assert.AnError,
+			expect: assert.False,
+		},
+		{
+			name:   "non-matching oDataErr",
+			err:    graphTD.ODataErrWithMsg("InvalidRequest", "item already exists"),
+			expect: assert.False,
+		},
+		{
+			name:   "matching oDataErr code",
+			err:    graphTD.ODataInner(string(nameAlreadyExists)),
+			expect: assert.True,
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			ode := parseODataErr(test.err)
+			test.expect(suite.T(), isErrItemAlreadyExists(ode, test.err))
+		})
+	}
+}
+
+func (suite *GraphErrorsUnitSuite) TestStackWithCoreErr() {
+	table := []struct {
+		name   string
+		err    error
+		expect []error
+	}{
+		{
+			name:   "bad jwt",
+			err:    graphTD.ODataErr(string(invalidAuthenticationToken)),
+			expect: []error{core.ErrAuthTokenExpired},
+		},
+		{
+			name:   "throttled",
+			err:    graphTD.ODataErr(string(ApplicationThrottled)),
+			expect: []error{core.ErrApplicationThrottled},
+		},
+		{
+			name:   "user not found",
+			err:    graphTD.ODataErrWithMsg(string(ResourceNotFound), "User not found"),
+			expect: []error{ErrResourceNotFound, core.ErrNotFound},
+		},
+		{
+			name:   "resource locked",
+			err:    graphTD.ODataErr(string(NotAllowed)),
+			expect: []error{core.ErrResourceNotAccessible},
+		},
+		{
+			name:   "insufficient auth",
+			err:    graphTD.ODataErr(string(AuthorizationRequestDenied)),
+			expect: []error{core.ErrInsufficientAuthorization},
+		},
+		{
+			name:   "already exists",
+			err:    graphTD.ODataInner(string(nameAlreadyExists)),
+			expect: []error{core.ErrAlreadyExists},
+		},
+		{
+			name:   "not found",
+			err:    graphTD.ODataErr(string(ItemNotFound)),
+			expect: []error{core.ErrNotFound},
+		},
+	}
+	for _, test := range table {
+		suite.Run(test.name, func() {
+			t := suite.T()
+
+			ctx, flush := tester.NewContext(t)
+			defer flush()
+
+			result := stackWithCoreErr(ctx, test.err, 1)
+
+			for _, ex := range test.expect {
+				assert.ErrorIs(t, result, ex, clues.ToCore(result))
 			}
 		})
 	}

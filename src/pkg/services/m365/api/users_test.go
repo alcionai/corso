@@ -70,54 +70,47 @@ func (suite *UsersUnitSuite) TestEvaluateMailboxError() {
 	table := []struct {
 		name   string
 		err    error
-		expect func(t *testing.T, err error)
+		expect assert.BoolAssertionFunc
 	}{
 		{
-			name: "nil",
-			err:  nil,
-			expect: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:   "nil",
+			err:    nil,
+			expect: assert.False,
 		},
 		{
-			name: "mail inbox err - user not found",
-			err:  core.ErrNotFound,
-			expect: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:   "user not found - corso sentinel",
+			err:    graph.ErrResourceNotFound,
+			expect: assert.False,
 		},
 		{
-			name: "mail inbox err - resourceLocked",
-			err:  core.ErrResourceNotAccessible,
-			expect: func(t *testing.T, err error) {
-				assert.ErrorIs(t, err, core.ErrResourceNotAccessible, clues.ToCore(err))
-			},
+			name:   "not found - corso sentinel",
+			err:    core.ErrNotFound,
+			expect: assert.True,
 		},
 		{
-			name: "mail inbox err - user not found",
-			err:  graphTD.ODataErr(string(graph.MailboxNotEnabledForRESTAPI)),
-			expect: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:   "mailbox not enabled - graph api error",
+			err:    graphTD.ODataErr(string(graph.MailboxNotEnabledForRESTAPI)),
+			expect: assert.True,
 		},
 		{
-			name: "mail inbox err - authenticationError",
-			err:  graphTD.ODataErr(string(graph.AuthenticationError)),
-			expect: func(t *testing.T, err error) {
-				assert.NoError(t, err, clues.ToCore(err))
-			},
+			name:   "resourceLocked",
+			err:    core.ErrResourceNotAccessible,
+			expect: assert.False,
 		},
 		{
-			name: "mail inbox err - other error",
-			err:  graphTD.ODataErrWithMsg("somecode", "somemessage"),
-			expect: func(t *testing.T, err error) {
-				assert.Error(t, err, clues.ToCore(err))
-			},
+			name:   "authenticationError",
+			err:    graphTD.ODataErr(string(graph.AuthenticationError)),
+			expect: assert.True,
+		},
+		{
+			name:   "other error",
+			err:    graphTD.ODataErrWithMsg("somecode", "somemessage"),
+			expect: assert.False,
 		},
 	}
 	for _, test := range table {
 		suite.Run(test.name, func() {
-			test.expect(suite.T(), EvaluateMailboxError(test.err))
+			test.expect(suite.T(), IsMailboxErrorIgnorable(test.err))
 		})
 	}
 }
